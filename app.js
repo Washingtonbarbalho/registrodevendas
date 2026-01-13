@@ -6,7 +6,8 @@ import {
     Wallet, Search, CreditCard, QrCode, Banknote, Calendar, Filter, X,
     PieChart, BarChart3, ArrowUpRight, ArrowDownRight, PackageMinus,
     LogOut, Lock, Mail, Phone, Store, UserCog, UserCheck, UserX, Shield,
-    ChevronLeft, ChevronRight, MoreHorizontal, LayoutGrid, AlertCircle, RefreshCw
+    ChevronLeft, ChevronRight, MoreHorizontal, LayoutGrid, AlertCircle, RefreshCw,
+    Clock, Bell
 } from 'https://esm.sh/lucide-react@0.292.0';
 
 // --- FIREBASE IMPORTS ---
@@ -229,6 +230,64 @@ const ConfirmModal = ({ isOpen, onClose, onConfirm, title, message }) => {
     );
 };
 
+const InstallmentListModal = ({ isOpen, onClose, title, items, onPay, getWhatsappLink, storeName }) => {
+    if (!isOpen) return null;
+
+    // Agrupar por cliente para visualização mais limpa
+    const groupedItems = items.reduce((acc, item) => {
+        if (!acc[item.customerName]) acc[item.customerName] = [];
+        acc[item.customerName].push(item);
+        return acc;
+    }, {});
+
+    return React.createElement('div', { className: "fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-[80] backdrop-blur-sm" },
+        React.createElement('div', { className: "bg-white rounded-2xl w-full max-w-md max-h-[90vh] flex flex-col shadow-2xl animate-fade-in" },
+            React.createElement('div', { className: "p-4 border-b border-slate-100 flex justify-between items-center" },
+                React.createElement('h3', { className: "font-bold text-lg text-slate-800 flex items-center gap-2" }, 
+                    React.createElement(Clock, { className: "text-yellow-600", size: 20 }), 
+                    title
+                ),
+                React.createElement('button', { onClick: onClose, className: "p-2 hover:bg-slate-100 rounded-full" }, React.createElement(X, { size: 20 }))
+            ),
+            React.createElement('div', { className: "flex-1 overflow-y-auto p-4 space-y-4" },
+                items.length === 0 ? React.createElement('p', { className: "text-center text-slate-400 py-4" }, "Nenhuma parcela encontrada.") :
+                Object.keys(groupedItems).map(customerName => (
+                    React.createElement('div', { key: customerName, className: "space-y-2" },
+                        React.createElement('div', { className: "flex items-center gap-2 px-1" },
+                            React.createElement(Users, { size: 14, className: "text-slate-400" }),
+                            React.createElement('h4', { className: "text-xs font-bold text-slate-500 uppercase" }, customerName)
+                        ),
+                        groupedItems[customerName].map((item, idx) => (
+                            React.createElement('div', { key: `${item.saleId}-${item.installmentIndex}`, className: "bg-slate-50 p-3 rounded-xl border border-slate-100 flex justify-between items-center gap-2" },
+                                React.createElement('div', null,
+                                    React.createElement('div', { className: "flex items-center gap-2" },
+                                        React.createElement('p', { className: "font-bold text-slate-800" }, formatCurrency(item.amount)),
+                                        React.createElement('span', { className: "text-[10px] bg-white border border-slate-200 px-1.5 rounded text-slate-500" }, `Parcela ${item.number}`)
+                                    ),
+                                    React.createElement('p', { className: `text-xs ${item.isOverdue ? 'text-red-500 font-bold' : 'text-slate-400'}` }, 
+                                        item.isOverdue ? `Venceu ${formatDate(item.dueDate)}` : `Vence ${formatDate(item.dueDate)}`
+                                    )
+                                ),
+                                React.createElement('div', { className: "flex gap-2" },
+                                    item.customerPhone && React.createElement('a', { 
+                                        href: getWhatsappLink(item.customerPhone, item.customerName, item.amount, item.dueDate, storeName),
+                                        target: "_blank", rel: "noreferrer",
+                                        className: "p-2 bg-green-500 text-white rounded-lg shadow-sm hover:bg-green-600 transition-colors"
+                                    }, React.createElement(MessageCircle, { size: 16 })),
+                                    React.createElement('button', { 
+                                        onClick: () => onPay(item),
+                                        className: "p-2 bg-slate-800 text-white rounded-lg shadow-sm hover:bg-slate-700 transition-colors"
+                                    }, React.createElement(CheckCircle, { size: 16 }))
+                                )
+                            )
+                        ))
+                    )
+                ))
+            )
+        )
+    );
+};
+
 // --- TELA DE LOGIN / REGISTRO ---
 const AuthScreen = () => {
     const [step, setStep] = useState('email'); 
@@ -254,13 +313,10 @@ const AuthScreen = () => {
             if (!querySnapshot.empty) {
                 setStep('password');
             } else {
-                // Se não encontrou no banco, assume registro.
-                // O "Auto-Reparo" acontecerá no handleRegister se o Auth já existir.
                 setStep('register');
             }
         } catch (e) {
             console.error("CheckEmail Error:", e);
-            // Fallback de segurança: assume login
             setStep('password');
         } finally {
             setLoading(false);
@@ -291,10 +347,7 @@ const AuthScreen = () => {
             approved: isAdmin ? true : false, 
             createdAt: serverTimestamp()
         };
-
-        // 1. Salvar Privado
         await setDoc(doc(db, 'artifacts', APP_ID, 'users', uid, 'profile', 'info'), userData);
-        // 2. Salvar Público
         await setDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'all_users', uid), userData);
     };
 
@@ -305,19 +358,15 @@ const AuthScreen = () => {
         setError('');
         
         try {
-            // Tenta criar usuário
             const userCred = await createUserWithEmailAndPassword(auth, email, password);
             await forceCreateUserData(userCred.user.uid);
 
         } catch (e) {
-            // SE O USUÁRIO JÁ EXISTE NO AUTH (ERRO ZUMBI)
             if (e.code === 'auth/email-already-in-use') {
                 try {
-                    // Tenta logar com a senha fornecida no cadastro
                     const userCred = await signInWithEmailAndPassword(auth, email, password);
-                    // Se logou, força a recriação dos dados (Auto-Reparo)
                     await forceCreateUserData(userCred.user.uid);
-                    setRecoveryMode(true); // Feedback visual
+                    setRecoveryMode(true);
                 } catch (loginErr) {
                     setError("Este e-mail já existe. Tente fazer login na tela inicial com sua senha antiga.");
                     setLoading(false);
@@ -381,8 +430,6 @@ const AdminUsersPanel = ({ onClose }) => {
     useEffect(() => setCurrentPage(1), [searchTerm]);
 
     const filteredUsers = users.filter(u => u.name?.toLowerCase().includes(searchTerm.toLowerCase()) || u.email?.toLowerCase().includes(searchTerm.toLowerCase()));
-
-    // Pagination Logic
     const paginatedUsers = filteredUsers.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
     const handleToggleStatus = async (user) => {
@@ -441,7 +488,6 @@ const AdminUsersPanel = ({ onClose }) => {
     );
 };
 
-// --- COMPONENTES AUXILIARES ---
 const EditInstallmentModal = ({ isOpen, onClose, installment, onSave }) => {
     const [amount, setAmount] = useState('');
     const [dueDate, setDueDate] = useState('');
@@ -640,7 +686,6 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
     const [dashPeriod, setDashPeriod] = useState('month'); 
     const [dashStartDate, setDashStartDate] = useState(getCurrentMonthStart());
     const [dashEndDate, setDashEndDate] = useState(getCurrentMonthEnd());
-    const [showDashFilter, setShowDashFilter] = useState(false);
 
     // PAGINATION STATES
     const ITEMS_PER_PAGE = 10;
@@ -672,6 +717,9 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
     const [expandedSaleId, setExpandedSaleId] = useState(null);
     const [deleteModal, setDeleteModal] = useState({ open: false, type: null, id: null });
     const [editInstallmentModal, setEditInstallmentModal] = useState({ open: false, saleId: null, installmentIndex: null, data: null });
+    
+    // Novo Estado para o Modal de Lista de Parcelas
+    const [installmentListModal, setInstallmentListModal] = useState({ open: false, type: null, data: [] });
 
     useEffect(() => {
         const customersRef = collection(db, 'artifacts', APP_ID, 'users', user.uid, 'customers');
@@ -708,29 +756,14 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
     }, [customers, customerSearch]);
 
     const displayedSales = useMemo(() => {
-        // 1. Pega vendas a prazo
         let baseSales = sales.filter(s => s.saleType === 'prazo' || !s.saleType);
-        
-        // 2. Filtra por pesquisa (Nome ou Produto)
         if (salesSearch) {
             const lower = salesSearch.toLowerCase();
-            baseSales = baseSales.filter(s => 
-                s.customerName.toLowerCase().includes(lower) || 
-                s.items.some(i => i.productName.toLowerCase().includes(lower))
-            );
+            baseSales = baseSales.filter(s => s.customerName.toLowerCase().includes(lower) || s.items.some(i => i.productName.toLowerCase().includes(lower)));
         }
-
-        // 3. Separa ATIVAS (Não Pagas) vs CONCLUÍDAS (Pagas)
         let active = baseSales.filter(s => s.status !== 'completed');
         let completed = baseSales.filter(s => s.status === 'completed');
-
-        // 4. Aplica filtro de DATA apenas nas CONCLUÍDAS
-        // O usuário quer ver todas as dívidas, independente da data.
-        // Só quer filtrar por data o histórico de pagamentos já finalizados.
         completed = completed.filter(s => s.saleDate >= salesStart && s.saleDate <= salesEnd);
-
-        // 5. Ordenação
-        // Ativas: Pela data de vencimento da parcela mais antiga em aberto (prioridade de cobrança)
         active.sort((a, b) => {
             const getNextDue = (sale) => {
                 const pending = sale.installments?.find(i => !i.paid);
@@ -738,16 +771,12 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
             };
             return getNextDue(a).localeCompare(getNextDue(b));
         });
-
-        // Concluídas: Pela data da venda (mais recente primeiro)
         completed.sort((a, b) => b.saleDate.localeCompare(a.saleDate));
-
         return [...active, ...completed];
     }, [sales, salesSearch, salesStart, salesEnd]);
 
     const directSales = useMemo(() => {
         let list = sales.filter(s => s.saleType === 'direct');
-        // Filter by Date
         list = list.filter(s => s.saleDate >= cashierStart && s.saleDate <= cashierEnd);
         if (cashierSearch) {
             const lower = cashierSearch.toLowerCase();
@@ -762,12 +791,55 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         let cashIn = 0;
         periodSales.forEach(s => { if (s.saleType === 'direct') cashIn += s.totalPrice; if (s.saleType === 'prazo' && s.entryAmount) cashIn += s.entryAmount; });
         sales.forEach(s => { if (s.installments) { s.installments.forEach(i => { if (i.paid && i.paidAt) { const paidDate = i.paidAt.split('T')[0]; if (paidDate >= dashStartDate && paidDate <= dashEndDate) { cashIn += i.amount; } } }); } });
+        
         const today = getBrazilDateString();
-        const totalOverdue = sales.reduce((acc, s) => { if (s.saleType === 'direct') return acc; return acc + (s.installments || []).filter(i => !i.paid && i.dueDate < today).reduce((sum, i) => sum + i.amount, 0); }, 0);
+        const nextWeek = addDays(today, 7);
+
+        // Lógica Detalhada de Atrasados e Próximos
+        const overdueList = [];
+        const upcomingList = [];
+
+        sales.forEach(s => {
+            if (s.saleType === 'prazo' && s.installments) {
+                s.installments.forEach((i, idx) => {
+                    if (!i.paid) {
+                        const itemData = { 
+                            ...i, 
+                            saleId: s.id, 
+                            customerName: s.customerName, 
+                            customerPhone: s.customerPhone,
+                            installmentIndex: idx,
+                            isOverdue: i.dueDate < today
+                        };
+
+                        if (i.dueDate < today) {
+                            overdueList.push(itemData);
+                        } else if (i.dueDate <= nextWeek) {
+                            upcomingList.push(itemData);
+                        }
+                    }
+                });
+            }
+        });
+
+        const totalOverdue = overdueList.reduce((acc, i) => acc + i.amount, 0);
+        const totalUpcoming = upcomingList.reduce((acc, i) => acc + i.amount, 0);
+
         const estimatedProfit = periodSales.reduce((acc, s) => acc + (s.totalPrice - (s.totalCost || 0)), 0);
         const periodCost = periodSales.reduce((acc, s) => acc + (s.totalCost || 0), 0);
         const realProfit = cashIn - periodCost;
-        return { totalReceivable, totalReceived: cashIn, totalOverdue, estimatedProfit, realProfit, periodCost };
+        
+        return { 
+            totalReceivable, 
+            totalReceived: cashIn, 
+            totalOverdue, 
+            totalUpcoming,
+            estimatedProfit, 
+            realProfit, 
+            periodCost,
+            overdueList,
+            upcomingList 
+        };
     }, [sales, dashStartDate, dashEndDate]);
 
     const handleSaveCustomer = async (data) => {
@@ -796,6 +868,14 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         updatedInstallments[index] = { ...current, paid: !current.paid, paidAt: !current.paid ? getBrazilISOString() : null };
         const allPaid = updatedInstallments.every(i => i.paid);
         await updateDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'sales', sale.id), { installments: updatedInstallments, status: allPaid ? 'completed' : 'active' });
+    };
+
+    const handlePayFromList = async (item) => {
+        const sale = sales.find(s => s.id === item.saleId);
+        if (sale) {
+            await handleTogglePaid(sale, item.installmentIndex);
+            // Atualiza a lista removendo o item pago localmente para feedback instantâneo (opcional, o onSnapshot já fará isso)
+        }
     };
 
     const saveEditedInstallment = async (newData) => {
@@ -834,7 +914,6 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
 
     if (showAdminPanel) return React.createElement(AdminUsersPanel, { onClose: () => setShowAdminPanel(false) });
 
-    // PAGINATION SLICING
     const getPaginatedData = (data, page) => {
         const start = (page - 1) * ITEMS_PER_PAGE;
         return data.slice(start, start + ITEMS_PER_PAGE);
@@ -868,14 +947,48 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
             loadingData ? React.createElement('div', { className: "flex justify-center py-10" }, "Carregando dados...") :
             view === 'dashboard' && React.createElement('div', { className: "space-y-4 animate-fade-in" },
                 React.createElement(DateRangeFilter, { period: dashPeriod, startDate: dashStartDate, endDate: dashEndDate, onPeriodChange: setDashPeriod, onStartChange: setDashStartDate, onEndChange: setDashEndDate }),
+                
+                // CARTÕES PRINCIPAIS
                 React.createElement('div', { className: "bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex justify-between items-center" }, React.createElement('div', null, React.createElement('p', { className: "text-xs font-bold text-slate-400 uppercase tracking-wider" }, "A Receber (Total)"), React.createElement('h3', { className: "text-3xl font-bold text-slate-800" }, formatCurrency(dashboardTotals.totalReceivable))), React.createElement('div', { className: "bg-blue-50 p-3 rounded-full" }, React.createElement(TrendingUp, { className: "text-blue-500" }))),
+                
+                React.createElement('div', { className: "grid grid-cols-2 gap-4" },
+                    // CARD ATRASADO (Clicável)
+                    React.createElement('div', { 
+                        onClick: () => setInstallmentListModal({ open: true, type: 'overdue', data: dashboardTotals.overdueList }),
+                        className: "bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between cursor-pointer hover:bg-red-50 transition-colors group"
+                    }, 
+                        React.createElement('div', { className: "flex justify-between items-start mb-2" }, 
+                            React.createElement('div', { className: "bg-red-50 group-hover:bg-white p-2 rounded-lg transition-colors" }, React.createElement(AlertTriangle, { size: 20, className: "text-red-500" })), 
+                            React.createElement(ChevronRight, { size: 16, className: "text-slate-300 group-hover:text-red-300" })
+                        ), 
+                        React.createElement('div', null, 
+                            React.createElement('p', { className: "text-[10px] font-bold text-slate-400 uppercase tracking-wider group-hover:text-red-400" }, "Em Atraso"), 
+                            React.createElement('h3', { className: "text-lg font-bold text-red-500" }, formatCurrency(dashboardTotals.totalOverdue))
+                        )
+                    ),
+
+                    // CARD A VENCER (Clicável - NOVO)
+                    React.createElement('div', { 
+                        onClick: () => setInstallmentListModal({ open: true, type: 'upcoming', data: dashboardTotals.upcomingList }),
+                        className: "bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between cursor-pointer hover:bg-yellow-50 transition-colors group"
+                    }, 
+                        React.createElement('div', { className: "flex justify-between items-start mb-2" }, 
+                            React.createElement('div', { className: "bg-yellow-50 group-hover:bg-white p-2 rounded-lg transition-colors" }, React.createElement(Bell, { size: 20, className: "text-yellow-600" })), 
+                            React.createElement(ChevronRight, { size: 16, className: "text-slate-300 group-hover:text-yellow-300" })
+                        ), 
+                        React.createElement('div', null, 
+                            React.createElement('p', { className: "text-[10px] font-bold text-slate-400 uppercase tracking-wider group-hover:text-yellow-600" }, "A Vencer (7 dias)"), 
+                            React.createElement('h3', { className: "text-lg font-bold text-yellow-600" }, formatCurrency(dashboardTotals.totalUpcoming))
+                        )
+                    )
+                ),
+
                 React.createElement('div', { className: "bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex justify-between items-center" }, React.createElement('div', null, React.createElement('p', { className: "text-xs font-bold text-slate-400 uppercase tracking-wider" }, "Entrou em Caixa"), React.createElement('h3', { className: "text-2xl font-bold text-emerald-600" }, formatCurrency(dashboardTotals.totalReceived)), React.createElement('p', { className: "text-xs text-slate-400 mt-1" }, "Neste período")), React.createElement('div', { className: "bg-emerald-50 p-3 rounded-full" }, React.createElement(Wallet, { className: "text-emerald-500" }))),
-                React.createElement('div', { className: "bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex justify-between items-center" }, React.createElement('div', null, React.createElement('p', { className: "text-xs font-bold text-slate-400 uppercase tracking-wider" }, "Custo de Vendas"), React.createElement('h3', { className: "text-2xl font-bold text-slate-800" }, formatCurrency(dashboardTotals.periodCost)), React.createElement('p', { className: "text-xs text-slate-400 mt-1" }, "Vendas neste período")), React.createElement('div', { className: "bg-orange-50 p-3 rounded-full" }, React.createElement(PackageMinus, { className: "text-orange-500" }))),
+                
                 React.createElement('div', { className: "grid grid-cols-2 gap-4" },
                     React.createElement('div', { className: "bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between" }, React.createElement('div', { className: "flex justify-between items-start mb-2" }, React.createElement('div', { className: "bg-yellow-50 p-2 rounded-lg" }, React.createElement(PieChart, { size: 20, className: "text-yellow-600" })), React.createElement(ArrowUpRight, { size: 16, className: "text-slate-300" })), React.createElement('div', null, React.createElement('p', { className: "text-[10px] font-bold text-slate-400 uppercase tracking-wider" }, "Lucro Estimado"), React.createElement('h3', { className: "text-lg font-bold text-slate-800" }, formatCurrency(dashboardTotals.estimatedProfit)))),
                     React.createElement('div', { className: "bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between" }, React.createElement('div', { className: "flex justify-between items-start mb-2" }, React.createElement('div', { className: "bg-purple-50 p-2 rounded-lg" }, React.createElement(BarChart3, { size: 20, className: "text-purple-600" })), React.createElement(ArrowDownRight, { size: 16, className: "text-slate-300" })), React.createElement('div', null, React.createElement('p', { className: "text-[10px] font-bold text-slate-400 uppercase tracking-wider" }, "Lucro Real (Cx)"), React.createElement('h3', { className: `text-lg font-bold ${dashboardTotals.realProfit >= 0 ? 'text-purple-600' : 'text-red-500'}` }, formatCurrency(dashboardTotals.realProfit))))
-                ),
-                React.createElement('div', { className: "bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex justify-between items-center" }, React.createElement('div', null, React.createElement('p', { className: "text-xs font-bold text-slate-400 uppercase tracking-wider" }, "Atrasado"), React.createElement('h3', { className: "text-2xl font-bold text-red-500" }, formatCurrency(dashboardTotals.totalOverdue))), React.createElement('div', { className: "bg-red-50 p-3 rounded-full" }, React.createElement(AlertTriangle, { className: "text-red-500" })))
+                )
             ),
             view === 'sales' && React.createElement('div', { className: "space-y-4 animate-fade-in" },
                 React.createElement(DateRangeFilter, { period: salesPeriod, startDate: salesStart, endDate: salesEnd, onPeriodChange: setSalesPeriod, onStartChange: setSalesStart, onEndChange: setSalesEnd }),
@@ -949,6 +1062,18 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         React.createElement(ProductFormModal, { isOpen: productModalData.open, onClose: () => setProductModalData({open:false, data:null}), initialData: productModalData.data, onSave: handleSaveProduct, lastCode: products.length > 0 ? products[0].code : null }),
         React.createElement(NewSaleModal, { isOpen: isSaleModalOpen, onClose: () => setIsSaleModalOpen(false), customers: customers, products: products, onSave: handleAddSale }),
         React.createElement(EditInstallmentModal, { isOpen: editInstallmentModal.open, onClose: () => setEditInstallmentModal({ open: false, saleId: null, data: null }), installment: editInstallmentModal.data, onSave: saveEditedInstallment }),
+        
+        // MODAL NOVO: LISTA DE PARCELAS
+        React.createElement(InstallmentListModal, { 
+            isOpen: installmentListModal.open, 
+            onClose: () => setInstallmentListModal({ open: false, type: null, data: [] }),
+            title: installmentListModal.type === 'overdue' ? 'Parcelas em Atraso' : 'Vencendo em 7 Dias',
+            items: installmentListModal.data,
+            onPay: handlePayFromList,
+            getWhatsappLink: getWhatsappLink,
+            storeName: userProfile?.storeName
+        }),
+
         React.createElement(ConfirmModal, { isOpen: deleteModal.open, title: "Tem certeza?", message: "O registro será apagado permanentemente.", onClose: () => setDeleteModal({ open: false, id: null, type: null }), onConfirm: confirmDelete })
     );
 };
@@ -967,11 +1092,8 @@ function App() {
                     const publicRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'all_users', currentUser.uid);
                     
                     const profileSnap = await getDoc(profileRef);
-                    
-                    // AUTO-REPARO DE LOGIN: Se o usuário existe no Auth mas não no banco público, corrige agora.
                     const publicSnap = await getDoc(publicRef);
                     if (profileSnap.exists() && !publicSnap.exists()) {
-                        console.log("Correção automática: Criando registro público faltante...");
                         await setDoc(publicRef, profileSnap.data());
                     }
 
@@ -980,11 +1102,9 @@ function App() {
                         if (data.approved) { setUserProfile(data); setUser(currentUser); } 
                         else { setAccessDenied(true); await signOut(auth); }
                     } else {
-                        // Caso extremo: Usuário no Auth mas sem perfil nenhum
                         await signOut(auth);
                     }
                 } catch (e) {
-                    console.error("Erro na verificação de auth:", e);
                     await signOut(auth);
                 }
             } else {
