@@ -708,17 +708,40 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
     }, [customers, customerSearch]);
 
     const displayedSales = useMemo(() => {
-        let filtered = sales.filter(s => s.saleType === 'prazo' || !s.saleType);
-        // Filter by Date
-        filtered = filtered.filter(s => s.saleDate >= salesStart && s.saleDate <= salesEnd);
+        // 1. Pega vendas a prazo
+        let baseSales = sales.filter(s => s.saleType === 'prazo' || !s.saleType);
+        
+        // 2. Filtra por pesquisa (Nome ou Produto)
         if (salesSearch) {
             const lower = salesSearch.toLowerCase();
-            filtered = filtered.filter(s => s.customerName.toLowerCase().includes(lower) || s.items.some(i => i.productName.toLowerCase().includes(lower)));
+            baseSales = baseSales.filter(s => 
+                s.customerName.toLowerCase().includes(lower) || 
+                s.items.some(i => i.productName.toLowerCase().includes(lower))
+            );
         }
-        const active = filtered.filter(s => s.status !== 'completed');
-        const completed = filtered.filter(s => s.status === 'completed');
-        active.sort((a, b) => { const getNextDue = (sale) => { const pending = sale.installments.find(i => !i.paid); return pending ? pending.dueDate : '9999-99-99'; }; return getNextDue(a).localeCompare(getNextDue(b)); });
+
+        // 3. Separa ATIVAS (Não Pagas) vs CONCLUÍDAS (Pagas)
+        let active = baseSales.filter(s => s.status !== 'completed');
+        let completed = baseSales.filter(s => s.status === 'completed');
+
+        // 4. Aplica filtro de DATA apenas nas CONCLUÍDAS
+        // O usuário quer ver todas as dívidas, independente da data.
+        // Só quer filtrar por data o histórico de pagamentos já finalizados.
+        completed = completed.filter(s => s.saleDate >= salesStart && s.saleDate <= salesEnd);
+
+        // 5. Ordenação
+        // Ativas: Pela data de vencimento da parcela mais antiga em aberto (prioridade de cobrança)
+        active.sort((a, b) => {
+            const getNextDue = (sale) => {
+                const pending = sale.installments?.find(i => !i.paid);
+                return pending ? pending.dueDate : '9999-99-99';
+            };
+            return getNextDue(a).localeCompare(getNextDue(b));
+        });
+
+        // Concluídas: Pela data da venda (mais recente primeiro)
         completed.sort((a, b) => b.saleDate.localeCompare(a.saleDate));
+
         return [...active, ...completed];
     }, [sales, salesSearch, salesStart, salesEnd]);
 
