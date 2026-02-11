@@ -10,24 +10,22 @@ import {
     Clock, Bell, History, DollarSign
 } from 'https://esm.sh/lucide-react@0.292.0';
 
-// --- FIREBASE IMPORTS ---
-import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
-import { getFirestore, collection, addDoc, updateDoc, doc, deleteDoc, onSnapshot, query, serverTimestamp, getDoc, setDoc, where, getDocs, orderBy } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js";
+// --- FIREBASE IMPORTS (Versão 12.9.0 conforme solicitado) ---
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
+import { getFirestore, collection, addDoc, updateDoc, doc, deleteDoc, onSnapshot, query, serverTimestamp, getDoc, setDoc, where, getDocs, orderBy } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js";
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-auth.js";
 
-// --- CONFIGURAÇÃO ---
-// Use suas chaves reais aqui. Para o exemplo funcionar, usamos strings vazias ou placeholders.
-// O ambiente do usuário já deve ter a config injetada ou configurada no index.html, 
-// mas aqui garantimos que o código rode se as variáveis globais existirem.
-const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
-    apiKey: "",
-    authDomain: "",
-    projectId: "",
-    storageBucket: "",
-    messagingSenderId: "",
-    appId: ""
+// --- CONFIGURAÇÃO DO FIREBASE (JÁ PREENCHIDA) ---
+const firebaseConfig = {
+    apiKey: "AIzaSyDQQcD2tzsVS8Xzy-GpHT897kB7EC-S8Ng",
+    authDomain: "vendas-aura.firebaseapp.com",
+    projectId: "vendas-aura",
+    storageBucket: "vendas-aura.firebasestorage.app",
+    messagingSenderId: "767983700810",
+    appId: "1:767983700810:web:947c8713bd23fb8a078fb3"
 };
 
+// Inicialização
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
@@ -102,7 +100,7 @@ const AuthScreen = () => {
                 // Criar perfil inicial
                 await setDoc(doc(db, "users", userCred.user.uid), {
                     email: email,
-                    role: 'vendedor', // padrão
+                    role: 'vendedor',
                     createdAt: serverTimestamp(),
                     status: 'pending' // aguardando aprovação
                 });
@@ -197,7 +195,6 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
     const [view, setView] = useState('dashboard');
     const [stats, setStats] = useState({ totalVendas: 0, aReceber: 0, vendasMes: 0 });
     
-    // Escuta de Vendas para Estatísticas
     useEffect(() => {
         if (!user) return;
         const q = query(collection(db, 'vendas'), where('userId', '==', user.uid));
@@ -211,15 +208,17 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
                 const data = doc.data();
                 total += data.total;
                 
-                // Calcula a receber baseado nas parcelas não pagas
                 if (data.parcelas) {
                     data.parcelas.forEach(p => {
                         if (p.status !== 'paga') receber += (p.valor || 0);
                     });
                 }
 
-                if (data.dataVenda && new Date(data.dataVenda).getMonth() === currentMonth) {
-                    mes += data.total;
+                if (data.dataVenda) {
+                    const vendaDate = new Date(data.dataVenda);
+                    if (vendaDate.getMonth() === currentMonth) {
+                        mes += data.total;
+                    }
                 }
             });
 
@@ -232,10 +231,11 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         switch(view) {
             case 'vendas': return <SalesList user={user} onBack={() => setView('dashboard')} />;
             case 'nova-venda': return <NewSale user={user} onFinish={() => setView('vendas')} onBack={() => setView('dashboard')} />;
+            case 'clientes': return <div className="p-8 text-center text-slate-500">Módulo de Clientes (Em Breve)</div>;
+            case 'perfil': return <div className="p-8 text-center text-slate-500">Meu Perfil (Em Breve)</div>;
             default:
                 return (
                     <div className="space-y-6 animate-fade-in">
-                        {/* Header do Dashboard */}
                         <div className="flex items-center justify-between">
                             <div>
                                 <h2 className="text-2xl font-bold text-slate-800">Visão Geral</h2>
@@ -246,7 +246,6 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
                             </button>
                         </div>
 
-                        {/* Cards de Status */}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <Card className="p-5 bg-gradient-to-br from-slate-800 to-slate-900 text-white border-none">
                                 <div className="flex justify-between items-start mb-4">
@@ -276,7 +275,6 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
                             </Card>
                         </div>
 
-                        {/* Atalhos Rápidos */}
                         <div className="grid grid-cols-2 gap-4">
                             <button onClick={() => setView('vendas')} className="p-4 bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center justify-center gap-2 hover:bg-slate-50 transition-colors">
                                 <div className="p-3 bg-blue-50 text-blue-600 rounded-full">
@@ -368,16 +366,16 @@ const NavItem = ({ icon: Icon, active, onClick }) => (
     </button>
 );
 
-// 3. LISTA DE VENDAS COM PAGAMENTO (MODIFICADA)
+// 3. LISTA DE VENDAS COM PAGAMENTO INTELIGENTE E HISTÓRICO
 const SalesList = ({ user, onBack }) => {
     const [sales, setSales] = useState([]);
     const [loading, setLoading] = useState(true);
     const [expandedSale, setExpandedSale] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
     
-    // Estados para o Modal de Pagamento
+    // Estados Modal
     const [paymentModalOpen, setPaymentModalOpen] = useState(false);
-    const [selectedParcelaData, setSelectedParcelaData] = useState(null); // { saleId, parcelaIndex, valorAtual }
+    const [selectedParcelaData, setSelectedParcelaData] = useState(null);
     const [paymentAmount, setPaymentAmount] = useState('');
 
     useEffect(() => {
@@ -393,7 +391,6 @@ const SalesList = ({ user, onBack }) => {
         return () => unsubscribe();
     }, [user]);
 
-    // Função de deletar venda
     const handleDelete = async (e, saleId) => {
         e.stopPropagation();
         if(confirm("Tem certeza que deseja excluir esta venda?")) {
@@ -401,7 +398,7 @@ const SalesList = ({ user, onBack }) => {
         }
     };
 
-    // Abertura do Modal de Pagamento
+    // ABRIR MODAL
     const openPaymentModal = (sale, index) => {
         const parcela = sale.parcelas[index];
         setSelectedParcelaData({
@@ -410,17 +407,18 @@ const SalesList = ({ user, onBack }) => {
             valor: parcela.valor,
             numero: index + 1,
             totalParcelas: sale.parcelas.length,
-            sale: sale // referência completa pra facilitar
+            sale: sale
         });
-        setPaymentAmount(''); // Limpa input
+        setPaymentAmount('');
         setPaymentModalOpen(true);
     };
 
-    // LÓGICA CORE: PROCESSAR O PAGAMENTO
+    // PROCESSAR PAGAMENTO COM LÓGICA DE TROCO E EXCEDENTE
     const handleProcessPayment = async () => {
         if (!selectedParcelaData) return;
 
-        const amount = parseFloat(paymentAmount.replace(',', '.')); // Garante float
+        // Converter input para float
+        const amount = parseFloat(paymentAmount.replace(',', '.'));
         const currentVal = selectedParcelaData.valor;
         const sale = selectedParcelaData.sale;
         const pIndex = selectedParcelaData.index;
@@ -430,39 +428,37 @@ const SalesList = ({ user, onBack }) => {
             return;
         }
 
-        // Regra: Última parcela não pode pagar a mais
+        // TRAVA: Última parcela não pode pagar a mais
         const isLastParcela = pIndex === sale.parcelas.length - 1;
         if (isLastParcela && amount > currentVal) {
             alert("Na última parcela, o valor pago não pode ser maior que o valor restante.");
             return;
         }
 
-        // Clone profundo para não mutar estado direto antes do update
+        // Clone para manipulação
         let updatedParcelas = JSON.parse(JSON.stringify(sale.parcelas));
         let remainingPayment = amount;
         let currentIndex = pIndex;
-
         const timestamp = new Date().toISOString();
 
-        // Loop para processar pagamento e possíveis excedentes (abatimento automático)
+        // Loop para abater valores (Cascata)
         while (remainingPayment > 0 && currentIndex < updatedParcelas.length) {
             let p = updatedParcelas[currentIndex];
 
-            // Pula se já estiver paga (caso raro de loop, mas segurança)
-            if (p.status === 'paga' && p.valor <= 0) {
+            // Pula se já estiver paga
+            if (p.status === 'paga' && p.valor <= 0.01) {
                 currentIndex++;
                 continue;
             }
 
-            // Inicializa histórico se não existir
             if (!p.historico) p.historico = [];
 
             if (remainingPayment >= p.valor) {
-                // PAGA A PARCELA TOTALMENTE
+                // PAGAMENTO TOTAL DA PARCELA
                 const valorPagoNesta = p.valor;
                 const isOverpayment = remainingPayment > p.valor;
                 
-                // Determina o tipo de registro no histórico
+                // Define tipo de histórico
                 let tipoHistorico = 'Total';
                 if (currentIndex === pIndex && isOverpayment) tipoHistorico = 'Total + Excedente';
                 else if (currentIndex > pIndex) tipoHistorico = 'Abatimento Automático';
@@ -475,16 +471,13 @@ const SalesList = ({ user, onBack }) => {
                     obs: currentIndex > pIndex ? `Sobras da parcela ${pIndex + 1}` : ''
                 });
 
-                // Atualiza saldos
-                remainingPayment -= valorPagoNesta; // O que sobra continua pro loop
+                remainingPayment -= valorPagoNesta; // Sobra continua para a próxima
                 p.valor = 0;
                 p.status = 'paga';
                 p.dataPagamento = timestamp;
 
             } else {
-                // PAGAMENTO PARCIAL (Valor pago é menor que o valor da parcela)
-                // Isso só acontece na parcela atual (índice inicial) ou se o excedente não cobrir a próxima toda
-                
+                // PAGAMENTO PARCIAL (Valor pago < valor da parcela)
                 const valorPagoNesta = remainingPayment;
                 let tipoHistorico = currentIndex === pIndex ? 'Parcial' : 'Abatimento Parcial';
 
@@ -497,10 +490,9 @@ const SalesList = ({ user, onBack }) => {
 
                 p.valor = parseFloat((p.valor - valorPagoNesta).toFixed(2));
                 remainingPayment = 0; // Acabou o dinheiro
-                // Status continua pendente (ou vencida se for o caso), pois valor > 0
             }
 
-            // Arredondamentos de segurança
+            // Arredondamento de segurança
             if (p.valor < 0.01) {
                 p.valor = 0;
                 p.status = 'paga';
@@ -515,7 +507,6 @@ const SalesList = ({ user, onBack }) => {
                 updatedAt: serverTimestamp()
             });
             setPaymentModalOpen(false);
-            setExpandedSale(null); // Fecha acordeão pra atualizar visual ou mantém (o firebase atualiza auto)
         } catch (error) {
             console.error("Erro ao pagar:", error);
             alert("Erro ao processar pagamento.");
@@ -526,7 +517,7 @@ const SalesList = ({ user, onBack }) => {
 
     return (
         <div className="space-y-6 pb-20">
-            {/* MODAL DE PAGAMENTO */}
+            {/* Modal de Pagamento */}
             {paymentModalOpen && selectedParcelaData && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-fade-in">
                     <div className="bg-white rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl">
@@ -541,13 +532,13 @@ const SalesList = ({ user, onBack }) => {
                             <div className="mb-4 bg-slate-50 p-3 rounded-xl border border-slate-100">
                                 <p className="text-xs text-slate-500 uppercase font-bold tracking-wider mb-1">Parcela {selectedParcelaData.numero} de {selectedParcelaData.totalParcelas}</p>
                                 <div className="flex justify-between items-end">
-                                    <span className="text-slate-600">Restante a pagar:</span>
+                                    <span className="text-slate-600">Restante:</span>
                                     <span className="text-xl font-bold text-slate-800">{formatCurrency(selectedParcelaData.valor)}</span>
                                 </div>
                             </div>
 
                             <div className="mb-6">
-                                <label className="block text-sm font-medium text-slate-700 mb-2">Qual valor foi pago?</label>
+                                <label className="block text-sm font-medium text-slate-700 mb-2">Valor pago</label>
                                 <div className="relative">
                                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">R$</span>
                                     <input 
@@ -562,23 +553,13 @@ const SalesList = ({ user, onBack }) => {
                                 </div>
                                 <p className="text-xs text-slate-400 mt-2 leading-relaxed">
                                     <AlertCircle size={12} className="inline mr-1" />
-                                    Se o valor for maior, o excedente será abatido da próxima parcela. Se for menor, a parcela continuará em aberto.
+                                    Valores excedentes serão abatidos automaticamente da próxima parcela.
                                 </p>
                             </div>
 
                             <div className="flex gap-3">
-                                <button 
-                                    onClick={() => setPaymentModalOpen(false)}
-                                    className="flex-1 py-3 text-slate-600 font-bold bg-slate-100 rounded-xl hover:bg-slate-200"
-                                >
-                                    Cancelar
-                                </button>
-                                <button 
-                                    onClick={handleProcessPayment}
-                                    className="flex-1 py-3 text-slate-900 font-bold bg-yellow-400 rounded-xl hover:bg-yellow-300 shadow-lg shadow-yellow-400/20"
-                                >
-                                    Confirmar
-                                </button>
+                                <button onClick={() => setPaymentModalOpen(false)} className="flex-1 py-3 text-slate-600 font-bold bg-slate-100 rounded-xl hover:bg-slate-200">Cancelar</button>
+                                <button onClick={handleProcessPayment} className="flex-1 py-3 text-slate-900 font-bold bg-yellow-400 rounded-xl hover:bg-yellow-300 shadow-lg shadow-yellow-400/20">Confirmar</button>
                             </div>
                         </div>
                     </div>
@@ -624,7 +605,6 @@ const SalesList = ({ user, onBack }) => {
 
                         return (
                             <div key={sale.id} className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden transition-all duration-300">
-                                {/* Cabeçalho do Card */}
                                 <div 
                                     className="p-4 flex items-center justify-between cursor-pointer hover:bg-slate-50"
                                     onClick={() => setExpandedSale(isExpanded ? null : sale.id)}
@@ -644,19 +624,13 @@ const SalesList = ({ user, onBack }) => {
                                     </div>
                                     <div className="flex flex-col items-end gap-1">
                                         <span className="font-bold text-slate-900">{formatCurrency(sale.total)}</span>
-                                        {pendentes === 0 ? (
-                                            <Badge color="green">Concluído</Badge>
-                                        ) : (
-                                            <Badge color="yellow">{pendentes} pendentes</Badge>
-                                        )}
+                                        {pendentes === 0 ? <Badge color="green">Concluído</Badge> : <Badge color="yellow">{pendentes} pendentes</Badge>}
                                     </div>
                                 </div>
 
-                                {/* Conteúdo Expandido */}
                                 {isExpanded && (
                                     <div className="border-t border-slate-100 bg-slate-50/50">
                                         <div className="p-4 space-y-4">
-                                            {/* Lista de Produtos */}
                                             <div className="bg-white p-3 rounded-xl border border-slate-100">
                                                 <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Produtos</h4>
                                                 <ul className="space-y-2">
@@ -669,7 +643,6 @@ const SalesList = ({ user, onBack }) => {
                                                 </ul>
                                             </div>
 
-                                            {/* Lista de Parcelas (MODIFICADA) */}
                                             <div>
                                                 <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 ml-1">Parcelamento</h4>
                                                 <div className="space-y-2">
@@ -686,10 +659,7 @@ const SalesList = ({ user, onBack }) => {
                                             </div>
 
                                             <div className="pt-2 flex justify-end">
-                                                <button 
-                                                    onClick={(e) => handleDelete(e, sale.id)}
-                                                    className="flex items-center gap-2 text-red-500 hover:text-red-700 text-sm px-3 py-2 hover:bg-red-50 rounded-lg transition-colors"
-                                                >
+                                                <button onClick={(e) => handleDelete(e, sale.id)} className="flex items-center gap-2 text-red-500 hover:text-red-700 text-sm px-3 py-2 hover:bg-red-50 rounded-lg transition-colors">
                                                     <Trash2 size={16} /> Excluir Venda
                                                 </button>
                                             </div>
@@ -705,7 +675,7 @@ const SalesList = ({ user, onBack }) => {
     );
 };
 
-// Componente individual de Parcela para gerenciar o estado de visualização do histórico
+// Item de Parcela com Histórico Visual
 const InstallmentItem = ({ parcela, idx, onPay }) => {
     const [showHistory, setShowHistory] = useState(false);
     const isPaid = parcela.status === 'paga';
@@ -722,7 +692,6 @@ const InstallmentItem = ({ parcela, idx, onPay }) => {
                         <div className="flex items-center gap-2">
                             <span className={`font-bold text-sm ${isPaid ? 'text-green-700 line-through opacity-70' : 'text-slate-800'}`}>
                                 {formatCurrency(parcela.valorOriginal || parcela.valor)} 
-                                {/* Se tiver histórico de pagamentos parciais, mostramos o valor atual restante */}
                                 {!isPaid && parcela.historico?.length > 0 && (
                                     <span className="ml-2 text-slate-900 bg-yellow-100 px-1 rounded text-xs no-line-through">
                                         Restam: {formatCurrency(parcela.valor)}
@@ -735,7 +704,6 @@ const InstallmentItem = ({ parcela, idx, onPay }) => {
                 </div>
 
                 <div className="flex items-center gap-2">
-                    {/* Botão de Histórico */}
                     {hasHistory && (
                         <button 
                             onClick={() => setShowHistory(!showHistory)}
@@ -746,25 +714,18 @@ const InstallmentItem = ({ parcela, idx, onPay }) => {
                         </button>
                     )}
 
-                    {/* Botão de Pagar / Status */}
                     {isPaid ? (
                         <div className="flex items-center gap-1 text-green-600 bg-green-50 px-2 py-1 rounded-lg text-xs font-bold">
                             <CheckCircle size={14} /> Paga
                         </div>
                     ) : (
-                        <button 
-                            onClick={onPay}
-                            className="bg-slate-900 text-white text-xs font-bold px-3 py-2 rounded-lg hover:bg-slate-700 active:scale-95 transition-all"
-                        >
-                            Pagar
-                        </button>
+                        <button onClick={onPay} className="bg-slate-900 text-white text-xs font-bold px-3 py-2 rounded-lg hover:bg-slate-700 active:scale-95 transition-all">Pagar</button>
                     )}
                 </div>
             </div>
 
-            {/* Área de Histórico */}
             {showHistory && hasHistory && (
-                <div className="bg-slate-50 border-t border-slate-100 p-3 text-xs space-y-2">
+                <div className="bg-slate-50 border-t border-slate-100 p-3 text-xs space-y-2 animate-fade-in">
                     <p className="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Movimentações</p>
                     {parcela.historico.map((mov, i) => (
                         <div key={i} className="flex justify-between items-center border-b border-slate-200 pb-1 last:border-0 last:pb-0">
@@ -782,8 +743,7 @@ const InstallmentItem = ({ parcela, idx, onPay }) => {
     );
 };
 
-
-// 4. NOVA VENDA (ADAPTADO)
+// 4. NOVA VENDA
 const NewSale = ({ user, onFinish, onBack }) => {
     const [step, setStep] = useState(1);
     const [clientName, setClientName] = useState('');
@@ -809,14 +769,13 @@ const NewSale = ({ user, onFinish, onBack }) => {
             return {
                 numero: i + 1,
                 valor: parseFloat(valorParcela.toFixed(2)),
-                valorOriginal: parseFloat(valorParcela.toFixed(2)), // Importante para referência visual
+                valorOriginal: parseFloat(valorParcela.toFixed(2)),
                 dataVencimento: date.toISOString(),
                 status: 'pendente',
-                historico: [] // Novo campo para o histórico
+                historico: []
             };
         });
 
-        // Ajuste de centavos na última parcela
         const somaParcelas = parcelas.reduce((a, b) => a + b.valor, 0);
         const diferenca = total - somaParcelas;
         if (diferenca !== 0) {
@@ -855,13 +814,7 @@ const NewSale = ({ user, onFinish, onBack }) => {
                     <div className="space-y-6 animate-fade-in">
                         <div>
                             <label className="block text-sm font-medium text-slate-700 mb-2">Cliente</label>
-                            <input 
-                                type="text" 
-                                value={clientName}
-                                onChange={e => setClientName(e.target.value)}
-                                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-yellow-400 focus:outline-none"
-                                placeholder="Nome do Cliente"
-                            />
+                            <input type="text" value={clientName} onChange={e => setClientName(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-yellow-400 focus:outline-none" placeholder="Nome do Cliente" />
                         </div>
 
                         <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
@@ -869,46 +822,15 @@ const NewSale = ({ user, onFinish, onBack }) => {
                                 <Package size={18} /> Adicionar Produtos
                             </h3>
                             <div className="grid grid-cols-1 md:grid-cols-12 gap-3 mb-3">
-                                <div className="md:col-span-6">
-                                    <input 
-                                        placeholder="Nome do Produto" 
-                                        value={newItem.nome}
-                                        onChange={e => setNewItem({...newItem, nome: e.target.value})}
-                                        className="w-full p-2 rounded-lg border border-slate-200"
-                                    />
-                                </div>
-                                <div className="md:col-span-3">
-                                    <input 
-                                        type="number" 
-                                        placeholder="Valor R$" 
-                                        value={newItem.valor}
-                                        onChange={e => setNewItem({...newItem, valor: e.target.value})}
-                                        className="w-full p-2 rounded-lg border border-slate-200"
-                                    />
-                                </div>
-                                <div className="md:col-span-2">
-                                    <input 
-                                        type="number" 
-                                        placeholder="Qtd" 
-                                        value={newItem.quantidade}
-                                        onChange={e => setNewItem({...newItem, quantidade: parseInt(e.target.value)})}
-                                        className="w-full p-2 rounded-lg border border-slate-200"
-                                    />
-                                </div>
-                                <div className="md:col-span-1">
-                                    <button onClick={addItem} className="w-full h-full bg-slate-900 text-white rounded-lg flex items-center justify-center hover:bg-slate-800">
-                                        <PlusCircle size={20} />
-                                    </button>
-                                </div>
+                                <div className="md:col-span-6"><input placeholder="Nome do Produto" value={newItem.nome} onChange={e => setNewItem({...newItem, nome: e.target.value})} className="w-full p-2 rounded-lg border border-slate-200"/></div>
+                                <div className="md:col-span-3"><input type="number" placeholder="Valor R$" value={newItem.valor} onChange={e => setNewItem({...newItem, valor: e.target.value})} className="w-full p-2 rounded-lg border border-slate-200"/></div>
+                                <div className="md:col-span-2"><input type="number" placeholder="Qtd" value={newItem.quantidade} onChange={e => setNewItem({...newItem, quantidade: parseInt(e.target.value)})} className="w-full p-2 rounded-lg border border-slate-200"/></div>
+                                <div className="md:col-span-1"><button onClick={addItem} className="w-full h-full bg-slate-900 text-white rounded-lg flex items-center justify-center hover:bg-slate-800"><PlusCircle size={20} /></button></div>
                             </div>
-                            
-                            {/* Lista de Itens Adicionados */}
                             <div className="space-y-2 mt-4">
                                 {items.map((item, idx) => (
                                     <div key={idx} className="flex justify-between items-center bg-white p-3 rounded-lg border border-slate-100 shadow-sm">
-                                        <div className="text-sm">
-                                            <span className="font-bold text-slate-700">{item.quantidade}x</span> {item.nome}
-                                        </div>
+                                        <div className="text-sm"><span className="font-bold text-slate-700">{item.quantidade}x</span> {item.nome}</div>
                                         <div className="font-bold text-slate-800">{formatCurrency(item.subtotal)}</div>
                                     </div>
                                 ))}
@@ -921,23 +843,15 @@ const NewSale = ({ user, onFinish, onBack }) => {
                             <p className="text-slate-500 text-sm mb-1">Total da Venda</p>
                             <h1 className="text-4xl font-bold text-slate-900">{formatCurrency(total)}</h1>
                         </div>
-
                         <div>
                             <label className="block text-sm font-medium text-slate-700 mb-2">Número de Parcelas</label>
-                            <select 
-                                value={parcelasCount}
-                                onChange={e => setParcelasCount(Number(e.target.value))}
-                                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-yellow-400 focus:outline-none appearance-none"
-                            >
-                                {[1,2,3,4,5,6,10,12].map(n => (
-                                    <option key={n} value={n}>{n}x de {formatCurrency(total/n)}</option>
-                                ))}
+                            <select value={parcelasCount} onChange={e => setParcelasCount(Number(e.target.value))} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-yellow-400 focus:outline-none appearance-none">
+                                {[1,2,3,4,5,6,10,12].map(n => <option key={n} value={n}>{n}x de {formatCurrency(total/n)}</option>)}
                             </select>
                         </div>
-
                         <div className="bg-yellow-50 p-4 rounded-xl border border-yellow-100 flex gap-3 text-yellow-800 text-sm">
                             <AlertTriangle size={20} className="shrink-0" />
-                            <p>As datas de vencimento serão geradas automaticamente para os próximos meses.</p>
+                            <p>As datas de vencimento serão geradas automaticamente.</p>
                         </div>
                     </div>
                 )}
@@ -945,18 +859,11 @@ const NewSale = ({ user, onFinish, onBack }) => {
 
             <div className="p-4 border-t border-slate-100">
                 {step === 1 ? (
-                    <button 
-                        onClick={() => setStep(2)} 
-                        disabled={items.length === 0}
-                        className="w-full bg-slate-900 text-white font-bold py-3 rounded-xl disabled:opacity-50 hover:bg-slate-800 transition-all flex items-center justify-center gap-2"
-                    >
+                    <button onClick={() => setStep(2)} disabled={items.length === 0} className="w-full bg-slate-900 text-white font-bold py-3 rounded-xl disabled:opacity-50 hover:bg-slate-800 transition-all flex items-center justify-center gap-2">
                         Continuar <ChevronRight size={18} />
                     </button>
                 ) : (
-                    <button 
-                        onClick={handleSave} 
-                        className="w-full bg-green-600 text-white font-bold py-3 rounded-xl hover:bg-green-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-green-600/20"
-                    >
+                    <button onClick={handleSave} className="w-full bg-green-600 text-white font-bold py-3 rounded-xl hover:bg-green-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-green-600/20">
                         <CheckCircle size={18} /> Finalizar Venda
                     </button>
                 )}
@@ -965,36 +872,49 @@ const NewSale = ({ user, onFinish, onBack }) => {
     );
 };
 
-// --- APP ROOT ---
+// --- APP ROOT COM SEGURANÇA ---
 const App = () => {
     const [user, setUser] = useState(null);
-    const [loading, setLoading] = useState(true);
+    const [loadingAuth, setLoadingAuth] = useState(true);
     const [userProfile, setUserProfile] = useState(null);
+    const [accessDenied, setAccessDenied] = useState(false);
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
             if (currentUser) {
                 setUser(currentUser);
-                // Buscar perfil
-                const docSnap = await getDoc(doc(db, "users", currentUser.uid));
-                if (docSnap.exists()) {
-                    setUserProfile(docSnap.data());
-                } else {
-                    // Fallback se o user foi criado mas não tem doc
-                    setUserProfile({ role: 'vendedor' });
+                try {
+                    const docSnap = await getDoc(doc(db, "users", currentUser.uid));
+                    if (docSnap.exists()) {
+                        const data = docSnap.data();
+                        setUserProfile(data);
+                        if (data.status === 'pending') {
+                            setAccessDenied(true);
+                        } else if (data.status === 'blocked') {
+                            alert("Sua conta foi bloqueada.");
+                            await signOut(auth);
+                        }
+                    }
+                } catch (e) {
+                    console.error("Erro ao buscar perfil", e);
                 }
             } else {
                 setUser(null);
                 setUserProfile(null);
             }
-            setLoading(false);
+            setLoadingAuth(false);
         });
         return () => unsubscribe();
     }, []);
 
-    if (loading) return (
-        <div className="min-h-screen flex items-center justify-center bg-slate-50 text-slate-400 gap-2">
-            <RefreshCw className="animate-spin" /> Carregando...
+    if (loadingAuth) return <div className="min-h-screen flex items-center justify-center bg-slate-50 text-slate-400 gap-2"><RefreshCw className="animate-spin" /> Carregando Sistema...</div>;
+    
+    if (accessDenied) return (
+        <div className="min-h-screen flex flex-col items-center justify-center bg-red-50 p-6 text-center">
+            <Lock size={48} className="text-red-500 mb-4" />
+            <h1 className="text-2xl font-bold text-red-800 mb-2">Acesso Negado</h1>
+            <p className="text-red-600 mb-6">Seu cadastro ainda está pendente de aprovação pelo administrador.</p>
+            <button onClick={async () => { await signOut(auth); setAccessDenied(false); }} className="px-6 py-3 bg-red-600 text-white font-bold rounded-xl shadow-lg">Sair e Tentar Novamente</button>
         </div>
     );
 
