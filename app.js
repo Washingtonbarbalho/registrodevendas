@@ -7,7 +7,7 @@ import {
     PieChart, BarChart3, ArrowUpRight, ArrowDownRight, PackageMinus,
     LogOut, Lock, Mail, Phone, Store, UserCog, UserCheck, UserX, Shield,
     ChevronLeft, ChevronRight, MoreHorizontal, LayoutGrid, AlertCircle, RefreshCw,
-    Clock, Bell
+    Clock, Bell, History, FileText
 } from 'https://esm.sh/lucide-react@0.292.0';
 
 // --- FIREBASE IMPORTS ---
@@ -96,13 +96,13 @@ const getCurrentMonthEnd = () => {
 
 // --- COMPONENTES DE UI ---
 
-const MoneyInput = ({ value, onChange, placeholder, className }) => {
+const MoneyInput = ({ value, onChange, placeholder, className, autoFocus }) => {
     const [display, setDisplay] = useState(typeof value === 'number' ? maskMoney(value.toFixed(2)) : value);
     useEffect(() => { if (typeof value === 'number') setDisplay(maskMoney(value.toFixed(2))); }, [value]);
     const handleChange = (e) => { const m = maskMoney(e.target.value); setDisplay(m); onChange(m); };
     return React.createElement('div', { className: "relative w-full" },
         React.createElement('span', { className: "absolute left-3 top-3 text-slate-400 font-bold" }, "R$"),
-        React.createElement('input', { type: "text", inputMode: "numeric", className: className, placeholder: placeholder || "0,00", value: display, onChange: handleChange })
+        React.createElement('input', { autoFocus: autoFocus, type: "text", inputMode: "numeric", className: className, placeholder: placeholder || "0,00", value: display, onChange: handleChange })
     );
 };
 
@@ -229,6 +229,69 @@ const ConfirmModal = ({ isOpen, onClose, onConfirm, title, message }) => {
         )
     );
 };
+
+// --- MODAL DE CONFIRMAÇÃO DE PAGAMENTO ---
+const PaymentConfirmationModal = ({ isOpen, onClose, onConfirm, installment, isLast }) => {
+    const [amount, setAmount] = useState('');
+    const [date, setDate] = useState(getBrazilDateString());
+    const [error, setError] = useState('');
+
+    useEffect(() => {
+        if (isOpen && installment) {
+            setAmount(maskMoney(installment.amount.toFixed(2)));
+            setDate(getBrazilDateString());
+            setError('');
+        }
+    }, [isOpen, installment]);
+
+    const handleConfirm = () => {
+        const val = parseMoney(amount);
+        if (val <= 0) {
+            setError('Digite um valor válido.');
+            return;
+        }
+        if (isLast && val > installment.amount) {
+            setError('Na última parcela não é permitido pagar valor maior que o restante.');
+            return;
+        }
+        onConfirm(val, date);
+    };
+
+    if (!isOpen || !installment) return null;
+
+    return React.createElement('div', { className: "fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-[75] backdrop-blur-sm" },
+        React.createElement('div', { className: "bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl animate-fade-in" },
+            React.createElement('div', { className: "text-center mb-4" },
+                React.createElement('div', { className: "w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-3" },
+                    React.createElement(Wallet, { className: "text-emerald-600", size: 24 })
+                ),
+                React.createElement('h3', { className: "text-lg font-bold text-slate-800" }, "Confirmar Pagamento"),
+                React.createElement('p', { className: "text-sm text-slate-500" }, `Parcela ${installment.number} - Restante: ${formatCurrency(installment.amount)}`)
+            ),
+
+            error && React.createElement('div', { className: "bg-red-50 text-red-500 text-xs p-3 rounded-lg mb-4 flex items-center gap-2" },
+                React.createElement(AlertTriangle, { size: 14 }), error
+            ),
+
+            React.createElement('div', { className: "space-y-4" },
+                React.createElement('div', null,
+                    React.createElement('label', { className: "block text-xs font-bold text-slate-500 uppercase mb-1" }, "Valor Pago (R$)"),
+                    React.createElement(MoneyInput, { autoFocus: true, value: amount, onChange: setAmount, className: "w-full p-3 pl-10 border border-slate-200 rounded-xl text-lg font-bold text-slate-800" })
+                ),
+                React.createElement('div', null,
+                    React.createElement('label', { className: "block text-xs font-bold text-slate-500 uppercase mb-1" }, "Data do Pagamento"),
+                    React.createElement('input', { type: "date", className: "w-full p-3 border border-slate-200 rounded-xl", value: date, onChange: e => setDate(e.target.value) })
+                )
+            ),
+
+            React.createElement('div', { className: "flex gap-3 mt-6" },
+                React.createElement('button', { onClick: onClose, className: "flex-1 p-3 text-slate-500 font-bold hover:bg-slate-50 rounded-xl" }, "Cancelar"),
+                React.createElement('button', { onClick: handleConfirm, className: "flex-1 p-3 bg-emerald-500 text-white font-bold rounded-xl shadow-lg shadow-emerald-200 hover:bg-emerald-600" }, "Confirmar")
+            )
+        )
+    );
+};
+
 
 const InstallmentListModal = ({ isOpen, onClose, title, items, onPay, getWhatsappLink, storeName }) => {
     if (!isOpen) return null;
@@ -720,6 +783,8 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
     
     // Novo Estado para o Modal de Lista de Parcelas
     const [installmentListModal, setInstallmentListModal] = useState({ open: false, type: null, data: [] });
+    // Estado para o Modal de Confirmação de Pagamento
+    const [paymentModal, setPaymentModal] = useState({ open: false, saleId: null, index: null, item: null, isLast: false });
 
     useEffect(() => {
         const customersRef = collection(db, 'artifacts', APP_ID, 'users', user.uid, 'customers');
@@ -790,7 +855,29 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         const totalReceivable = sales.filter(s => s.saleType === 'prazo' || !s.saleType).reduce((acc, s) => acc + (s.installments || []).filter(i => !i.paid).reduce((sum, i) => sum + i.amount, 0), 0);
         let cashIn = 0;
         periodSales.forEach(s => { if (s.saleType === 'direct') cashIn += s.totalPrice; if (s.saleType === 'prazo' && s.entryAmount) cashIn += s.entryAmount; });
-        sales.forEach(s => { if (s.installments) { s.installments.forEach(i => { if (i.paid && i.paidAt) { const paidDate = i.paidAt.split('T')[0]; if (paidDate >= dashStartDate && paidDate <= dashEndDate) { cashIn += i.amount; } } }); } });
+        
+        // Somar histórico de pagamentos de parcelas
+        sales.forEach(s => {
+            if (s.installments) {
+                s.installments.forEach(i => {
+                    // Soma pagamentos totais antigos (sem histórico detalhado)
+                    if (i.paid && i.paidAt && (!i.history || i.history.length === 0)) {
+                        const paidDate = i.paidAt.split('T')[0];
+                        if (paidDate >= dashStartDate && paidDate <= dashEndDate) {
+                            cashIn += i.amount;
+                        }
+                    }
+                    // Soma pagamentos via histórico (parciais ou totais)
+                    if (i.history) {
+                        i.history.forEach(h => {
+                            if (h.type !== 'abatement' && h.date >= dashStartDate && h.date <= dashEndDate) {
+                                cashIn += h.amount;
+                            }
+                        });
+                    }
+                });
+            }
+        });
         
         const today = getBrazilDateString();
         const nextWeek = addDays(today, 7);
@@ -862,19 +949,116 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         setDeleteModal({ open: false, type: null, id: null });
     };
 
-    const handleTogglePaid = async (sale, index) => {
-        const updatedInstallments = [...sale.installments];
-        const current = updatedInstallments[index];
-        updatedInstallments[index] = { ...current, paid: !current.paid, paidAt: !current.paid ? getBrazilISOString() : null };
+    // --- NOVA LÓGICA DE PAGAMENTO ---
+    const handleClickPay = (sale, index) => {
+        const item = sale.installments[index];
+        if (item.paid) return; // Não permite pagar o que já está pago
+        const isLast = index === sale.installments.length - 1;
+        setPaymentModal({ open: true, saleId: sale.id, index, item, isLast });
+    };
+
+    const handleConfirmPayment = async (amountPaid, datePaid) => {
+        const { saleId, index } = paymentModal;
+        const sale = sales.find(s => s.id === saleId);
+        if (!sale) return;
+
+        let updatedInstallments = [...sale.installments];
+        const currentInstallment = updatedInstallments[index];
+        const currentAmount = currentInstallment.amount;
+
+        // Criar ou atualizar histórico
+        let newHistory = currentInstallment.history || [];
+
+        if (amountPaid < currentAmount) {
+            // Pagamento Parcial
+            newHistory.push({
+                date: datePaid,
+                amount: amountPaid,
+                type: 'partial',
+                timestamp: new Date().toISOString()
+            });
+
+            updatedInstallments[index] = {
+                ...currentInstallment,
+                amount: currentAmount - amountPaid,
+                history: newHistory
+                // paid continua false
+            };
+        } else if (amountPaid === currentAmount) {
+            // Pagamento Total Exato
+            newHistory.push({
+                date: datePaid,
+                amount: amountPaid,
+                type: 'full',
+                timestamp: new Date().toISOString()
+            });
+
+            updatedInstallments[index] = {
+                ...currentInstallment,
+                paid: true,
+                paidAt: datePaid, // mantém data formato YYYY-MM-DD para compatibilidade visual simples
+                history: newHistory,
+                originalAmount: currentInstallment.originalAmount || currentInstallment.amount // salva valor original para referência
+            };
+        } else {
+            // Pagamento com Excedente (Maior que a parcela)
+            const surplus = amountPaid - currentAmount;
+            
+            // 1. Quita a parcela atual
+            newHistory.push({
+                date: datePaid,
+                amount: currentAmount, // Registra o valor da parcela como pago aqui
+                surplus: surplus,
+                type: 'full_surplus',
+                timestamp: new Date().toISOString()
+            });
+
+            updatedInstallments[index] = {
+                ...currentInstallment,
+                paid: true,
+                paidAt: datePaid,
+                history: newHistory,
+                originalAmount: currentInstallment.originalAmount || currentInstallment.amount
+            };
+
+            // 2. Abate da próxima parcela
+            if (index + 1 < updatedInstallments.length) {
+                const next = updatedInstallments[index + 1];
+                const newNextAmount = next.amount - surplus;
+                
+                let nextHistory = next.history || [];
+                nextHistory.push({
+                    date: datePaid,
+                    amount: surplus,
+                    type: 'abatement', // Abatimento vindo da anterior
+                    fromInstallment: index + 1,
+                    timestamp: new Date().toISOString()
+                });
+
+                updatedInstallments[index + 1] = {
+                    ...next,
+                    amount: newNextAmount > 0 ? newNextAmount : 0,
+                    paid: newNextAmount <= 0, // Se o abatimento quitar a próxima, marca como paga
+                    paidAt: newNextAmount <= 0 ? datePaid : null,
+                    history: nextHistory,
+                    originalAmount: next.originalAmount || next.amount
+                };
+            }
+        }
+
         const allPaid = updatedInstallments.every(i => i.paid);
-        await updateDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'sales', sale.id), { installments: updatedInstallments, status: allPaid ? 'completed' : 'active' });
+        await updateDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'sales', saleId), { 
+            installments: updatedInstallments, 
+            status: allPaid ? 'completed' : 'active' 
+        });
+
+        setPaymentModal({ open: false, saleId: null, index: null, item: null, isLast: false });
     };
 
     const handlePayFromList = async (item) => {
         const sale = sales.find(s => s.id === item.saleId);
         if (sale) {
-            await handleTogglePaid(sale, item.installmentIndex);
-            // Atualiza a lista removendo o item pago localmente para feedback instantâneo (opcional, o onSnapshot já fará isso)
+            handleClickPay(sale, item.installmentIndex);
         }
     };
 
@@ -1013,7 +1197,41 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
                             React.createElement('div', { className: "bg-white p-3 rounded-lg border border-slate-200" }, React.createElement('p', { className: "text-xs font-bold text-slate-400 uppercase mb-2" }, "Itens"), sale.items.map((item, idx) => React.createElement('div', { key: idx, className: "flex justify-between text-sm py-1 border-b border-slate-100 last:border-0" }, React.createElement('span', null, item.quantity ? `${item.quantity}x ${item.productName}` : item.productName), React.createElement('span', { className: "font-mono text-slate-600" }, formatCurrency(item.price))))),
                             React.createElement('div', { className: "bg-white p-3 rounded-lg border border-slate-200 space-y-2" }, React.createElement('p', { className: "text-xs font-bold text-slate-400 uppercase mb-2" }, "Resumo Financeiro"), React.createElement('div', { className: "flex justify-between text-sm" }, React.createElement('span', { className: "text-slate-500" }, "Valor Total:"), React.createElement('span', { className: "font-bold text-slate-800" }, formatCurrency(sale.totalPrice))), React.createElement('div', { className: "flex justify-between text-sm" }, React.createElement('span', { className: "text-slate-500" }, "Custo Total:"), React.createElement('span', { className: "text-slate-800" }, formatCurrency(sale.totalCost || 0))), React.createElement('div', { className: "flex justify-between text-sm pt-2 border-t border-slate-100" }, React.createElement('span', { className: "font-bold text-emerald-600 flex items-center gap-1" }, React.createElement(Wallet, { size: 14 }), "Lucro Estimado:"), React.createElement('span', { className: "font-bold text-emerald-600" }, formatCurrency(profit)))),
                             sale.entryAmount > 0 && React.createElement('div', { className: "bg-emerald-50 p-3 rounded-lg border border-emerald-100 flex justify-between items-center" }, React.createElement('div', { className: "flex items-center gap-2" }, React.createElement(Wallet, { size: 16, className: "text-emerald-500" }), React.createElement('span', { className: "text-sm font-bold text-emerald-800" }, "Entrada")), React.createElement('span', { className: "font-bold text-emerald-800" }, formatCurrency(sale.entryAmount))),
-                            React.createElement('div', { className: "space-y-2" }, React.createElement('p', { className: "text-xs font-bold text-slate-400 uppercase" }, "Parcelamento"), sale.installments && sale.installments.map((inst, idx) => { const isOverdue = !inst.paid && inst.dueDate < getBrazilDateString(); let paidDisplayDate = ''; if (inst.paid && inst.paidAt) paidDisplayDate = formatDate(inst.paidAt); return React.createElement('div', { key: idx, className: "bg-white p-3 rounded-lg border border-slate-200 flex flex-col gap-2" }, React.createElement('div', { className: "flex justify-between items-center" }, React.createElement('div', { className: "flex items-center gap-3" }, React.createElement('button', { onClick: () => handleTogglePaid(sale, idx), className: `rounded-full p-1 transition-colors ${inst.paid ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-400'}` }, React.createElement(CheckCircle, { size: 20 })), React.createElement('div', null, React.createElement('p', { className: "text-sm font-bold text-slate-700" }, `Parcela ${inst.number}`), React.createElement('div', { className: "flex flex-col" }, inst.paid && inst.paidAt ? React.createElement('span', { className: "text-xs text-emerald-600 font-bold" }, `Pago dia ${paidDisplayDate}`) : null, React.createElement('span', { className: `text-xs ${inst.paid ? 'text-slate-400' : isOverdue ? 'text-red-500 font-bold' : 'text-slate-500'}` }, inst.paid ? `Vencia dia ${formatDate(inst.dueDate)}` : `Vence dia ${formatDate(inst.dueDate)}`)))), React.createElement('p', { className: "font-bold text-slate-800" }, formatCurrency(inst.amount))), !inst.paid && React.createElement('div', { className: "flex gap-2 mt-1 pt-2 border-t border-slate-50" }, React.createElement('button', { onClick: () => setEditInstallmentModal({ open: true, saleId: sale.id, installmentIndex: idx, data: inst }), className: "flex-1 flex items-center justify-center gap-1 py-1.5 text-xs font-bold text-slate-600 bg-slate-100 rounded hover:bg-slate-200" }, React.createElement(Edit2, { size: 12 }), "Ajustar"), sale.customerPhone && React.createElement('a', { href: getWhatsappLink(sale.customerPhone, sale.customerName, inst.amount, inst.dueDate, userProfile.storeName), target: "_blank", rel: "noreferrer", className: "flex-1 flex items-center justify-center gap-1 py-1.5 text-xs font-bold text-white bg-green-500 rounded hover:bg-green-600" }, React.createElement(MessageCircle, { size: 12 }), "Cobrar"))); })),
+                            React.createElement('div', { className: "space-y-2" }, React.createElement('p', { className: "text-xs font-bold text-slate-400 uppercase" }, "Parcelamento"), sale.installments && sale.installments.map((inst, idx) => { 
+                                const isOverdue = !inst.paid && inst.dueDate < getBrazilDateString(); 
+                                let paidDisplayDate = ''; 
+                                if (inst.paid && inst.paidAt) paidDisplayDate = formatDate(inst.paidAt); 
+                                
+                                return React.createElement('div', { key: idx, className: "bg-white p-3 rounded-lg border border-slate-200 flex flex-col gap-2" }, 
+                                    React.createElement('div', { className: "flex justify-between items-center" }, 
+                                        React.createElement('div', { className: "flex items-center gap-3" }, 
+                                            React.createElement('button', { onClick: () => handleClickPay(sale, idx), className: `rounded-full p-1 transition-colors ${inst.paid ? 'bg-emerald-500 text-white cursor-default' : 'bg-slate-200 text-slate-400 hover:bg-slate-300'}` }, React.createElement(CheckCircle, { size: 20 })), 
+                                            React.createElement('div', null, 
+                                                React.createElement('p', { className: "text-sm font-bold text-slate-700" }, `Parcela ${inst.number}`), 
+                                                React.createElement('div', { className: "flex flex-col" }, 
+                                                    inst.paid && inst.paidAt ? React.createElement('span', { className: "text-xs text-emerald-600 font-bold" }, `Pago dia ${paidDisplayDate}`) : null, 
+                                                    React.createElement('span', { className: `text-xs ${inst.paid ? 'text-slate-400' : isOverdue ? 'text-red-500 font-bold' : 'text-slate-500'}` }, inst.paid ? `Vencia dia ${formatDate(inst.dueDate)}` : `Vence dia ${formatDate(inst.dueDate)}`)
+                                                )
+                                            )
+                                        ), 
+                                        React.createElement('p', { className: "font-bold text-slate-800" }, formatCurrency(inst.amount))
+                                    ),
+                                    
+                                    // HISTÓRICO DE PAGAMENTO VISUAL
+                                    inst.history && inst.history.length > 0 && React.createElement('div', { className: "mt-2 pt-2 border-t border-slate-50 text-xs" },
+                                        React.createElement('p', { className: "text-[10px] uppercase font-bold text-slate-400 mb-1 flex items-center gap-1" }, React.createElement(History, { size: 10 }), "Histórico"),
+                                        inst.history.map((h, hIdx) => React.createElement('div', { key: hIdx, className: "flex justify-between text-slate-500 py-0.5" },
+                                            React.createElement('span', null, h.type === 'abatement' ? 'Abatimento autom.' : formatDate(h.date)),
+                                            React.createElement('span', { className: "font-bold text-slate-600" }, formatCurrency(h.amount))
+                                        ))
+                                    ),
+
+                                    !inst.paid && React.createElement('div', { className: "flex gap-2 mt-1 pt-2 border-t border-slate-50" }, 
+                                        React.createElement('button', { onClick: () => setEditInstallmentModal({ open: true, saleId: sale.id, installmentIndex: idx, data: inst }), className: "flex-1 flex items-center justify-center gap-1 py-1.5 text-xs font-bold text-slate-600 bg-slate-100 rounded hover:bg-slate-200" }, React.createElement(Edit2, { size: 12 }), "Ajustar"), 
+                                        sale.customerPhone && React.createElement('a', { href: getWhatsappLink(sale.customerPhone, sale.customerName, inst.amount, inst.dueDate, userProfile.storeName), target: "_blank", rel: "noreferrer", className: "flex-1 flex items-center justify-center gap-1 py-1.5 text-xs font-bold text-white bg-green-500 rounded hover:bg-green-600" }, React.createElement(MessageCircle, { size: 12 }), "Cobrar")
+                                    )
+                                ); 
+                            })),
                             React.createElement('button', { onClick: () => requestDelete('sale', sale.id), className: "w-full py-3 text-red-500 text-sm font-bold hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-100" }, "Excluir Venda")
                         )
                     );
@@ -1072,6 +1290,15 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
             onPay: handlePayFromList,
             getWhatsappLink: getWhatsappLink,
             storeName: userProfile?.storeName
+        }),
+        
+        // MODAL NOVO: CONFIRMAÇÃO DE PAGAMENTO COM VALOR
+        React.createElement(PaymentConfirmationModal, {
+            isOpen: paymentModal.open,
+            onClose: () => setPaymentModal({ open: false, saleId: null, index: null, item: null, isLast: false }),
+            onConfirm: handleConfirmPayment,
+            installment: paymentModal.item,
+            isLast: paymentModal.isLast
         }),
 
         React.createElement(ConfirmModal, { isOpen: deleteModal.open, title: "Tem certeza?", message: "O registro será apagado permanentemente.", onClose: () => setDeleteModal({ open: false, id: null, type: null }), onConfirm: confirmDelete })
