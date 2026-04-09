@@ -355,354 +355,188 @@ const UserProfileModal = ({ isOpen, onClose, userProfile, onSave }) => {
     );
 };
 
+// --- MODAIS DE ESTOQUE ---
+const InventoryMovementModal = ({ isOpen, onClose, product, initialData, onSave }) => {
+    const [type, setType] = useState('entrada');
+    const [subType, setSubType] = useState('compra');
+    const [qty, setQty] = useState('');
+    const [costPrice, setCostPrice] = useState('');
+    const [reason, setReason] = useState('');
+    const [date, setDate] = useState('');
 
-const PaymentConfirmationModal = ({ isOpen, onClose, onConfirm, installment, isLast }) => {
-    const [amount, setAmount] = useState('');
-    const [date, setDate] = useState(getBrazilDateString());
-    const [error, setError] = useState('');
+    const isEdit = !!initialData;
 
     useEffect(() => {
-        if (isOpen && installment) {
-            setAmount(maskMoney(installment.amount.toFixed(2)));
-            setDate(getBrazilDateString());
-            setError('');
+        if (isOpen && product) {
+            if (initialData) {
+                setType(initialData.type);
+                setSubType(initialData.subType);
+                setQty(initialData.quantity.toString());
+                setCostPrice(initialData.costPrice ? maskMoney(initialData.costPrice.toFixed(2)) : '');
+                setReason(initialData.reason || '');
+                setDate(initialData.date ? initialData.date.split('T')[0] : getBrazilDateString());
+            } else {
+                setType('entrada'); setSubType('compra'); setQty(''); setReason('');
+                setCostPrice(product.costPrice ? maskMoney(product.costPrice.toFixed(2)) : '');
+                setDate(getBrazilDateString());
+            }
         }
-    }, [isOpen, installment]);
+    }, [isOpen, product, initialData]);
 
-    const handleConfirm = () => {
-        const val = parseMoney(amount);
-        if (val <= 0) {
-            setError('Digite um valor válido.');
-            return;
+    const handleSave = () => {
+        const q = parseInt(qty);
+        if (!q || q <= 0) return;
+        
+        let payload = { 
+            type, subType, quantity: q, 
+            costPrice: (type === 'entrada' && subType === 'compra') ? parseMoney(costPrice) : null, 
+            reason, date: date + 'T12:00:00' 
+        };
+
+        if (isEdit) {
+            payload.id = initialData.id;
+            payload.oldData = initialData; // Passando para reverter o estoque
         }
-        if (isLast && val > installment.amount) {
-            setError('Na última parcela não é permitido pagar valor maior que o restante.');
-            return;
-        }
-        onConfirm(val, date);
+
+        onSave(payload);
+        onClose();
     };
 
-    if (!isOpen || !installment) return null;
+    if (!isOpen || !product) return null;
 
-    return React.createElement('div', { className: "fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-[75] backdrop-blur-sm" },
-        React.createElement('div', { className: "bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl animate-fade-in" },
-            React.createElement('div', { className: "text-center mb-4" },
-                React.createElement('div', { className: "w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-3" },
-                    React.createElement(Wallet, { className: "text-emerald-600", size: 24 })
-                ),
-                React.createElement('h3', { className: "text-lg font-bold text-slate-800" }, "Confirmar Pagamento"),
-                React.createElement('p', { className: "text-sm text-slate-500" }, `Parcela ${installment.number} - Restante: ${formatCurrency(installment.amount)}`)
+    return React.createElement('div', { className: "fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-[60] backdrop-blur-sm" },
+        React.createElement('div', { className: "bg-white rounded-2xl w-full max-w-sm flex flex-col shadow-2xl animate-fade-in" },
+            React.createElement('div', { className: "p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-2xl" },
+                React.createElement('h3', { className: "font-bold text-lg text-slate-800 flex items-center gap-2" }, React.createElement(ArrowRightLeft, { className: "text-blue-500", size: 20 }), isEdit ? "Editar Movimentação" : "Movimentar Estoque"),
+                React.createElement('button', { onClick: onClose, className: "p-2 hover:bg-slate-200 rounded-full" }, React.createElement(X, { size: 20 }))
             ),
-
-            error && React.createElement('div', { className: "bg-red-50 text-red-500 text-xs p-3 rounded-lg mb-4 flex items-center gap-2" },
-                React.createElement(AlertTriangle, { size: 14 }), error
-            ),
-
-            React.createElement('div', { className: "space-y-4" },
+            React.createElement('div', { className: "p-5 space-y-4" },
                 React.createElement('div', null,
-                    React.createElement('label', { className: "block text-xs font-bold text-slate-500 uppercase mb-1" }, "Valor Pago (R$)"),
-                    React.createElement(MoneyInput, { autoFocus: true, value: amount, onChange: setAmount, className: "w-full p-3 pl-10 border border-slate-200 rounded-xl text-lg font-bold text-slate-800" })
+                    React.createElement('p', { className: "text-xs font-bold text-slate-400 uppercase" }, "Produto"),
+                    React.createElement('p', { className: "font-bold text-slate-800" }, product.name),
+                    React.createElement('p', { className: "text-xs text-slate-500" }, `Estoque atual: ${product.stock || 0}`)
                 ),
+                
+                !isEdit && React.createElement('div', { className: "flex gap-2 bg-slate-100 p-1 rounded-xl" },
+                    React.createElement('button', { onClick: () => { setType('entrada'); setSubType('compra'); }, className: `flex-1 py-2 text-sm font-bold rounded-lg transition-all ${type === 'entrada' ? 'bg-white shadow text-emerald-600' : 'text-slate-400'}` }, "Entrada"),
+                    React.createElement('button', { onClick: () => { setType('saida'); setSubType('ajuste'); }, className: `flex-1 py-2 text-sm font-bold rounded-lg transition-all ${type === 'saida' ? 'bg-white shadow text-red-500' : 'text-slate-400'}` }, "Saída")
+                ),
+
                 React.createElement('div', null,
-                    React.createElement('label', { className: "block text-xs font-bold text-slate-500 uppercase mb-1" }, "Data do Pagamento"),
-                    React.createElement('input', { type: "date", className: "w-full p-3 border border-slate-200 rounded-xl", value: date, onChange: e => setDate(e.target.value) })
+                    React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1" }, "Motivo / Tipo"),
+                    React.createElement('select', { value: subType, onChange: e => setSubType(e.target.value), disabled: isEdit, className: "w-full p-3 border border-slate-200 rounded-lg bg-white disabled:bg-slate-50 disabled:text-slate-500" },
+                        type === 'entrada' ? [
+                            React.createElement('option', { key: "c", value: "compra" }, "Compra de Fornecedor"),
+                            React.createElement('option', { key: "d", value: "devolucao" }, "Devolução de Cliente"),
+                            React.createElement('option', { key: "a", value: "ajuste" }, "Ajuste de Saldo")
+                        ] : [
+                            React.createElement('option', { key: "d", value: "descarte" }, "Perda / Descarte / Vencido"),
+                            React.createElement('option', { key: "c", value: "consumo" }, "Consumo Interno"),
+                            React.createElement('option', { key: "a", value: "ajuste" }, "Ajuste de Saldo")
+                        ]
+                    )
+                ),
+
+                React.createElement('div', { className: "grid grid-cols-2 gap-3" },
+                    React.createElement('div', { className: type === 'entrada' && subType === 'compra' ? 'col-span-1' : 'col-span-2' },
+                        React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1" }, "Quantidade"),
+                        React.createElement('input', { type: "number", min: "1", value: qty, onChange: e => setQty(e.target.value), className: "w-full p-3 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500" })
+                    ),
+                    (type === 'entrada' && subType === 'compra') && React.createElement('div', { className: "col-span-1 animate-fade-in" },
+                        React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1" }, "Custo Unitário"),
+                        React.createElement(MoneyInput, { value: costPrice, onChange: setCostPrice, className: "w-full p-3 pl-8 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500" })
+                    )
+                ),
+                
+                (type === 'entrada' && subType === 'compra' && !isEdit) && React.createElement('p', { className: "text-[10px] text-blue-500 font-bold bg-blue-50 p-2 rounded" }, "O Custo Médio do produto será recalculado e atualizado automaticamente para as próximas vendas!"),
+
+                React.createElement('div', null,
+                    React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1" }, "Data"),
+                    React.createElement('input', { type: "date", value: date, onChange: e => setDate(e.target.value), className: "w-full p-3 border border-slate-200 rounded-lg text-sm" })
+                ),
+
+                React.createElement('div', null,
+                    React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1" }, "Observação (Opcional)"),
+                    React.createElement(UpperInput, { value: reason, onChange: setReason, className: "w-full p-3 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500" })
                 )
             ),
-
-            React.createElement('div', { className: "flex gap-3 mt-6" },
-                React.createElement('button', { onClick: onClose, className: "flex-1 p-3 text-slate-500 font-bold hover:bg-slate-50 rounded-xl" }, "Cancelar"),
-                React.createElement('button', { onClick: handleConfirm, className: "flex-1 p-3 bg-emerald-500 text-white font-bold rounded-xl shadow-lg shadow-emerald-200 hover:bg-emerald-600" }, "Confirmar")
+            React.createElement('div', { className: "p-4 border-t border-slate-100 flex gap-2" }, 
+                React.createElement('button', { onClick: onClose, className: "flex-1 p-3 text-slate-500 font-bold hover:bg-slate-50 rounded-lg" }, "Cancelar"), 
+                React.createElement('button', { onClick: handleSave, disabled: !qty || qty <= 0, className: `flex-1 p-3 text-white font-bold rounded-lg shadow-sm disabled:opacity-50 ${type === 'entrada' ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-red-500 hover:bg-red-600'}` }, "Salvar")
             )
         )
     );
 };
 
-
-const InstallmentListModal = ({ isOpen, onClose, title, items, onPay, onOpenWA }) => {
-    if (!isOpen) return null;
-
-    const groupedItems = items.reduce((acc, item) => {
-        if (!acc[item.customerName]) acc[item.customerName] = [];
-        acc[item.customerName].push(item);
-        return acc;
-    }, {});
-
-    return React.createElement('div', { className: "fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-[80] backdrop-blur-sm" },
-        React.createElement('div', { className: "bg-white rounded-2xl w-full max-w-md max-h-[90vh] flex flex-col shadow-2xl animate-fade-in" },
-            React.createElement('div', { className: "p-4 border-b border-slate-100 flex justify-between items-center" },
-                React.createElement('h3', { className: "font-bold text-lg text-slate-800 flex items-center gap-2" }, 
-                    React.createElement(Clock, { className: "text-yellow-600", size: 20 }), 
-                    title
-                ),
-                React.createElement('button', { onClick: onClose, className: "p-2 hover:bg-slate-100 rounded-full" }, React.createElement(X, { size: 20 }))
-            ),
-            React.createElement('div', { className: "flex-1 overflow-y-auto p-4 space-y-4" },
-                items.length === 0 ? React.createElement('p', { className: "text-center text-slate-400 py-4" }, "Nenhuma parcela encontrada.") :
-                Object.keys(groupedItems).map(customerName => (
-                    React.createElement('div', { key: customerName, className: "space-y-2" },
-                        React.createElement('div', { className: "flex items-center gap-2 px-1" },
-                            React.createElement(Users, { size: 14, className: "text-slate-400" }),
-                            React.createElement('h4', { className: "text-xs font-bold text-slate-500 uppercase" }, customerName)
-                        ),
-                        groupedItems[customerName].map((item, idx) => (
-                            React.createElement('div', { key: `${item.saleId}-${item.installmentIndex}`, className: "bg-slate-50 p-3 rounded-xl border border-slate-100 flex justify-between items-center gap-2" },
-                                React.createElement('div', null,
-                                    React.createElement('div', { className: "flex items-center gap-2" },
-                                        React.createElement('p', { className: "font-bold text-slate-800" }, formatCurrency(item.amount)),
-                                        React.createElement('span', { className: "text-[10px] bg-white border border-slate-200 px-1.5 rounded text-slate-500" }, `Parcela ${item.number}`)
-                                    ),
-                                    React.createElement('p', { className: `text-xs ${item.isOverdue ? 'text-red-500 font-bold' : 'text-slate-400'}` }, 
-                                        item.isOverdue ? `Venceu ${formatDate(item.dueDate)}` : `Vence ${formatDate(item.dueDate)}`
-                                    )
-                                ),
-                                React.createElement('div', { className: "flex gap-2" },
-                                    item.customerPhone && React.createElement('button', { 
-                                        onClick: () => onOpenWA('cobranca', item.sale, item, null),
-                                        className: "p-2 bg-green-500 text-white rounded-lg shadow-sm hover:bg-green-600 transition-colors"
-                                    }, React.createElement(MessageCircle, { size: 16 })),
-                                    React.createElement('button', { 
-                                        onClick: () => onPay(item),
-                                        className: "p-2 bg-slate-800 text-white rounded-lg shadow-sm hover:bg-slate-700 transition-colors"
-                                    }, React.createElement(CheckCircle, { size: 16 }))
-                                )
-                            )
-                        ))
-                    )
-                ))
-            )
-        )
-    );
-};
-
-// --- TELA DE LOGIN / REGISTRO ---
-const AuthScreen = () => {
-    const [step, setStep] = useState('email'); 
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [confirmPassword, setConfirmPassword] = useState('');
-    const [fullName, setFullName] = useState('');
-    const [storeName, setStoreName] = useState('');
-    const [phone, setPhone] = useState('');
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
-    const [recoveryMode, setRecoveryMode] = useState(false);
-
-    const checkEmail = async () => {
-        if (!email) return setError("Digite um e-mail.");
-        setError('');
-        setLoading(true);
-        try {
-            const usersRef = collection(db, 'artifacts', APP_ID, 'public', 'data', 'all_users');
-            const q = query(usersRef, where("email", "==", email));
-            const querySnapshot = await getDocs(q);
-            
-            if (!querySnapshot.empty) {
-                setStep('password');
-            } else {
-                setStep('register');
-            }
-        } catch (e) {
-            console.error("CheckEmail Error:", e);
-            setStep('password');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleLogin = async () => {
-        if (!password) return setError("Digite a senha.");
-        setLoading(true);
-        setError('');
-        try {
-            await signInWithEmailAndPassword(auth, email, password);
-        } catch (e) {
-            setError("Usuário ou senha incorretos.");
-            setLoading(false);
-        }
-    };
-
-    const forceCreateUserData = async (uid) => {
-        const isAdmin = email.toLowerCase() === ADMIN_EMAIL.toLowerCase();
-        const userData = {
-            uid: uid,
-            email: email,
-            name: fullName || "Usuário Recuperado",
-            storeName: storeName || "Minha Hinode",
-            phone: phone || "",
-            role: isAdmin ? 'admin' : 'user',
-            approved: isAdmin ? true : false, 
-            createdAt: serverTimestamp()
-        };
-        await setDoc(doc(db, 'artifacts', APP_ID, 'users', uid, 'profile', 'info'), userData);
-        await setDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'all_users', uid), userData);
-    };
-
-    const handleRegister = async () => {
-        if (!fullName || !phone || !password) return setError("Preencha os campos obrigatórios.");
-        if (password !== confirmPassword) return setError("As senhas não coincidem.");
-        setLoading(true);
-        setError('');
-        
-        try {
-            const userCred = await createUserWithEmailAndPassword(auth, email, password);
-            await forceCreateUserData(userCred.user.uid);
-
-        } catch (e) {
-            if (e.code === 'auth/email-already-in-use') {
-                try {
-                    const userCred = await signInWithEmailAndPassword(auth, email, password);
-                    await forceCreateUserData(userCred.user.uid);
-                    setRecoveryMode(true);
-                } catch (loginErr) {
-                    setError("Este e-mail já existe. Tente fazer login na tela inicial com sua senha antiga.");
-                    setLoading(false);
-                }
-            } else {
-                setError("Erro ao cadastrar: " + e.message);
-                setLoading(false);
-            }
-        }
-    };
-
-    const handlePhoneChange = (e) => setPhone(maskPhone(e.target.value));
-
-    return React.createElement('div', { className: "min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-yellow-400 to-yellow-600" },
-        React.createElement('div', { className: "bg-white rounded-3xl shadow-2xl p-8 w-full max-w-md animate-fade-in" },
-            React.createElement('div', { className: "text-center mb-8" },
-                React.createElement('div', { className: "w-16 h-16 bg-slate-900 rounded-full flex items-center justify-center mx-auto mb-4" },
-                    React.createElement(Store, { className: "text-yellow-400", size: 32 })
-                ),
-                React.createElement('h1', { className: "text-2xl font-bold text-slate-800" }, "Acesso ao Sistema"),
-                React.createElement('p', { className: "text-slate-400 text-sm" }, step === 'register' ? "Preencha seus dados" : "Identifique-se para continuar")
-            ),
-            error && React.createElement('div', { className: "bg-red-50 text-red-500 p-3 rounded-xl text-sm mb-4 flex items-center gap-2" }, React.createElement(AlertTriangle, { size: 16 }), error),
-            recoveryMode && React.createElement('div', { className: "bg-blue-50 text-blue-600 p-3 rounded-xl text-sm mb-4 flex items-center gap-2 animate-pulse" }, React.createElement(RefreshCw, { size: 16 }), "Conta recuperada! Redirecionando..."),
-            
-            step === 'email' && React.createElement('div', { className: "space-y-4" },
-                React.createElement('div', null, React.createElement('label', { className: "block text-xs font-bold text-slate-500 uppercase mb-1 ml-1" }, "E-mail"), React.createElement('div', { className: "relative" }, React.createElement(Mail, { className: "absolute left-3 top-3 text-slate-400", size: 20 }), React.createElement('input', { autoFocus: true, type: "email", className: "w-full p-3 pl-10 border border-slate-200 rounded-xl focus:ring-2 focus:ring-yellow-500 outline-none", placeholder: "seu@email.com", value: email, onChange: e => setEmail(e.target.value) }))),
-                React.createElement('button', { onClick: checkEmail, disabled: loading, className: "w-full py-3 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 transition-colors disabled:opacity-50" }, loading ? "Verificando..." : "Continuar")
-            ),
-            step === 'password' && React.createElement('div', { className: "space-y-4 animate-fade-in" },
-                React.createElement('div', { className: "flex items-center gap-2 bg-slate-50 p-2 rounded-lg mb-2" }, React.createElement(UserCheck, { size: 16, className: "text-green-500" }), React.createElement('span', { className: "text-sm text-slate-600 truncate flex-1" }, email), React.createElement('button', { onClick: () => { setStep('email'); setPassword(''); setError(''); }, className: "text-xs text-blue-500 font-bold hover:underline" }, "Trocar")),
-                React.createElement('div', null, React.createElement('label', { className: "block text-xs font-bold text-slate-500 uppercase mb-1 ml-1" }, "Senha"), React.createElement('div', { className: "relative" }, React.createElement(Lock, { className: "absolute left-3 top-3 text-slate-400", size: 20 }), React.createElement('input', { autoFocus: true, type: "password", className: "w-full p-3 pl-10 border border-slate-200 rounded-xl focus:ring-2 focus:ring-yellow-500 outline-none", placeholder: "••••••••", value: password, onChange: e => setPassword(e.target.value) }))),
-                React.createElement('button', { onClick: handleLogin, disabled: loading, className: "w-full py-3 bg-yellow-500 text-slate-900 font-bold rounded-xl hover:bg-yellow-400 transition-colors shadow-lg shadow-yellow-200 disabled:opacity-50" }, loading ? "Entrando..." : "Entrar")
-            ),
-            step === 'register' && React.createElement('div', { className: "space-y-3 animate-fade-in" },
-                 React.createElement('div', { className: "flex items-center gap-2 bg-slate-50 p-2 rounded-lg mb-2" }, React.createElement(UserCog, { size: 16, className: "text-orange-500" }), React.createElement('span', { className: "text-sm text-slate-600 truncate flex-1" }, email), React.createElement('button', { onClick: () => { setStep('email'); setPassword(''); setError(''); }, className: "text-xs text-blue-500 font-bold hover:underline" }, "Trocar")),
-                React.createElement('input', { className: "w-full p-3 border border-slate-200 rounded-xl", placeholder: "Nome Completo", value: fullName, onChange: e => setFullName(e.target.value) }),
-                React.createElement('input', { className: "w-full p-3 border border-slate-200 rounded-xl", placeholder: "Nome da Loja (Opcional)", value: storeName, onChange: e => setStoreName(e.target.value) }),
-                React.createElement('input', { className: "w-full p-3 border border-slate-200 rounded-xl", placeholder: "WhatsApp (00) 00000-0000", value: phone, onChange: handlePhoneChange, maxLength: 15 }),
-                React.createElement('div', { className: "grid grid-cols-2 gap-2" }, React.createElement('input', { type: "password", className: "w-full p-3 border border-slate-200 rounded-xl", placeholder: "Senha", value: password, onChange: e => setPassword(e.target.value) }), React.createElement('input', { type: "password", className: "w-full p-3 border border-slate-200 rounded-xl", placeholder: "Confirmar Senha", value: confirmPassword, onChange: e => setConfirmPassword(e.target.value) })),
-                React.createElement('button', { onClick: handleRegister, disabled: loading, className: "w-full py-3 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 transition-colors shadow-lg disabled:opacity-50 mt-2" }, loading ? "Cadastrando..." : "Finalizar Cadastro")
-            )
-        )
-    );
-};
-
-// --- PAINEL ADMIN ---
-const AdminUsersPanel = ({ onClose }) => {
-    const [users, setUsers] = useState([]);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [editingUser, setEditingUser] = useState(null);
-    const [currentPage, setCurrentPage] = useState(1);
-    const ITEMS_PER_PAGE = 10;
+const InventoryHistoryModal = ({ isOpen, onClose, product, userId, onEditMovement }) => {
+    const [movements, setMovements] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [page, setPage] = useState(1);
+    const ITEMS = 6;
 
     useEffect(() => {
-        const q = query(collection(db, 'artifacts', APP_ID, 'public', 'data', 'all_users'));
-        const unsub = onSnapshot(q, (snap) => setUsers(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+        if (!isOpen || !product) return;
+        setLoading(true);
+        const q = query(collection(db, 'artifacts', APP_ID, 'users', userId, 'inventory_movements'), where('productId', '==', product.id));
+        const unsub = onSnapshot(q, (snap) => {
+            const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            list.sort((a, b) => b.createdAt?.toMillis() - a.createdAt?.toMillis() || b.date.localeCompare(a.date));
+            setMovements(list);
+            setLoading(false);
+        });
         return () => unsub();
-    }, []);
+    }, [isOpen, product, userId]);
 
-    useEffect(() => setCurrentPage(1), [searchTerm]);
-
-    const filteredUsers = users.filter(u => u.name?.toLowerCase().includes(searchTerm.toLowerCase()) || u.email?.toLowerCase().includes(searchTerm.toLowerCase()));
-    const paginatedUsers = filteredUsers.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
-
-    const handleToggleStatus = async (user) => {
-        const newStatus = !user.approved;
-        await updateDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'all_users', user.id), { approved: newStatus });
-        await updateDoc(doc(db, 'artifacts', APP_ID, 'users', user.id, 'profile', 'info'), { approved: newStatus });
+    const handleDelete = async (mov) => {
+        if (!confirm("Excluir esta movimentação reverterá o saldo no estoque. Confirma?")) return;
+        const diff = mov.type === 'entrada' ? -mov.quantity : mov.quantity;
+        const newStock = (product.stock || 0) + diff;
+        
+        await updateDoc(doc(db, 'artifacts', APP_ID, 'users', userId, 'products', product.id), { stock: newStock });
+        await deleteDoc(doc(db, 'artifacts', APP_ID, 'users', userId, 'inventory_movements', mov.id));
     };
 
-    const handleDeleteUser = async (userId) => {
-        if(!confirm("Tem certeza? O usuário perderá o acesso.")) return;
-        await deleteDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'all_users', userId));
-    };
+    if (!isOpen || !product) return null;
 
-    const handleSaveEdit = async () => {
-        if (!editingUser) return;
-        const { id, name, storeName, phone, pixType, pixKey, pixBank, pixName } = editingUser;
-        const updateData = { name, storeName, phone, pixType, pixKey, pixBank, pixName };
-        await updateDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'all_users', id), updateData);
-        await updateDoc(doc(db, 'artifacts', APP_ID, 'users', id, 'profile', 'info'), updateData);
-        setEditingUser(null);
-    };
+    const paginated = movements.slice((page - 1) * ITEMS, page * ITEMS);
 
-    return React.createElement('div', { className: "fixed inset-0 bg-white z-50 flex flex-col animate-fade-in" },
-        React.createElement('div', { className: "bg-slate-900 text-white p-6 flex justify-between items-center shadow-md" },
-            React.createElement('h2', { className: "text-xl font-bold flex items-center gap-2" }, React.createElement(Shield, { className: "text-yellow-400" }), "Gerenciar Usuários"),
-            React.createElement('button', { onClick: onClose, className: "p-2 hover:bg-slate-800 rounded-full" }, React.createElement(X, { size: 24 }))
-        ),
-        React.createElement('div', { className: "p-4 border-b border-slate-100 bg-slate-50" },
-            React.createElement('div', { className: "relative max-w-lg mx-auto" }, React.createElement(Search, { className: "absolute left-3 top-3 text-slate-400", size: 18 }), React.createElement('input', { className: "w-full p-3 pl-10 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900 outline-none", placeholder: "Buscar por nome ou e-mail...", value: searchTerm, onChange: e => setSearchTerm(e.target.value) }))
-        ),
-        React.createElement('div', { className: "flex-1 overflow-y-auto p-4 bg-slate-100" },
-            React.createElement('div', { className: "max-w-3xl mx-auto space-y-3" },
-                paginatedUsers.map(u => {
-                    const isMe = u.email === ADMIN_EMAIL;
-                    return React.createElement('div', { key: u.id, className: "bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between items-center gap-4" },
-                        React.createElement('div', { className: "flex-1" },
-                            React.createElement('div', { className: "flex items-center gap-2" }, React.createElement('h3', { className: "font-bold text-slate-800" }, u.name), u.role === 'admin' && React.createElement('span', { className: "bg-yellow-100 text-yellow-800 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase" }, "Admin"), !u.approved && React.createElement('span', { className: "bg-red-100 text-red-800 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase" }, "Bloqueado")),
-                            React.createElement('p', { className: "text-sm text-slate-500" }, u.email),
-                            React.createElement('p', { className: "text-xs text-slate-400 mt-1" }, u.storeName || "Sem loja")
-                        ),
-                        React.createElement('div', { className: "flex items-center gap-2" }, !isMe && React.createElement('button', { onClick: () => handleToggleStatus(u), className: `px-4 py-2 rounded-lg font-bold text-sm ${u.approved ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'bg-green-50 text-green-600 hover:bg-green-100'}` }, u.approved ? "Bloquear" : "Permitir"), React.createElement('button', { onClick: () => setEditingUser({...u, pixType: u.pixType||'', pixKey: u.pixKey||'', pixBank: u.pixBank||'', pixName: u.pixName||''}), className: "p-2 text-slate-400 hover:text-blue-500" }, React.createElement(Edit2, { size: 18 })), !isMe && React.createElement('button', { onClick: () => handleDeleteUser(u.id), className: "p-2 text-slate-400 hover:text-red-500" }, React.createElement(Trash2, { size: 18 })))
-                    );
-                }),
-                React.createElement(Pagination, { totalItems: filteredUsers.length, itemsPerPage: ITEMS_PER_PAGE, currentPage: currentPage, onPageChange: setCurrentPage })
-            )
-        ),
-        editingUser && React.createElement('div', { className: "fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-[60]" },
-            React.createElement('div', { className: "bg-white p-6 rounded-2xl w-full max-w-sm max-h-[90vh] overflow-y-auto animate-fade-in" },
-                React.createElement('h3', { className: "font-bold text-lg mb-4" }, "Editar Usuário"),
-                React.createElement('input', { className: "w-full p-2 mb-2 border rounded", value: editingUser.name, onChange: e => setEditingUser({...editingUser, name: e.target.value}), placeholder: "Nome" }),
-                React.createElement('input', { className: "w-full p-2 mb-2 border rounded", value: editingUser.storeName, onChange: e => setEditingUser({...editingUser, storeName: e.target.value}), placeholder: "Loja" }),
-                React.createElement('input', { className: "w-full p-2 mb-4 border rounded", value: editingUser.phone, onChange: e => setEditingUser({...editingUser, phone: maskPhone(e.target.value)}), placeholder: "Telefone" }),
-                
-                React.createElement('div', { className: "bg-slate-50 p-3 rounded-lg mb-4 space-y-2 border border-slate-100" },
-                    React.createElement('p', { className: "text-xs font-bold text-slate-500 uppercase" }, "Chave PIX"),
-                    React.createElement('select', { className: "w-full p-2 border rounded text-sm", value: editingUser.pixType, onChange: e => setEditingUser({...editingUser, pixType: e.target.value, pixKey: ''}) },
-                        React.createElement('option', { value: "" }, "Selecione o Tipo..."),
-                        React.createElement('option', { value: "cpf_cnpj" }, "CPF / CNPJ"),
-                        React.createElement('option', { value: "phone" }, "Telefone"),
-                        React.createElement('option', { value: "email" }, "E-mail"),
-                        React.createElement('option', { value: "random" }, "Chave Aleatória")
-                    ),
-                    React.createElement('input', { className: "w-full p-2 border rounded text-sm", value: applyPixMask(editingUser.pixKey, editingUser.pixType), onChange: e => setEditingUser({...editingUser, pixKey: e.target.value}), placeholder: "Chave PIX", disabled: !editingUser.pixType }),
-                    React.createElement('input', { className: "w-full p-2 border rounded text-sm", value: editingUser.pixBank, onChange: e => setEditingUser({...editingUser, pixBank: e.target.value}), placeholder: "Banco" }),
-                    React.createElement('input', { className: "w-full p-2 border rounded text-sm", value: editingUser.pixName, onChange: e => setEditingUser({...editingUser, pixName: e.target.value}), placeholder: "Titular" })
+    return React.createElement('div', { className: "fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-[60] backdrop-blur-sm" },
+        React.createElement('div', { className: "bg-white rounded-2xl w-full max-w-md max-h-[90vh] flex flex-col shadow-2xl animate-fade-in" },
+            React.createElement('div', { className: "p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-2xl" },
+                React.createElement('div', null,
+                    React.createElement('h3', { className: "font-bold text-lg text-slate-800 flex items-center gap-2" }, React.createElement(ClipboardList, { className: "text-purple-500", size: 20 }), "Histórico do Produto"),
+                    React.createElement('p', { className: "text-xs font-bold text-slate-500 mt-1" }, product.name)
                 ),
-
-                React.createElement('div', { className: "flex gap-2" }, React.createElement('button', { onClick: () => setEditingUser(null), className: "flex-1 p-2 text-slate-500 font-bold" }, "Cancelar"), React.createElement('button', { onClick: handleSaveEdit, className: "flex-1 p-2 bg-slate-900 text-white font-bold rounded" }, "Salvar"))
-            )
-        )
-    );
-};
-
-const EditInstallmentModal = ({ isOpen, onClose, installment, onSave }) => {
-    const [amount, setAmount] = useState('');
-    const [dueDate, setDueDate] = useState('');
-    useEffect(() => { if (installment) { setAmount(maskMoney(installment.amount.toFixed(2))); setDueDate(installment.dueDate); } }, [installment]);
-    const handleSave = () => { onSave({ ...installment, amount: parseMoney(amount), dueDate }); onClose(); };
-    if (!isOpen || !installment) return null;
-    return React.createElement('div', { className: "fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-[60]" },
-        React.createElement('div', { className: "bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl animate-fade-in" },
-            React.createElement('h3', { className: "text-lg font-bold mb-4 flex items-center gap-2" }, React.createElement(Edit2, { size: 20, className: "text-yellow-600" }), `Editar Parcela ${installment.number}`),
-            React.createElement('div', { className: "space-y-4" },
-                React.createElement('div', null, React.createElement('label', { className: "block text-xs font-bold text-slate-500 uppercase mb-1" }, "Valor (R$)"), React.createElement(MoneyInput, { value: amount, onChange: setAmount })),
-                React.createElement('div', null, React.createElement('label', { className: "block text-xs font-bold text-slate-500 uppercase mb-1" }, "Vencimento"), React.createElement('input', { type: "date", className: "w-full p-3 border border-slate-200 rounded-lg", value: dueDate, onChange: e => setDueDate(e.target.value) }))
+                React.createElement('button', { onClick: onClose, className: "p-2 hover:bg-slate-200 rounded-full" }, React.createElement(X, { size: 20 }))
             ),
-            React.createElement('div', { className: "flex gap-3 mt-6" }, React.createElement('button', { onClick: onClose, className: "flex-1 p-3 text-slate-500 font-bold" }, "Cancelar"), React.createElement('button', { onClick: handleSave, className: "flex-1 p-3 bg-slate-900 text-white font-bold rounded-xl" }, "Salvar"))
+            React.createElement('div', { className: "flex-1 overflow-y-auto p-4" },
+                loading ? React.createElement('p', { className: "text-center text-slate-400 py-4" }, "Carregando...") :
+                movements.length === 0 ? React.createElement('p', { className: "text-center text-slate-400 py-4" }, "Nenhuma movimentação registrada.") :
+                React.createElement('div', { className: "space-y-3" },
+                    paginated.map(m => (
+                        React.createElement('div', { key: m.id, className: "bg-white p-3 rounded-xl border border-slate-200 flex justify-between items-center shadow-sm" },
+                            React.createElement('div', { className: "flex items-center gap-3" },
+                                React.createElement('div', { className: `w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg shrink-0 ${m.type === 'entrada' ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-500'}` }, m.type === 'entrada' ? '+' : '-'),
+                                React.createElement('div', null,
+                                    React.createElement('p', { className: "text-sm font-bold text-slate-800 uppercase" }, m.subType),
+                                    React.createElement('p', { className: "text-[10px] text-slate-400" }, formatDate(m.date)),
+                                    m.reason && React.createElement('p', { className: "text-xs text-slate-500 mt-0.5 line-clamp-2" }, m.reason)
+                                )
+                            ),
+                            React.createElement('div', { className: "flex flex-col items-end gap-2 shrink-0" },
+                                React.createElement('span', { className: "font-bold text-lg text-slate-700" }, m.quantity),
+                                m.source === 'manual' && React.createElement('div', { className: "flex gap-1" },
+                                    React.createElement('button', { onClick: () => onEditMovement(m), className: "text-[10px] bg-blue-50 text-blue-500 px-2 py-1 rounded hover:bg-blue-100 font-bold" }, "Editar"),
+                                    React.createElement('button', { onClick: () => handleDelete(m), className: "text-[10px] bg-red-50 text-red-500 px-2 py-1 rounded hover:bg-red-100 font-bold" }, "Excluir")
+                                )
+                            )
+                        )
+                    ))
+                )
+            ),
+            React.createElement('div', { className: "p-2 border-t border-slate-100 bg-white rounded-b-2xl flex justify-center" },
+                React.createElement(Pagination, { totalItems: movements.length, itemsPerPage: ITEMS, currentPage: page, onPageChange: setPage })
+            )
         )
     );
 };
@@ -754,12 +588,11 @@ const ProductFormModal = ({ isOpen, onClose, onSave, lastCode, initialData }) =>
             costPrice: costVal, sellPrice: sellVal, stock: parseInt(stock) || 0,
             isPromoActive, promoPrice: parseMoney(promoPrice), promoCampaignName, promoStartDate, promoEndDate
         }); 
-        onClose(); 
     };
 
     if (!isOpen) return null;
 
-    return React.createElement('div', { className: "fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-[60] backdrop-blur-sm" },
+    return React.createElement('div', { className: "fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-[50] backdrop-blur-sm" },
         React.createElement('div', { className: "bg-white rounded-2xl w-full max-w-md max-h-[90vh] flex flex-col shadow-2xl animate-fade-in" },
             React.createElement('div', { className: "p-4 border-b border-slate-100 flex justify-between items-center" },
                 React.createElement('div', null,
@@ -773,7 +606,7 @@ const ProductFormModal = ({ isOpen, onClose, onSave, lastCode, initialData }) =>
                 React.createElement('div', { className: "space-y-3" },
                     React.createElement('div', null, React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1" }, "Nome do Produto *"), React.createElement(UpperInput, { autoFocus: true, value: name, onChange: setName, className: "w-full p-3 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-yellow-500" })),
                     React.createElement('div', { className: "grid grid-cols-3 gap-3" },
-                        React.createElement('div', { className: "col-span-1" }, React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1" }, "Estoque Atual"), React.createElement('input', { type: "number", value: stock, onChange: e => setStock(e.target.value), className: "w-full p-3 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-yellow-500 font-bold" })),
+                        React.createElement('div', { className: "col-span-1" }, React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1" }, "Estoque"), React.createElement('input', { type: "number", value: stock, onChange: e => setStock(e.target.value), className: "w-full p-3 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-yellow-500 font-bold" })),
                         React.createElement('div', { className: "col-span-2" }, React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1" }, "Descrição (Opcional)"), React.createElement('textarea', { value: description, onChange: e => setDescription(e.target.value), rows: "1", className: "w-full p-3 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-yellow-500 resize-none h-[48px]" }))
                     )
                 ),
@@ -781,7 +614,7 @@ const ProductFormModal = ({ isOpen, onClose, onSave, lastCode, initialData }) =>
                 React.createElement('div', { className: "bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-4" },
                     React.createElement('p', { className: "text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1" }, React.createElement(TrendingUp, { size: 14 }), "Valores e Margens"),
                     React.createElement('div', { className: "grid grid-cols-2 gap-3" },
-                        React.createElement('div', null, React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1" }, "Custo Unitário"), React.createElement(MoneyInput, { value: costPrice, onChange: setCostPrice, className: "w-full p-3 pl-10 border border-slate-200 rounded-lg bg-white" })),
+                        React.createElement('div', null, React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1" }, "Custo Unitário (Médio)"), React.createElement(MoneyInput, { value: costPrice, onChange: setCostPrice, className: "w-full p-3 pl-10 border border-slate-200 rounded-lg bg-white" })),
                         React.createElement('div', null, React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1" }, "Venda Unitário *"), React.createElement(MoneyInput, { value: sellPrice, onChange: setSellPrice, className: "w-full p-3 pl-10 border border-slate-200 rounded-lg bg-white" }))
                     ),
                     (sellVal > 0) && React.createElement('div', { className: "flex justify-between items-center pt-2 border-t border-slate-200" },
@@ -838,7 +671,7 @@ const ProductDetailsModal = ({ isOpen, onClose, product }) => {
                 
                 React.createElement('div', { className: "bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3" },
                     React.createElement('div', { className: "flex justify-between items-center" },
-                        React.createElement('span', { className: "text-xs font-bold text-slate-400 uppercase" }, "Preço de Custo"),
+                        React.createElement('span', { className: "text-xs font-bold text-slate-400 uppercase" }, "Preço de Custo (Médio)"),
                         React.createElement('span', { className: "font-bold text-slate-600" }, formatCurrency(product.costPrice || 0))
                     ),
                     React.createElement('div', { className: "flex justify-between items-center pt-2 border-t border-slate-200" },
@@ -875,430 +708,6 @@ const ProductDetailsModal = ({ isOpen, onClose, product }) => {
     );
 };
 
-// --- MODAIS DE ESTOQUE ---
-const InventoryMovementModal = ({ isOpen, onClose, product, onSave }) => {
-    const [type, setType] = useState('entrada');
-    const [subType, setSubType] = useState('compra');
-    const [qty, setQty] = useState('');
-    const [costPrice, setCostPrice] = useState('');
-    const [reason, setReason] = useState('');
-
-    useEffect(() => {
-        if (isOpen && product) {
-            setType('entrada'); setSubType('compra'); setQty(''); setReason('');
-            setCostPrice(product.costPrice ? maskMoney(product.costPrice.toFixed(2)) : '');
-        }
-    }, [isOpen, product]);
-
-    const handleSave = () => {
-        const q = parseInt(qty);
-        if (!q || q <= 0) return;
-        onSave({ 
-            type, subType, quantity: q, 
-            costPrice: (type === 'entrada' && subType === 'compra') ? parseMoney(costPrice) : null, 
-            reason, date: getBrazilDateString() + 'T12:00:00' 
-        });
-        onClose();
-    };
-
-    if (!isOpen || !product) return null;
-
-    return React.createElement('div', { className: "fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-[60] backdrop-blur-sm" },
-        React.createElement('div', { className: "bg-white rounded-2xl w-full max-w-sm flex flex-col shadow-2xl animate-fade-in" },
-            React.createElement('div', { className: "p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-2xl" },
-                React.createElement('h3', { className: "font-bold text-lg text-slate-800 flex items-center gap-2" }, React.createElement(ArrowRightLeft, { className: "text-blue-500", size: 20 }), "Movimentar Estoque"),
-                React.createElement('button', { onClick: onClose, className: "p-2 hover:bg-slate-200 rounded-full" }, React.createElement(X, { size: 20 }))
-            ),
-            React.createElement('div', { className: "p-5 space-y-4" },
-                React.createElement('div', null,
-                    React.createElement('p', { className: "text-xs font-bold text-slate-400 uppercase" }, "Produto"),
-                    React.createElement('p', { className: "font-bold text-slate-800" }, product.name),
-                    React.createElement('p', { className: "text-xs text-slate-500" }, `Estoque atual: ${product.stock || 0}`)
-                ),
-                
-                React.createElement('div', { className: "flex gap-2 bg-slate-100 p-1 rounded-xl" },
-                    React.createElement('button', { onClick: () => { setType('entrada'); setSubType('compra'); }, className: `flex-1 py-2 text-sm font-bold rounded-lg transition-all ${type === 'entrada' ? 'bg-white shadow text-emerald-600' : 'text-slate-400'}` }, "Entrada"),
-                    React.createElement('button', { onClick: () => { setType('saida'); setSubType('ajuste'); }, className: `flex-1 py-2 text-sm font-bold rounded-lg transition-all ${type === 'saida' ? 'bg-white shadow text-red-500' : 'text-slate-400'}` }, "Saída")
-                ),
-
-                React.createElement('div', null,
-                    React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1" }, "Motivo / Tipo"),
-                    React.createElement('select', { value: subType, onChange: e => setSubType(e.target.value), className: "w-full p-3 border border-slate-200 rounded-lg bg-white" },
-                        type === 'entrada' ? [
-                            React.createElement('option', { key: "c", value: "compra" }, "Compra de Fornecedor"),
-                            React.createElement('option', { key: "d", value: "devolucao" }, "Devolução de Cliente"),
-                            React.createElement('option', { key: "a", value: "ajuste" }, "Ajuste de Saldo")
-                        ] : [
-                            React.createElement('option', { key: "d", value: "descarte" }, "Perda / Descarte / Vencido"),
-                            React.createElement('option', { key: "c", value: "consumo" }, "Consumo Interno"),
-                            React.createElement('option', { key: "a", value: "ajuste" }, "Ajuste de Saldo")
-                        ]
-                    )
-                ),
-
-                React.createElement('div', { className: "grid grid-cols-2 gap-3" },
-                    React.createElement('div', { className: type === 'entrada' && subType === 'compra' ? 'col-span-1' : 'col-span-2' },
-                        React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1" }, "Quantidade"),
-                        React.createElement('input', { type: "number", min: "1", value: qty, onChange: e => setQty(e.target.value), className: "w-full p-3 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500" })
-                    ),
-                    (type === 'entrada' && subType === 'compra') && React.createElement('div', { className: "col-span-1 animate-fade-in" },
-                        React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1" }, "Custo Unitário"),
-                        React.createElement(MoneyInput, { value: costPrice, onChange: setCostPrice, className: "w-full p-3 pl-8 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500" })
-                    )
-                ),
-                
-                (type === 'entrada' && subType === 'compra') && React.createElement('p', { className: "text-[10px] text-blue-500 font-bold bg-blue-50 p-2 rounded" }, "O Custo Unitário do produto será atualizado para futuras vendas."),
-
-                React.createElement('div', null,
-                    React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1" }, "Observação (Opcional)"),
-                    React.createElement(UpperInput, { value: reason, onChange: setReason, className: "w-full p-3 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500" })
-                )
-            ),
-            React.createElement('div', { className: "p-4 border-t border-slate-100 flex gap-2" }, 
-                React.createElement('button', { onClick: onClose, className: "flex-1 p-3 text-slate-500 font-bold hover:bg-slate-50 rounded-lg" }, "Cancelar"), 
-                React.createElement('button', { onClick: handleSave, disabled: !qty || qty <= 0, className: `flex-1 p-3 text-white font-bold rounded-lg shadow-sm disabled:opacity-50 ${type === 'entrada' ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-red-500 hover:bg-red-600'}` }, "Confirmar")
-            )
-        )
-    );
-};
-
-const InventoryHistoryModal = ({ isOpen, onClose, product, userId }) => {
-    const [movements, setMovements] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [page, setPage] = useState(1);
-    const ITEMS = 6;
-
-    useEffect(() => {
-        if (!isOpen || !product) return;
-        setLoading(true);
-        const q = query(collection(db, 'artifacts', APP_ID, 'users', userId, 'inventory_movements'), where('productId', '==', product.id));
-        const unsub = onSnapshot(q, (snap) => {
-            const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-            list.sort((a, b) => b.createdAt?.toMillis() - a.createdAt?.toMillis() || b.date.localeCompare(a.date));
-            setMovements(list);
-            setLoading(false);
-        });
-        return () => unsub();
-    }, [isOpen, product, userId]);
-
-    const handleDelete = async (mov) => {
-        if (!confirm("Excluir esta movimentação reverterá o saldo no estoque. Confirma?")) return;
-        const diff = mov.type === 'entrada' ? -mov.quantity : mov.quantity;
-        const newStock = (product.stock || 0) + diff;
-        
-        await updateDoc(doc(db, 'artifacts', APP_ID, 'users', userId, 'products', product.id), { stock: newStock });
-        await deleteDoc(doc(db, 'artifacts', APP_ID, 'users', userId, 'inventory_movements', mov.id));
-    };
-
-    if (!isOpen || !product) return null;
-
-    const paginated = movements.slice((page - 1) * ITEMS, page * ITEMS);
-
-    return React.createElement('div', { className: "fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-[60] backdrop-blur-sm" },
-        React.createElement('div', { className: "bg-white rounded-2xl w-full max-w-md max-h-[90vh] flex flex-col shadow-2xl animate-fade-in" },
-            React.createElement('div', { className: "p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-2xl" },
-                React.createElement('div', null,
-                    React.createElement('h3', { className: "font-bold text-lg text-slate-800 flex items-center gap-2" }, React.createElement(ClipboardList, { className: "text-purple-500", size: 20 }), "Histórico do Produto"),
-                    React.createElement('p', { className: "text-xs font-bold text-slate-500 mt-1" }, product.name)
-                ),
-                React.createElement('button', { onClick: onClose, className: "p-2 hover:bg-slate-200 rounded-full" }, React.createElement(X, { size: 20 }))
-            ),
-            React.createElement('div', { className: "flex-1 overflow-y-auto p-4" },
-                loading ? React.createElement('p', { className: "text-center text-slate-400 py-4" }, "Carregando...") :
-                movements.length === 0 ? React.createElement('p', { className: "text-center text-slate-400 py-4" }, "Nenhuma movimentação registrada.") :
-                React.createElement('div', { className: "space-y-3" },
-                    paginated.map(m => (
-                        React.createElement('div', { key: m.id, className: "bg-white p-3 rounded-xl border border-slate-200 flex justify-between items-center shadow-sm" },
-                            React.createElement('div', { className: "flex items-center gap-3" },
-                                React.createElement('div', { className: `w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg ${m.type === 'entrada' ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-500'}` }, m.type === 'entrada' ? '+' : '-'),
-                                React.createElement('div', null,
-                                    React.createElement('p', { className: "text-sm font-bold text-slate-800 uppercase" }, m.subType),
-                                    React.createElement('p', { className: "text-[10px] text-slate-400" }, formatDate(m.date)),
-                                    m.reason && React.createElement('p', { className: "text-xs text-slate-500 mt-0.5" }, m.reason)
-                                )
-                            ),
-                            React.createElement('div', { className: "flex flex-col items-end gap-2" },
-                                React.createElement('span', { className: "font-bold text-lg text-slate-700" }, m.quantity),
-                                m.source === 'manual' && React.createElement('button', { onClick: () => handleDelete(m), className: "text-[10px] bg-red-50 text-red-500 px-2 py-1 rounded hover:bg-red-100 font-bold" }, "Excluir")
-                            )
-                        )
-                    ))
-                )
-            ),
-            React.createElement('div', { className: "p-2 border-t border-slate-100 bg-white rounded-b-2xl flex justify-center" },
-                React.createElement(Pagination, { totalItems: movements.length, itemsPerPage: ITEMS, currentPage: page, onPageChange: setPage })
-            )
-        )
-    );
-};
-
-const CustomerFormModal = ({ isOpen, onClose, onSave, initialData }) => {
-    const [name, setName] = useState('');
-    const [phone, setPhone] = useState('');
-    const [cpf, setCpf] = useState('');
-    const [birthDate, setBirthDate] = useState('');
-    
-    // Endereço
-    const [zipCode, setZipCode] = useState('');
-    const [street, setStreet] = useState('');
-    const [number, setNumber] = useState('');
-    const [complement, setComplement] = useState('');
-    const [neighborhood, setNeighborhood] = useState('');
-    const [cityState, setCityState] = useState('');
-    const [reference, setReference] = useState('');
-
-    useEffect(() => { 
-        if (initialData) { 
-            setName(initialData.name || ''); 
-            setPhone(initialData.phone || ''); 
-            setCpf(initialData.cpf ? maskCpfCnpj(initialData.cpf) : '');
-            setBirthDate(initialData.birthDate || '');
-            setZipCode(initialData.zipCode ? maskZipCode(initialData.zipCode) : '');
-            setStreet(initialData.street || '');
-            setNumber(initialData.number || '');
-            setComplement(initialData.complement || '');
-            setNeighborhood(initialData.neighborhood || '');
-            setCityState(initialData.cityState || '');
-            setReference(initialData.reference || '');
-        } else { 
-            setName(''); setPhone(''); setCpf(''); setBirthDate('');
-            setZipCode(''); setStreet(''); setNumber(''); setComplement(''); setNeighborhood(''); setCityState(''); setReference('');
-        } 
-    }, [initialData, isOpen]);
-
-    const handleCepChange = async (e) => {
-        const val = maskZipCode(e.target.value);
-        setZipCode(val);
-        if (val.length === 9) {
-            try {
-                const res = await fetch(`https://viacep.com.br/ws/${val.replace('-', '')}/json/`);
-                const data = await res.json();
-                if (!data.erro) {
-                    setStreet(data.logradouro || '');
-                    setNeighborhood(data.bairro || '');
-                    setCityState(`${data.localidade || ''}/${data.uf || ''}`);
-                }
-            } catch (err) { console.error(err); }
-        }
-    };
-
-    const handleSubmit = () => { 
-        if (!name) return; 
-        onSave({ 
-            name, phone, cpf: cpf.replace(/\D/g, ''), birthDate,
-            zipCode: zipCode.replace(/\D/g, ''), street, number, complement, neighborhood, cityState, reference
-        }); 
-        onClose(); 
-    };
-
-    if (!isOpen) return null;
-
-    return React.createElement('div', { className: "fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-[60] backdrop-blur-sm" },
-        React.createElement('div', { className: "bg-white rounded-2xl w-full max-w-md max-h-[90vh] flex flex-col shadow-2xl animate-fade-in" },
-            React.createElement('div', { className: "p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-2xl" },
-                React.createElement('h3', { className: "text-lg font-bold text-slate-800 flex items-center gap-2" }, React.createElement(Users, { className: "text-yellow-500", size: 20 }), initialData ? 'Editar Cliente' : 'Novo Cliente'),
-                React.createElement('button', { onClick: onClose, className: "p-2 hover:bg-slate-200 rounded-full" }, React.createElement(X, { size: 20 }))
-            ),
-            React.createElement('div', { className: "flex-1 overflow-y-auto p-4 space-y-5" },
-                React.createElement('div', { className: "space-y-3" },
-                    React.createElement('p', { className: "text-[10px] font-bold text-slate-400 uppercase flex items-center gap-1" }, React.createElement(User, { size: 14 }), "Dados Pessoais"),
-                    React.createElement('div', null, React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1" }, "Nome Completo *"), React.createElement(UpperInput, { value: name, onChange: setName, className: "w-full p-3 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-yellow-500" })),
-                    React.createElement('div', null, React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1" }, "WhatsApp"), React.createElement(PhoneInput, { value: phone, onChange: setPhone, className: "w-full p-3 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-yellow-500" })),
-                    React.createElement('div', { className: "grid grid-cols-2 gap-3" },
-                        React.createElement('div', null, React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1" }, "CPF (Opcional)"), React.createElement('input', { value: cpf, onChange: e => setCpf(maskCpfCnpj(e.target.value)), className: "w-full p-3 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-yellow-500" })),
-                        React.createElement('div', null, React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1" }, "Nascimento (Opcional)"), React.createElement('input', { type: "date", value: birthDate, onChange: e => setBirthDate(e.target.value), className: "w-full p-3 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-yellow-500" }))
-                    )
-                ),
-                
-                React.createElement('div', { className: "space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-100" },
-                    React.createElement('p', { className: "text-[10px] font-bold text-slate-400 uppercase flex items-center gap-1" }, React.createElement(MapPin, { size: 14 }), "Endereço"),
-                    React.createElement('div', { className: "grid grid-cols-3 gap-3" },
-                        React.createElement('div', { className: "col-span-1" }, React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1" }, "CEP"), React.createElement('input', { value: zipCode, onChange: handleCepChange, maxLength: 9, placeholder: "00000-000", className: "w-full p-3 border border-slate-200 rounded-lg text-sm bg-white" })),
-                        React.createElement('div', { className: "col-span-2" }, React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1" }, "Cidade / Estado"), React.createElement(UpperInput, { value: cityState, onChange: setCityState, className: "w-full p-3 border border-slate-200 rounded-lg text-sm bg-white" }))
-                    ),
-                    React.createElement('div', { className: "grid grid-cols-4 gap-3" },
-                        React.createElement('div', { className: "col-span-3" }, React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1" }, "Rua / Avenida"), React.createElement(UpperInput, { value: street, onChange: setStreet, className: "w-full p-3 border border-slate-200 rounded-lg text-sm bg-white" })),
-                        React.createElement('div', { className: "col-span-1" }, React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1" }, "Nº"), React.createElement(UpperInput, { value: number, onChange: setNumber, className: "w-full p-3 border border-slate-200 rounded-lg text-sm bg-white" }))
-                    ),
-                    React.createElement('div', null, React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1" }, "Bairro"), React.createElement(UpperInput, { value: neighborhood, onChange: setNeighborhood, className: "w-full p-3 border border-slate-200 rounded-lg text-sm bg-white" })),
-                    React.createElement('div', { className: "grid grid-cols-2 gap-3" },
-                        React.createElement('div', null, React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1" }, "Complemento"), React.createElement(UpperInput, { value: complement, onChange: setComplement, className: "w-full p-3 border border-slate-200 rounded-lg text-sm bg-white" })),
-                        React.createElement('div', null, React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1" }, "Ponto de Ref."), React.createElement(UpperInput, { value: reference, onChange: setReference, className: "w-full p-3 border border-slate-200 rounded-lg text-sm bg-white" }))
-                    )
-                )
-            ),
-            React.createElement('div', { className: "p-4 border-t border-slate-100 flex gap-2 bg-white rounded-b-2xl" }, 
-                React.createElement('button', { onClick: onClose, className: "flex-1 p-3 text-slate-500 font-bold hover:bg-slate-50 rounded-lg" }, "Cancelar"), 
-                React.createElement('button', { onClick: handleSubmit, disabled: !name, className: "flex-1 p-3 bg-yellow-500 text-white font-bold rounded-lg shadow-sm hover:bg-yellow-600 disabled:opacity-50" }, "Salvar Cliente")
-            )
-        )
-    );
-};
-
-const NewSaleModal = ({ isOpen, onClose, customers, products, onSave }) => {
-    const [step, setStep] = useState(1);
-    const [customerId, setCustomerId] = useState('');
-    const [customerSearch, setCustomerSearch] = useState('');
-    const [productSearch, setProductSearch] = useState('');
-    const [cart, setCart] = useState([]);
-    
-    const [selectedProductId, setSelectedProductId] = useState('');
-    const [currentQty, setCurrentQty] = useState(1);
-    const [currentCost, setCurrentCost] = useState(''); 
-    const [currentPrice, setCurrentPrice] = useState('');
-    
-    const [saleDate, setSaleDate] = useState(getBrazilDateString()); 
-    const [saleType, setSaleType] = useState('prazo');
-    const [frequency, setFrequency] = useState('monthly');
-    const [installmentsCount, setInstallmentsCount] = useState(1);
-    const [firstDueDate, setFirstDueDate] = useState('');
-    const [entryAmount, setEntryAmount] = useState('');
-    const [directMethod, setDirectMethod] = useState('pix');
-    const [cardInstallments, setCardInstallments] = useState(1);
-
-    useEffect(() => { 
-        if (isOpen) { 
-            const today = getBrazilDateString(); 
-            setSaleDate(today); setFirstDueDate(addDays(today, 30)); setStep(1); setCart([]); setCustomerId(''); setEntryAmount(''); setSaleType('prazo'); setCustomerSearch(''); setProductSearch(''); setCurrentQty(1); setCurrentCost(''); setCurrentPrice(''); setSelectedProductId('');
-        } 
-    }, [isOpen]);
-    
-    useEffect(() => { let daysToAdd = 30; if (frequency === 'weekly') daysToAdd = 7; else if (frequency === 'biweekly') daysToAdd = 15; setFirstDueDate(addDays(saleDate, daysToAdd)); }, [frequency, saleDate]);
-
-    const handleProductSelect = (e) => {
-        const pid = e.target.value;
-        setSelectedProductId(pid);
-        const p = products.find(x => x.id === pid);
-        if (p) {
-            const today = getBrazilDateString();
-            let activePrice = p.sellPrice || 0;
-            if (p.isPromoActive && p.promoStartDate <= today && p.promoEndDate >= today) {
-                activePrice = p.promoPrice || activePrice;
-            }
-            setCurrentPrice(activePrice);
-            setCurrentCost(p.costPrice || 0);
-        } else {
-            setCurrentPrice('');
-            setCurrentCost('');
-        }
-    };
-
-    const filteredCustomers = customers.filter(c => c.name.toLowerCase().includes(customerSearch.toLowerCase()));
-    const filteredProducts = products.filter(p => p.name.toLowerCase().includes(productSearch.toLowerCase()) || p.code.includes(productSearch));
-    const totalCartValue = cart.reduce((acc, item) => acc + item.price, 0);
-    const entryValue = parseMoney(entryAmount) || 0;
-    const totalRemaining = Math.max(0, totalCartValue - entryValue);
-
-    const handleAddItem = () => {
-        const qty = parseInt(currentQty) || 1;
-        const unitCost = currentCost || 0;
-        const unitPrice = parseMoney(currentPrice);
-        if(!selectedProductId || unitPrice <= 0 || qty <= 0) return;
-        const prod = products.find(p => p.id === selectedProductId);
-        const totalLineCost = unitCost * qty;
-        const totalLinePrice = unitPrice * qty;
-        const newItem = { tempId: Date.now(), productId: prod.id, productName: prod.name, productCode: prod.code, quantity: qty, cost: totalLineCost, price: totalLinePrice, unitPrice: unitPrice, unitCost: unitCost };
-        setCart([...cart, newItem]);
-        setSelectedProductId(''); setCurrentQty(1); setCurrentCost(''); setCurrentPrice(''); setProductSearch('');
-    };
-    const handleRemoveItem = (id) => setCart(cart.filter(i => i.tempId !== id));
-
-    const calculateInstallments = () => {
-        const total = totalRemaining;
-        const count = parseInt(installmentsCount) || 1;
-        if (total <= 0) return [];
-        const amountPerInstallment = total / count;
-        const installments = [];
-        let currentDateStr = firstDueDate; 
-        for (let i = 0; i < count; i++) {
-            installments.push({ number: i + 1, amount: amountPerInstallment, dueDate: currentDateStr, paid: false, paidAt: null });
-            if (frequency === 'weekly') currentDateStr = addDays(currentDateStr, 7);
-            else if (frequency === 'biweekly') currentDateStr = addDays(currentDateStr, 15);
-            else currentDateStr = addDays(currentDateStr, 30);
-        }
-        return installments;
-    };
-
-    const handleFinish = () => {
-        if (!customerId || cart.length === 0) return;
-        const customer = customers.find(c => c.id === customerId);
-        let saleData = { customerId: customerId, customerName: customer.name, customerPhone: customer.phone, items: cart, totalCost: cart.reduce((acc, i) => acc + i.cost, 0), totalPrice: totalCartValue, saleDate: saleDate, saleType: saleType, status: 'active' };
-        if (saleType === 'prazo') {
-            const finalInstallments = calculateInstallments();
-            saleData = { ...saleData, entryAmount: entryValue, frequency, installmentsCount: finalInstallments.length, installments: finalInstallments, status: finalInstallments.length === 0 && entryValue >= totalCartValue ? 'completed' : 'active' };
-        } else {
-            saleData = { ...saleData, paymentMethod: directMethod, entryAmount: entryValue, cardAmount: totalRemaining, cardInstallments: directMethod === 'credit' ? parseInt(cardInstallments) : 1, installments: [], status: 'completed' };
-        }
-        onSave(saleData); onClose();
-    };
-
-    if (!isOpen) return null;
-    return React.createElement('div', { className: "fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-[50]" },
-        React.createElement('div', { className: "bg-white rounded-2xl w-full max-w-md p-6 animate-fade-in shadow-2xl flex flex-col max-h-[90vh]" },
-            React.createElement('div', { className: "flex items-center justify-between mb-4" }, React.createElement('h2', { className: "text-xl font-bold text-slate-800 flex items-center gap-2" }, React.createElement(ShoppingBag, { className: "text-yellow-600" }), "Nova Venda"), React.createElement('div', { className: "flex gap-1" }, [1,2,3].map(i => React.createElement('div', { key: i, className: `h-2 w-8 rounded-full ${step >= i ? 'bg-yellow-500' : 'bg-slate-200'}` })))),
-            React.createElement('div', { className: "flex-1 overflow-y-auto pr-1" },
-                step === 1 && React.createElement('div', { className: "space-y-4" },
-                    React.createElement('div', { className: "bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3" },
-                        React.createElement('label', { className: "text-xs font-bold text-slate-400 uppercase" }, "Buscar Cliente"),
-                        React.createElement('div', { className: "relative" }, React.createElement(Search, { className: "absolute left-3 top-3 text-slate-400", size: 16 }), React.createElement('input', { className: "w-full p-2 pl-9 border border-slate-200 rounded-lg text-sm bg-white", placeholder: "Filtrar por nome...", value: customerSearch, onChange: e => setCustomerSearch(e.target.value) })),
-                        React.createElement('select', { className: "w-full p-3 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500", value: customerId, onChange: e => setCustomerId(e.target.value) }, React.createElement('option', { value: "" }, "Selecione..."), filteredCustomers.map(c => React.createElement('option', { key: c.id, value: c.id }, c.name)))
-                    )
-                ),
-                step === 2 && React.createElement('div', { className: "space-y-4" },
-                    React.createElement('div', { className: "bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3" },
-                        React.createElement('div', { className: "relative" }, React.createElement(Search, { className: "absolute left-3 top-3 text-slate-400", size: 16 }), React.createElement('input', { className: "w-full p-2 pl-9 border border-slate-200 rounded-lg text-sm bg-white", placeholder: "Filtrar produtos...", value: productSearch, onChange: e => setProductSearch(e.target.value) })),
-                        React.createElement('select', { className: "w-full p-3 bg-white border border-slate-200 rounded-lg text-sm", value: selectedProductId, onChange: handleProductSelect }, 
-                            React.createElement('option', { value: "" }, "Escolha na lista..."), 
-                            filteredProducts.map(p => React.createElement('option', { key: p.id, value: p.id }, `#${p.code} - ${p.name} (Estoque: ${p.stock || 0})`))
-                        ),
-                        React.createElement('div', { className: "flex gap-2" },
-                            React.createElement('div', { className: "w-24" }, React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1" }, "Qtd"), React.createElement('input', { type: "number", min: "1", className: "w-full p-3 border border-slate-200 rounded-lg text-center font-bold outline-none focus:ring-2 focus:ring-yellow-500", value: currentQty, onChange: e => setCurrentQty(e.target.value) })),
-                            React.createElement('div', { className: "flex-1" }, React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1" }, "Preço Unitário"), React.createElement(MoneyInput, { placeholder: "0,00", value: currentPrice, onChange: setCurrentPrice, disabled: !selectedProductId, className: "w-full p-3 pl-8 border border-slate-200 rounded-lg bg-white outline-none focus:ring-2 focus:ring-yellow-500" }))
-                        ),
-                        React.createElement('button', { onClick: handleAddItem, disabled: !selectedProductId || !currentPrice || currentQty < 1, className: "w-full py-2 bg-slate-800 text-white rounded-lg font-bold text-sm disabled:opacity-50 hover:bg-slate-700" }, "+ Adicionar Item")
-                    ),
-                    React.createElement('div', { className: "space-y-2" },
-                        React.createElement('label', { className: "text-xs font-bold text-slate-400 uppercase" }, `Carrinho (${cart.reduce((a,b)=>a+(parseInt(b.quantity)||1),0)} itens)`),
-                        cart.length === 0 ? React.createElement('p', { className: "text-center text-slate-400 text-sm py-4 italic" }, "Vazio") : cart.map(item => React.createElement('div', { key: item.tempId, className: "flex justify-between items-center bg-yellow-50 p-3 rounded-lg border border-yellow-100" }, React.createElement('div', null, React.createElement('p', { className: "font-bold text-sm text-slate-800" }, `${item.quantity}x ${item.productName}`), React.createElement('p', { className: "text-xs text-slate-500" }, `Total: ${formatCurrency(item.price)}`)), React.createElement('button', { onClick: () => handleRemoveItem(item.tempId), className: "text-red-400 hover:text-red-600" }, React.createElement(Trash2, { size: 16 })))),
-                        cart.length > 0 && React.createElement('div', { className: "text-right font-bold text-lg text-slate-800 pt-2 border-t" }, `Total: ${formatCurrency(totalCartValue)}`)
-                    )
-                ),
-                step === 3 && React.createElement('div', { className: "space-y-4" },
-                    React.createElement('div', null, React.createElement('label', { className: "block text-xs font-bold text-slate-500 uppercase mb-1 flex items-center gap-1" }, React.createElement(Calendar, { size: 12 }), " Data da Venda"), React.createElement('input', { type: "date", className: "w-full p-3 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500", value: saleDate, onChange: e => setSaleDate(e.target.value) })),
-                    React.createElement('div', { className: "flex bg-slate-100 p-1 rounded-xl mb-2" },
-                        React.createElement('button', { onClick: () => setSaleType('prazo'), className: `flex-1 py-2 text-sm font-bold rounded-lg transition-all ${saleType === 'prazo' ? 'bg-white shadow text-slate-800' : 'text-slate-400'}` }, "A Prazo (Fiado)"),
-                        React.createElement('button', { onClick: () => setSaleType('direct'), className: `flex-1 py-2 text-sm font-bold rounded-lg transition-all ${saleType === 'direct' ? 'bg-emerald-500 shadow text-white' : 'text-slate-400'}` }, "Caixa / Cartão")
-                    ),
-                    saleType === 'prazo' && React.createElement('div', { className: "animate-fade-in space-y-4" },
-                        React.createElement('div', null, React.createElement('label', { className: "block text-xs font-bold text-slate-500 uppercase mb-1" }, "Entrada (Opcional)"), React.createElement(MoneyInput, { value: entryAmount, onChange: setEntryAmount })),
-                        totalRemaining > 0 && React.createElement(React.Fragment, null,
-                            React.createElement('div', null, React.createElement('label', { className: "block text-xs font-bold text-slate-500 uppercase mb-1" }, "Frequência"), React.createElement('select', { className: "w-full p-3 border border-slate-200 rounded-lg", value: frequency, onChange: e => setFrequency(e.target.value) }, React.createElement('option', { value: "weekly" }, "Semanal"), React.createElement('option', { value: "biweekly" }, "Quinzenal"), React.createElement('option', { value: "monthly" }, "Mensal"))),
-                            React.createElement('div', { className: "grid grid-cols-2 gap-4" },
-                                React.createElement('div', null, React.createElement('label', { className: "block text-xs font-bold text-slate-500 uppercase mb-1" }, "Parcelas"), React.createElement('select', { className: "w-full p-3 border border-slate-200 rounded-lg", value: installmentsCount, onChange: e => setInstallmentsCount(e.target.value) }, Array.from({length: 12}, (_, i) => i + 1).map(n => React.createElement('option', { key: n, value: n }, `${n}x`)))),
-                                React.createElement('div', null, React.createElement('label', { className: "block text-xs font-bold text-slate-500 uppercase mb-1" }, "1ª Data"), React.createElement('input', { type: "date", className: "w-full p-3 border border-slate-200 rounded-lg", value: firstDueDate, onChange: e => setFirstDueDate(e.target.value) }))
-                            )
-                        )
-                    ),
-                    saleType === 'direct' && React.createElement('div', { className: "animate-fade-in space-y-4" },
-                        React.createElement('div', { className: "grid grid-cols-2 gap-3" },
-                            ['pix','money','debit','credit'].map(m => React.createElement('button', { key: m, onClick: () => setDirectMethod(m), className: `p-4 rounded-xl border flex flex-col items-center gap-2 ${directMethod === m ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-200 text-slate-500 hover:bg-slate-50'}` }, React.createElement(m === 'pix' ? QrCode : m === 'money' ? Banknote : CreditCard, { size: 24 }), React.createElement('span', { className: "text-xs font-bold uppercase" }, m === 'money' ? 'Dinheiro' : m === 'debit' ? 'Débito' : m === 'credit' ? 'Crédito' : 'PIX')))
-                        ),
-                        directMethod === 'credit' && React.createElement('div', { className: "space-y-4 pt-2 border-t border-slate-100" },
-                            React.createElement('div', null, React.createElement('label', { className: "block text-xs font-bold text-slate-500 uppercase mb-1" }, "Entrada (Dinheiro/Pix)"), React.createElement(MoneyInput, { value: entryAmount, onChange: setEntryAmount })),
-                            React.createElement('div', { className: "bg-slate-50 p-4 rounded-xl border border-slate-200" }, React.createElement('label', { className: "block text-xs font-bold text-slate-500 uppercase mb-2" }, "Parcelas da Maquininha"), React.createElement('select', { className: "w-full p-3 border border-slate-200 rounded-lg", value: cardInstallments, onChange: e => setCardInstallments(e.target.value) }, React.createElement('option', { value: "1" }, "1x (À Vista)"), Array.from({length: 11}, (_, i) => i + 2).map(n => React.createElement('option', { key: n, value: n }, `${n}x`))))
-                        )
-                    )
-                )
-            ),
-            React.createElement('div', { className: "flex gap-3 mt-6 pt-4 border-t border-slate-100" },
-                step === 1 && React.createElement(React.Fragment, null, React.createElement('button', { onClick: onClose, className: "flex-1 p-3 text-slate-500 font-bold" }, "Cancelar"), React.createElement('button', { onClick: () => setStep(2), disabled: !customerId, className: "flex-1 p-3 bg-slate-900 text-white font-bold rounded-xl disabled:opacity-50" }, "Próximo")),
-                step === 2 && React.createElement(React.Fragment, null, React.createElement('button', { onClick: () => setStep(1), className: "flex-1 p-3 text-slate-500 font-bold" }, "Voltar"), React.createElement('button', { onClick: () => setStep(3), disabled: cart.length === 0, className: "flex-1 p-3 bg-slate-900 text-white font-bold rounded-xl disabled:opacity-50" }, "Pagamento")),
-                step === 3 && React.createElement(React.Fragment, null, React.createElement('button', { onClick: () => setStep(2), className: "flex-1 p-3 text-slate-500 font-bold" }, "Voltar"), React.createElement('button', { onClick: handleFinish, className: "flex-1 p-3 bg-yellow-500 text-white font-bold rounded-xl shadow-lg shadow-yellow-200 hover:bg-yellow-600" }, "Finalizar"))
-            )
-        )
-    );
-};
-
 const CancelSaleModal = ({ isOpen, onClose, onConfirm, sale }) => {
     const [reason, setReason] = useState('');
     if (!isOpen || !sale) return null;
@@ -1315,7 +724,6 @@ const CancelSaleModal = ({ isOpen, onClose, onConfirm, sale }) => {
         )
     );
 };
-
 
 // --- MODAL DE DETALHES COMPLETOS DA VENDA ---
 const SaleDetailsModal = ({ isOpen, onClose, sale, onPay, onEdit, onDeletePayment, onDeleteSale, onOpenWA, onCancelSale }) => {
@@ -1499,7 +907,7 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
     const [profileModalOpen, setProfileModalOpen] = useState(false);
     
     // Inventory Modals
-    const [inventoryMoveModal, setInventoryMoveModal] = useState({ open: false, product: null });
+    const [inventoryMoveModal, setInventoryMoveModal] = useState({ open: false, product: null, initialData: null });
     const [inventoryHistoryModal, setInventoryHistoryModal] = useState({ open: false, product: null });
 
     const [selectedSaleDetail, setSelectedSaleDetail] = useState(null);
@@ -1513,6 +921,7 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
     const [paymentModal, setPaymentModal] = useState({ open: false, saleId: null, index: null, item: null, isLast: false });
     const [deletePaymentModal, setDeletePaymentModal] = useState({ open: false, saleId: null, instIndex: null, histIndex: null, historyItem: null });
 
+    // Estado do Seletor de WhatsApp
     const [waChooserModal, setWaChooserModal] = useState({ open: false, phone: '', message: '' });
 
     useEffect(() => {
@@ -1526,10 +935,12 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         return () => { unsubC(); unsubP(); unsubS(); };
     }, [user.uid]);
 
+    // Auto-update dates when period changes
     useEffect(() => { if (dashPeriod === 'month') { setDashStartDate(getCurrentMonthStart()); setDashEndDate(getCurrentMonthEnd()); } }, [dashPeriod]);
     useEffect(() => { if (salesPeriod === 'month') { setSalesStart(getCurrentMonthStart()); setSalesEnd(getCurrentMonthEnd()); } }, [salesPeriod]);
     useEffect(() => { if (cashierPeriod === 'month') { setCashierStart(getCurrentMonthStart()); setCashierEnd(getCurrentMonthEnd()); } }, [cashierPeriod]);
 
+    // Reset pagination when searching/filtering
     useEffect(() => setSalesPage(1), [salesSearch, salesPeriod, salesStart, salesEnd]);
     useEffect(() => setCashierPage(1), [cashierSearch, cashierPeriod, cashierStart, cashierEnd]);
     useEffect(() => setProductsPage(1), [productSearch]);
@@ -1675,7 +1086,6 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
             const newStock = data.stock;
             await updateDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'products', productModalData.data.id), data);
             
-            // Se mudou o estoque pelo formulário de edição, lança ajuste
             if (oldStock !== newStock) {
                 const diff = newStock - oldStock;
                 await addDoc(collection(db, 'artifacts', APP_ID, 'users', user.uid, 'inventory_movements'), {
@@ -1704,7 +1114,6 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
 
     const handleAddSale = async (data) => {
         const saleRef = await addDoc(collection(db, 'artifacts', APP_ID, 'users', user.uid, 'sales'), data);
-        // Atualiza estoque dos itens
         for (const item of data.items) {
             const p = products.find(x => x.id === item.productId);
             if (p) {
@@ -1721,16 +1130,61 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
 
     const handleSaveMovement = async (movData) => {
         const pRef = doc(db, 'artifacts', APP_ID, 'users', user.uid, 'products', inventoryMoveModal.product.id);
-        const currentStock = inventoryMoveModal.product.stock || 0;
-        const newStock = movData.type === 'entrada' ? currentStock + movData.quantity : currentStock - movData.quantity;
-        
-        let updatePayload = { stock: newStock };
-        if (movData.costPrice) updatePayload.costPrice = movData.costPrice;
+        const product = products.find(p => p.id === inventoryMoveModal.product.id);
+        if (!product) return;
 
-        await updateDoc(pRef, updatePayload);
-        await addDoc(collection(db, 'artifacts', APP_ID, 'users', user.uid, 'inventory_movements'), {
-            ...movData, productId: inventoryMoveModal.product.id, source: 'manual', createdAt: serverTimestamp()
-        });
+        const currentStock = product.stock || 0;
+        const currentCost = product.costPrice || 0;
+
+        if (movData.id) {
+            // EDITANDO
+            const oldMov = movData.oldData;
+            const qtyDiff = movData.quantity - oldMov.quantity;
+            const stockDiff = oldMov.type === 'entrada' ? qtyDiff : -qtyDiff;
+            const newStock = currentStock + stockDiff;
+            
+            let updatePayload = { stock: newStock };
+            if (movData.type === 'entrada' && movData.subType === 'compra' && movData.costPrice > 0) {
+                 updatePayload.costPrice = movData.costPrice;
+            }
+
+            await updateDoc(pRef, updatePayload);
+            
+            const movRef = doc(db, 'artifacts', APP_ID, 'users', user.uid, 'inventory_movements', movData.id);
+            const { oldData, ...toUpdate } = movData; 
+            await updateDoc(movRef, toUpdate);
+
+        } else {
+            // CRIANDO NOVO
+            let newStock = currentStock;
+            let newCost = currentCost;
+
+            if (movData.type === 'entrada') {
+                newStock += movData.quantity;
+                if (movData.subType === 'compra' && movData.costPrice > 0) {
+                    if (currentStock <= 0) {
+                        newCost = movData.costPrice;
+                    } else {
+                        const totalCurrentValue = currentStock * currentCost;
+                        const totalNewValue = movData.quantity * movData.costPrice;
+                        newCost = (totalCurrentValue + totalNewValue) / newStock;
+                    }
+                }
+            } else {
+                newStock -= movData.quantity;
+            }
+
+            let updatePayload = { stock: newStock };
+            if (movData.type === 'entrada' && movData.subType === 'compra') {
+                updatePayload.costPrice = newCost;
+            }
+
+            await updateDoc(pRef, updatePayload);
+            await addDoc(collection(db, 'artifacts', APP_ID, 'users', user.uid, 'inventory_movements'), {
+                ...movData, productId: product.id, source: 'manual', createdAt: serverTimestamp()
+            });
+        }
+        setInventoryMoveModal({ open: false, product: null, initialData: null });
     };
 
     const handleCancelSale = async (reason) => {
@@ -1752,12 +1206,32 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
                 });
             }
         }
+        setCancelSaleModal({ open: false, sale: null });
     };
     
     const requestDelete = (type, id) => setDeleteModal({ open: true, type, id });
     const confirmDelete = async () => {
         const { type, id } = deleteModal;
         const col = type === 'sale' ? 'sales' : type === 'customer' ? 'customers' : 'products';
+        
+        if (type === 'sale') {
+            const sale = sales.find(s => s.id === id);
+            // Se já estava cancelada, o estoque já foi devolvido
+            if (sale && sale.status !== 'cancelled') { 
+                for (const item of sale.items) {
+                    const p = products.find(x => x.id === item.productId);
+                    if (p) {
+                        const newStock = (p.stock || 0) + item.quantity;
+                        await updateDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'products', p.id), { stock: newStock });
+                        await addDoc(collection(db, 'artifacts', APP_ID, 'users', user.uid, 'inventory_movements'), {
+                            productId: p.id, type: 'entrada', subType: 'ajuste', source: 'manual',
+                            quantity: item.quantity, reason: 'Exclusão Física de Venda', date: getBrazilDateString() + 'T12:00:00', createdAt: serverTimestamp()
+                        });
+                    }
+                }
+            }
+        }
+
         await deleteDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, col, id));
         setDeleteModal({ open: false, type: null, id: null });
     };
@@ -2227,8 +1701,17 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         React.createElement(ProductFormModal, { isOpen: productModalData.open, onClose: () => setProductModalData({open:false, data:null}), initialData: productModalData.data, onSave: handleSaveProduct, lastCode: products.length > 0 ? String(products.reduce((max, p) => Math.max(max, parseInt(p.code || '0', 10) || 0), 0)).padStart(6, '0') : null }),
         React.createElement(ProductDetailsModal, { isOpen: productDetailsModalData.open, onClose: () => setProductDetailsModalData({open:false, data:null}), product: productDetailsModalData.data }),
         
-        React.createElement(InventoryMovementModal, { isOpen: inventoryMoveModal.open, onClose: () => setInventoryMoveModal({open: false, product: null}), product: inventoryMoveModal.product, onSave: handleSaveMovement }),
-        React.createElement(InventoryHistoryModal, { isOpen: inventoryHistoryModal.open, onClose: () => setInventoryHistoryModal({open: false, product: null}), product: inventoryHistoryModal.product, userId: user?.uid }),
+        React.createElement(InventoryMovementModal, { isOpen: inventoryMoveModal.open, onClose: () => setInventoryMoveModal({open: false, product: null}), product: inventoryMoveModal.product, initialData: inventoryMoveModal.initialData, onSave: handleSaveMovement }),
+        React.createElement(InventoryHistoryModal, { 
+            isOpen: inventoryHistoryModal.open, 
+            onClose: () => setInventoryHistoryModal({open: false, product: null}), 
+            product: inventoryHistoryModal.product, 
+            userId: user?.uid,
+            onEditMovement: (mov) => {
+                setInventoryHistoryModal({ open: false, product: null });
+                setInventoryMoveModal({ open: true, product: products.find(p => p.id === mov.productId), initialData: mov });
+            }
+        }),
 
         React.createElement(NewSaleModal, { isOpen: isSaleModalOpen, onClose: () => setIsSaleModalOpen(false), customers: customers, products: products, onSave: handleAddSale }),
         React.createElement(EditInstallmentModal, { isOpen: editInstallmentModal.open, onClose: () => setEditInstallmentModal({ open: false, saleId: null, data: null }), installment: editInstallmentModal.data, onSave: saveEditedInstallment }),
@@ -2282,7 +1765,7 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
             message: waChooserModal.message,
             onClose: () => setWaChooserModal({ open: false, phone: '', message: '' })
         }),
-        React.createElement(ConfirmModal, { isOpen: deleteModal.open, title: "Tem certeza?", message: "O registro será apagado permanentemente. O estoque não será alterado neste processo.", onClose: () => { setDeleteModal({ open: false, id: null, type: null }); setSelectedSaleDetail(null); }, onConfirm: confirmDelete })
+        React.createElement(ConfirmModal, { isOpen: deleteModal.open, title: "Tem certeza?", message: "O registro será apagado permanentemente. O estoque e financeiro serão restaurados onde aplicável.", onClose: () => { setDeleteModal({ open: false, id: null, type: null }); setSelectedSaleDetail(null); }, onConfirm: confirmDelete })
     );
 };
 
