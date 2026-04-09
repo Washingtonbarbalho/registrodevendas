@@ -274,7 +274,7 @@ const WhatsAppChooserModal = ({ isOpen, onClose, phone, message }) => {
             React.createElement('h3', { className: "text-lg font-bold text-slate-800 mb-1" }, "Enviar Mensagem"),
             React.createElement('p', { className: "text-sm text-slate-500 mb-6" }, "Escolha a ação desejada para a mensagem."),
             React.createElement('div', { className: "space-y-3" },
-                React.createElement('button', { onClick: () => handleOpen('whatsapp'), className: "w-full p-4 bg-green-500 text-white font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-green-600 shadow-sm" }, React.createElement(MessageCircle, { size: 20 }), "WhatsApp"),
+                React.createElement('button', { onClick: () => handleOpen('whatsapp'), className: "w-full p-4 bg-green-500 text-white font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-green-600 shadow-sm" }, React.createElement(MessageCircle, { size: 20 }), "Abrir no WhatsApp"),
                 React.createElement('button', { onClick: () => handleOpen('copy'), className: "w-full p-4 bg-slate-100 text-slate-600 font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-slate-200" }, React.createElement(Copy, { size: 20 }), "Copiar Mensagem")
             ),
             React.createElement('button', { onClick: onClose, className: "mt-4 p-2 text-slate-400 hover:text-slate-600 w-full font-bold" }, "Cancelar")
@@ -1329,7 +1329,7 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         if (!sale || !sale.customerPhone) return;
 
         const store = userProfile?.storeName || "Nossa Loja";
-        const contractId = sale.id ? `EMP-${sale.id.slice(-5).toUpperCase()}` : '00000';
+        const contractId = sale.id ? `VP-${sale.id.slice(-5).toUpperCase()}` : '00000'; // Alterado para VP-
         let msg = "";
 
         if (type === 'registro' || type === 'quitacao') {
@@ -1365,7 +1365,9 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
                 const statusIcon = inst.paid ? '✅' : '⏳';
                 const statusText = inst.paid ? 'Pago' : 'Em Aberto';
                 const dateToShow = inst.paid && inst.paidAt ? formatDate(inst.paidAt) : formatDate(inst.dueDate);
-                msg += `${inst.number}️⃣ ${statusIcon} ${dateToShow} - ${statusText}\n`;
+                // Busca o valor da parcela (caso tenha sido paga e o valor zerado, mostra o original)
+                const valorInst = formatCurrency(inst.originalAmount || inst.amount); 
+                msg += `${inst.number}️⃣ ${statusIcon} ${dateToShow} - ${valorInst} (${statusText})\n`;
             });
 
             msg += `\n━━━━━━━━━━━━━━━━━━━\n`;
