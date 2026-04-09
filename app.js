@@ -7,7 +7,7 @@ import {
     PieChart, BarChart3, ArrowUpRight, ArrowDownRight, PackageMinus,
     LogOut, Lock, Mail, Phone, Store, UserCog, UserCheck, UserX, Shield,
     ChevronLeft, ChevronRight, MoreHorizontal, LayoutGrid, AlertCircle, RefreshCw,
-    Clock, Bell, History, FileText, XCircle
+    Clock, Bell, History, FileText, XCircle, User, Smartphone, Copy
 } from 'https://esm.sh/lucide-react@0.292.0';
 
 // --- FIREBASE IMPORTS ---
@@ -57,6 +57,28 @@ const maskPhone = (v) => {
     return v;
 };
 
+const maskCpfCnpj = (v) => {
+    v = v.replace(/\D/g, "");
+    if (v.length <= 11) {
+        v = v.replace(/(\d{3})(\d)/, "$1.$2");
+        v = v.replace(/(\d{3})(\d)/, "$1.$2");
+        v = v.replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+    } else {
+        v = v.replace(/^(\d{2})(\d)/, "$1.$2");
+        v = v.replace(/^(\d{2})\.(\d{3})(\d)/, "$1.$2.$3");
+        v = v.replace(/\.(\d{3})(\d)/, ".$1/$2");
+        v = v.replace(/(\d{4})(\d)/, "$1-$2");
+    }
+    return v;
+};
+
+const applyPixMask = (val, type) => {
+    if (!val) return '';
+    if (type === 'cpf_cnpj') return maskCpfCnpj(val);
+    if (type === 'phone') return maskPhone(val);
+    return val;
+};
+
 const formatDate = (dateStr) => {
     if (!dateStr) return '--/--/----';
     const isoDate = dateStr.split('T')[0];
@@ -67,14 +89,6 @@ const formatDate = (dateStr) => {
 const getBrazilDateString = () => {
     const date = new Date();
     return date.toLocaleDateString('pt-BR', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'America/Sao_Paulo' }).split('/').reverse().join('-');
-};
-
-const getBrazilISOString = () => {
-    const date = new Date();
-    const brazilDate = new Date(date.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
-    const y = brazilDate.getFullYear(); const m = String(brazilDate.getMonth() + 1).padStart(2, '0'); const d = String(brazilDate.getDate()).padStart(2, '0');
-    const hh = String(brazilDate.getHours()).padStart(2, '0'); const mm = String(brazilDate.getMinutes()).padStart(2, '0'); const ss = String(brazilDate.getSeconds()).padStart(2, '0');
-    return `${y}-${m}-${d}T${hh}:${mm}:${ss}`;
 };
 
 const addDays = (dateStr, days) => {
@@ -238,7 +252,108 @@ const ConfirmModal = ({ isOpen, onClose, onConfirm, title, message }) => {
     );
 };
 
-// --- MODAL DE CONFIRMAÇÃO DE PAGAMENTO ---
+// --- MODAIS DE NEGÓCIO ---
+
+const WhatsAppChooserModal = ({ isOpen, onClose, phone, message }) => {
+    if (!isOpen) return null;
+
+    const handleOpen = (type) => {
+        const encodedMsg = encodeURIComponent(message);
+        const cleanPhone = phone?.replace(/\D/g, '') || '';
+
+        if (type === 'personal') {
+            window.open(`https://api.whatsapp.com/send?phone=55${cleanPhone}&text=${encodedMsg}`, '_blank');
+        } else if (type === 'business') {
+            const isAndroid = /Android/i.test(navigator.userAgent);
+            if (isAndroid) {
+                window.open(`intent://send?phone=55${cleanPhone}&text=${encodedMsg}#Intent;package=com.whatsapp.w4b;scheme=whatsapp;end`, '_blank');
+            } else {
+                window.open(`https://api.whatsapp.com/send?phone=55${cleanPhone}&text=${encodedMsg}`, '_blank');
+            }
+        } else if (type === 'copy') {
+            navigator.clipboard.writeText(message);
+        }
+        onClose();
+    };
+
+    return React.createElement('div', { className: "fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-[90] backdrop-blur-sm" },
+        React.createElement('div', { className: "bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl animate-fade-in text-center" },
+            React.createElement('h3', { className: "text-lg font-bold text-slate-800 mb-1" }, "Enviar Mensagem"),
+            React.createElement('p', { className: "text-sm text-slate-500 mb-6" }, "Escolha por onde deseja enviar a mensagem para o cliente."),
+            React.createElement('div', { className: "space-y-3" },
+                React.createElement('button', { onClick: () => handleOpen('personal'), className: "w-full p-4 bg-green-500 text-white font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-green-600 shadow-sm" }, React.createElement(MessageCircle, { size: 20 }), "WhatsApp Pessoal"),
+                React.createElement('button', { onClick: () => handleOpen('business'), className: "w-full p-4 bg-slate-800 text-white font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-slate-700 shadow-sm" }, React.createElement(Smartphone, { size: 20 }), "WhatsApp Business"),
+                React.createElement('button', { onClick: () => handleOpen('copy'), className: "w-full p-4 bg-slate-100 text-slate-600 font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-slate-200" }, React.createElement(Copy, { size: 20 }), "Apenas Copiar Texto")
+            ),
+            React.createElement('button', { onClick: onClose, className: "mt-4 p-2 text-slate-400 hover:text-slate-600 w-full font-bold" }, "Cancelar")
+        )
+    );
+};
+
+
+const UserProfileModal = ({ isOpen, onClose, userProfile, onSave }) => {
+    const [name, setName] = useState('');
+    const [storeName, setStoreName] = useState('');
+    const [phone, setPhone] = useState('');
+    const [pixType, setPixType] = useState('');
+    const [pixKey, setPixKey] = useState('');
+    const [pixBank, setPixBank] = useState('');
+    const [pixName, setPixName] = useState('');
+
+    useEffect(() => {
+        if (isOpen && userProfile) {
+            setName(userProfile.name || '');
+            setStoreName(userProfile.storeName || '');
+            setPhone(userProfile.phone || '');
+            setPixType(userProfile.pixType || '');
+            setPixKey(userProfile.pixKey || '');
+            setPixBank(userProfile.pixBank || '');
+            setPixName(userProfile.pixName || '');
+        }
+    }, [isOpen, userProfile]);
+
+    const handleSave = () => {
+        onSave({ ...userProfile, name, storeName, phone, pixType, pixKey, pixBank, pixName });
+    };
+
+    if (!isOpen) return null;
+
+    return React.createElement('div', { className: "fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-[80] backdrop-blur-sm" },
+        React.createElement('div', { className: "bg-white rounded-2xl w-full max-w-md max-h-[90vh] flex flex-col shadow-2xl animate-fade-in" },
+            React.createElement('div', { className: "p-4 border-b border-slate-100 flex justify-between items-center" },
+                React.createElement('h3', { className: "font-bold text-lg text-slate-800 flex items-center gap-2" }, React.createElement(User, { className: "text-yellow-500" }), "Meu Perfil"),
+                React.createElement('button', { onClick: onClose, className: "p-2 hover:bg-slate-100 rounded-full" }, React.createElement(X, { size: 20 }))
+            ),
+            React.createElement('div', { className: "flex-1 overflow-y-auto p-4 space-y-4" },
+                React.createElement('div', { className: "space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-100" },
+                    React.createElement('p', { className: "text-xs font-bold text-slate-400 uppercase" }, "Dados da Loja"),
+                    React.createElement('input', { className: "w-full p-3 border border-slate-200 rounded-lg", value: name, onChange: e => setName(e.target.value), placeholder: "Seu Nome" }),
+                    React.createElement('input', { className: "w-full p-3 border border-slate-200 rounded-lg", value: storeName, onChange: e => setStoreName(e.target.value), placeholder: "Nome da Loja" }),
+                    React.createElement(PhoneInput, { className: "w-full p-3 border border-slate-200 rounded-lg", value: phone, onChange: setPhone, placeholder: "Seu WhatsApp" })
+                ),
+                React.createElement('div', { className: "space-y-3 bg-emerald-50 p-4 rounded-xl border border-emerald-100" },
+                    React.createElement('p', { className: "text-xs font-bold text-emerald-600 uppercase flex items-center gap-1" }, React.createElement(QrCode, { size: 14 }), "Configuração do PIX (Para Cobranças)"),
+                    React.createElement('select', { className: "w-full p-3 border border-slate-200 rounded-lg bg-white", value: pixType, onChange: e => { setPixType(e.target.value); setPixKey(''); } },
+                        React.createElement('option', { value: "" }, "Selecione o Tipo de Chave..."),
+                        React.createElement('option', { value: "cpf_cnpj" }, "CPF / CNPJ"),
+                        React.createElement('option', { value: "phone" }, "Telefone"),
+                        React.createElement('option', { value: "email" }, "E-mail"),
+                        React.createElement('option', { value: "random" }, "Chave Aleatória")
+                    ),
+                    React.createElement('input', { className: "w-full p-3 border border-slate-200 rounded-lg bg-white", value: applyPixMask(pixKey, pixType), onChange: e => setPixKey(e.target.value), placeholder: "Chave PIX", disabled: !pixType }),
+                    React.createElement('input', { className: "w-full p-3 border border-slate-200 rounded-lg bg-white", value: pixBank, onChange: e => setPixBank(e.target.value), placeholder: "Nome do Banco (Ex: NuBank)" }),
+                    React.createElement('input', { className: "w-full p-3 border border-slate-200 rounded-lg bg-white", value: pixName, onChange: e => setPixName(e.target.value), placeholder: "Nome Completo do Titular" })
+                )
+            ),
+            React.createElement('div', { className: "p-4 border-t border-slate-100 flex gap-2" },
+                React.createElement('button', { onClick: onClose, className: "flex-1 p-3 text-slate-500 font-bold rounded-lg hover:bg-slate-50" }, "Cancelar"),
+                React.createElement('button', { onClick: handleSave, className: "flex-1 p-3 bg-slate-900 text-white font-bold rounded-lg shadow-sm" }, "Salvar Alterações")
+            )
+        )
+    );
+};
+
+
 const PaymentConfirmationModal = ({ isOpen, onClose, onConfirm, installment, isLast }) => {
     const [amount, setAmount] = useState('');
     const [date, setDate] = useState(getBrazilDateString());
@@ -301,10 +416,9 @@ const PaymentConfirmationModal = ({ isOpen, onClose, onConfirm, installment, isL
 };
 
 
-const InstallmentListModal = ({ isOpen, onClose, title, items, onPay, getWhatsappLink, storeName }) => {
+const InstallmentListModal = ({ isOpen, onClose, title, items, onPay, onOpenWA }) => {
     if (!isOpen) return null;
 
-    // Agrupar por cliente para visualização mais limpa
     const groupedItems = items.reduce((acc, item) => {
         if (!acc[item.customerName]) acc[item.customerName] = [];
         acc[item.customerName].push(item);
@@ -340,9 +454,8 @@ const InstallmentListModal = ({ isOpen, onClose, title, items, onPay, getWhatsap
                                     )
                                 ),
                                 React.createElement('div', { className: "flex gap-2" },
-                                    item.customerPhone && React.createElement('a', { 
-                                        href: getWhatsappLink('cobranca', item.sale, item, null, storeName),
-                                        target: "_blank", rel: "noreferrer",
+                                    item.customerPhone && React.createElement('button', { 
+                                        onClick: () => onOpenWA('cobranca', item.sale, item, null),
                                         className: "p-2 bg-green-500 text-white rounded-lg shadow-sm hover:bg-green-600 transition-colors"
                                     }, React.createElement(MessageCircle, { size: 16 })),
                                     React.createElement('button', { 
@@ -516,8 +629,8 @@ const AdminUsersPanel = ({ onClose }) => {
 
     const handleSaveEdit = async () => {
         if (!editingUser) return;
-        const { id, name, storeName, phone } = editingUser;
-        const updateData = { name, storeName, phone };
+        const { id, name, storeName, phone, pixType, pixKey, pixBank, pixName } = editingUser;
+        const updateData = { name, storeName, phone, pixType, pixKey, pixBank, pixName };
         await updateDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'all_users', id), updateData);
         await updateDoc(doc(db, 'artifacts', APP_ID, 'users', id, 'profile', 'info'), updateData);
         setEditingUser(null);
@@ -541,18 +654,33 @@ const AdminUsersPanel = ({ onClose }) => {
                             React.createElement('p', { className: "text-sm text-slate-500" }, u.email),
                             React.createElement('p', { className: "text-xs text-slate-400 mt-1" }, u.storeName || "Sem loja")
                         ),
-                        React.createElement('div', { className: "flex items-center gap-2" }, !isMe && React.createElement('button', { onClick: () => handleToggleStatus(u), className: `px-4 py-2 rounded-lg font-bold text-sm ${u.approved ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'bg-green-50 text-green-600 hover:bg-green-100'}` }, u.approved ? "Bloquear" : "Permitir"), React.createElement('button', { onClick: () => setEditingUser(u), className: "p-2 text-slate-400 hover:text-blue-500" }, React.createElement(Edit2, { size: 18 })), !isMe && React.createElement('button', { onClick: () => handleDeleteUser(u.id), className: "p-2 text-slate-400 hover:text-red-500" }, React.createElement(Trash2, { size: 18 })))
+                        React.createElement('div', { className: "flex items-center gap-2" }, !isMe && React.createElement('button', { onClick: () => handleToggleStatus(u), className: `px-4 py-2 rounded-lg font-bold text-sm ${u.approved ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'bg-green-50 text-green-600 hover:bg-green-100'}` }, u.approved ? "Bloquear" : "Permitir"), React.createElement('button', { onClick: () => setEditingUser({...u, pixType: u.pixType||'', pixKey: u.pixKey||'', pixBank: u.pixBank||'', pixName: u.pixName||''}), className: "p-2 text-slate-400 hover:text-blue-500" }, React.createElement(Edit2, { size: 18 })), !isMe && React.createElement('button', { onClick: () => handleDeleteUser(u.id), className: "p-2 text-slate-400 hover:text-red-500" }, React.createElement(Trash2, { size: 18 })))
                     );
                 }),
                 React.createElement(Pagination, { totalItems: filteredUsers.length, itemsPerPage: ITEMS_PER_PAGE, currentPage: currentPage, onPageChange: setCurrentPage })
             )
         ),
         editingUser && React.createElement('div', { className: "fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-[60]" },
-            React.createElement('div', { className: "bg-white p-6 rounded-2xl w-full max-w-sm animate-fade-in" },
+            React.createElement('div', { className: "bg-white p-6 rounded-2xl w-full max-w-sm max-h-[90vh] overflow-y-auto animate-fade-in" },
                 React.createElement('h3', { className: "font-bold text-lg mb-4" }, "Editar Usuário"),
                 React.createElement('input', { className: "w-full p-2 mb-2 border rounded", value: editingUser.name, onChange: e => setEditingUser({...editingUser, name: e.target.value}), placeholder: "Nome" }),
                 React.createElement('input', { className: "w-full p-2 mb-2 border rounded", value: editingUser.storeName, onChange: e => setEditingUser({...editingUser, storeName: e.target.value}), placeholder: "Loja" }),
                 React.createElement('input', { className: "w-full p-2 mb-4 border rounded", value: editingUser.phone, onChange: e => setEditingUser({...editingUser, phone: maskPhone(e.target.value)}), placeholder: "Telefone" }),
+                
+                React.createElement('div', { className: "bg-slate-50 p-3 rounded-lg mb-4 space-y-2 border border-slate-100" },
+                    React.createElement('p', { className: "text-xs font-bold text-slate-500 uppercase" }, "Chave PIX"),
+                    React.createElement('select', { className: "w-full p-2 border rounded text-sm", value: editingUser.pixType, onChange: e => setEditingUser({...editingUser, pixType: e.target.value, pixKey: ''}) },
+                        React.createElement('option', { value: "" }, "Selecione o Tipo..."),
+                        React.createElement('option', { value: "cpf_cnpj" }, "CPF / CNPJ"),
+                        React.createElement('option', { value: "phone" }, "Telefone"),
+                        React.createElement('option', { value: "email" }, "E-mail"),
+                        React.createElement('option', { value: "random" }, "Chave Aleatória")
+                    ),
+                    React.createElement('input', { className: "w-full p-2 border rounded text-sm", value: applyPixMask(editingUser.pixKey, editingUser.pixType), onChange: e => setEditingUser({...editingUser, pixKey: e.target.value}), placeholder: "Chave PIX", disabled: !editingUser.pixType }),
+                    React.createElement('input', { className: "w-full p-2 border rounded text-sm", value: editingUser.pixBank, onChange: e => setEditingUser({...editingUser, pixBank: e.target.value}), placeholder: "Banco" }),
+                    React.createElement('input', { className: "w-full p-2 border rounded text-sm", value: editingUser.pixName, onChange: e => setEditingUser({...editingUser, pixName: e.target.value}), placeholder: "Titular" })
+                ),
+
                 React.createElement('div', { className: "flex gap-2" }, React.createElement('button', { onClick: () => setEditingUser(null), className: "flex-1 p-2 text-slate-500 font-bold" }, "Cancelar"), React.createElement('button', { onClick: handleSaveEdit, className: "flex-1 p-2 bg-slate-900 text-white font-bold rounded" }, "Salvar"))
             )
         )
@@ -746,8 +874,8 @@ const NewSaleModal = ({ isOpen, onClose, customers, products, onSave }) => {
 };
 
 
-// --- NOVO MODAL DE DETALHES COMPLETOS DA VENDA ---
-const SaleDetailsModal = ({ isOpen, onClose, sale, onPay, onEdit, onDeletePayment, onDeleteSale, getWhatsappLink, storeName }) => {
+// --- MODAL DE DETALHES COMPLETOS DA VENDA ---
+const SaleDetailsModal = ({ isOpen, onClose, sale, onPay, onEdit, onDeletePayment, onDeleteSale, onOpenWA }) => {
     if (!isOpen || !sale) return null;
 
     const pendingAmount = sale.installments ? sale.installments.filter(i => !i.paid).reduce((acc, i) => acc + i.amount, 0) : 0;
@@ -764,9 +892,8 @@ const SaleDetailsModal = ({ isOpen, onClose, sale, onPay, onEdit, onDeletePaymen
                     React.createElement('p', { className: "text-xs text-slate-500 font-medium" }, sale.customerName)
                 ),
                 React.createElement('div', { className: "flex gap-2 items-center" },
-                    React.createElement('a', { 
-                        href: getWhatsappLink(sale.status === 'completed' ? 'quitacao' : 'registro', sale, null, null, storeName),
-                        target: "_blank", rel: "noreferrer",
+                    React.createElement('button', { 
+                        onClick: () => onOpenWA(sale.status === 'completed' ? 'quitacao' : 'registro', sale, null, null),
                         className: "p-2 hover:bg-green-100 rounded-full transition-colors text-green-600",
                         title: sale.status === 'completed' ? "Enviar Quitação" : "Enviar Resumo da Venda"
                     }, React.createElement(MessageCircle, { size: 20 })),
@@ -848,7 +975,7 @@ const SaleDetailsModal = ({ isOpen, onClose, sale, onPay, onEdit, onDeletePaymen
                                 inst.history.map((h, hIdx) => React.createElement('div', { key: hIdx, className: "flex justify-between items-center text-slate-600 py-1.5 border-b border-slate-100 last:border-0" },
                                     React.createElement('div', { className: "flex items-center gap-1" },
                                         React.createElement('span', null, h.type === 'abatement' ? 'Abatimento autom.' : formatDate(h.date)),
-                                        h.type !== 'abatement' && React.createElement('a', { onClick: (e) => e.stopPropagation(), href: getWhatsappLink('recibo', sale, inst, h, storeName), target: "_blank", rel: "noreferrer", className: "text-green-500 hover:text-green-600 bg-green-50 p-1 rounded transition-colors ml-1", title: "Enviar Recibo" }, React.createElement(MessageCircle, { size: 12 })),
+                                        h.type !== 'abatement' && React.createElement('button', { onClick: (e) => { e.stopPropagation(); onOpenWA('recibo', sale, inst, h); }, className: "text-green-500 hover:text-green-600 bg-green-50 p-1 rounded transition-colors ml-1", title: "Enviar Recibo" }, React.createElement(MessageCircle, { size: 12 })),
                                         h.type !== 'abatement' && React.createElement('button', { onClick: () => onDeletePayment(sale.id, idx, hIdx, h), className: "text-red-400 hover:text-red-600 bg-red-50 p-1 rounded transition-colors" }, React.createElement(XCircle, { size: 12 }))
                                     ),
                                     React.createElement('span', { className: "font-bold" }, formatCurrency(h.amount))
@@ -856,9 +983,9 @@ const SaleDetailsModal = ({ isOpen, onClose, sale, onPay, onEdit, onDeletePaymen
                             ),
                             !inst.paid ? React.createElement('div', { className: "flex gap-2 mt-2" },
                                 React.createElement('button', { onClick: () => onEdit({ open: true, saleId: sale.id, installmentIndex: idx, data: inst }), className: "flex-1 flex items-center justify-center gap-1 py-2 text-xs font-bold text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors" }, React.createElement(Edit2, { size: 14 }), "Ajustar Valor"),
-                                sale.customerPhone && React.createElement('a', { href: getWhatsappLink('cobranca', sale, inst, null, storeName), target: "_blank", rel: "noreferrer", className: "flex-1 flex items-center justify-center gap-1 py-2 text-xs font-bold text-white bg-green-500 rounded-lg hover:bg-green-600 transition-colors shadow-sm" }, React.createElement(MessageCircle, { size: 14 }), "Cobrar")
+                                sale.customerPhone && React.createElement('button', { onClick: () => onOpenWA('cobranca', sale, inst, null), className: "flex-1 flex items-center justify-center gap-1 py-2 text-xs font-bold text-white bg-green-500 rounded-lg hover:bg-green-600 transition-colors shadow-sm" }, React.createElement(MessageCircle, { size: 14 }), "Cobrar")
                             ) : React.createElement('div', { className: "flex gap-2 mt-2" },
-                                sale.customerPhone && React.createElement('a', { href: getWhatsappLink('recibo', sale, inst, null, storeName), target: "_blank", rel: "noreferrer", className: "flex-1 flex items-center justify-center gap-1 py-2 text-xs font-bold text-emerald-600 bg-emerald-50 rounded-lg hover:bg-emerald-100 transition-colors shadow-sm border border-emerald-100" }, React.createElement(MessageCircle, { size: 14 }), "Enviar Recibo")
+                                sale.customerPhone && React.createElement('button', { onClick: () => onOpenWA('recibo', sale, inst, null), className: "flex-1 flex items-center justify-center gap-1 py-2 text-xs font-bold text-emerald-600 bg-emerald-50 rounded-lg hover:bg-emerald-100 transition-colors shadow-sm border border-emerald-100" }, React.createElement(MessageCircle, { size: 14 }), "Enviar Recibo")
                             )
                         );
                     })
@@ -913,6 +1040,7 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
     const [isSaleModalOpen, setIsSaleModalOpen] = useState(false);
     const [productModalData, setProductModalData] = useState({ open: false, data: null });
     const [customerModalData, setCustomerModalData] = useState({ open: false, data: null });
+    const [profileModalOpen, setProfileModalOpen] = useState(false);
     
     // Novo Estado para o Modal Detalhado
     const [selectedSaleDetail, setSelectedSaleDetail] = useState(null);
@@ -921,13 +1049,12 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
     const [deleteModal, setDeleteModal] = useState({ open: false, type: null, id: null });
     const [editInstallmentModal, setEditInstallmentModal] = useState({ open: false, saleId: null, installmentIndex: null, data: null });
     
-    // Estado para o Modal de Lista de Parcelas
     const [installmentListModal, setInstallmentListModal] = useState({ open: false, type: null, data: [] });
-    // Estado para o Modal de Confirmação de Pagamento
     const [paymentModal, setPaymentModal] = useState({ open: false, saleId: null, index: null, item: null, isLast: false });
-
-    // Estado para exclusão de pagamento do histórico
     const [deletePaymentModal, setDeletePaymentModal] = useState({ open: false, saleId: null, instIndex: null, histIndex: null, historyItem: null });
+
+    // Estado do Seletor de WhatsApp
+    const [waChooserModal, setWaChooserModal] = useState({ open: false, phone: '', message: '' });
 
     useEffect(() => {
         const customersRef = collection(db, 'artifacts', APP_ID, 'users', user.uid, 'customers');
@@ -999,18 +1126,15 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         let cashIn = 0;
         periodSales.forEach(s => { if (s.saleType === 'direct') cashIn += s.totalPrice; if (s.saleType === 'prazo' && s.entryAmount) cashIn += s.entryAmount; });
         
-        // Somar histórico de pagamentos de parcelas
         sales.forEach(s => {
             if (s.installments) {
                 s.installments.forEach(i => {
-                    // Soma pagamentos totais antigos (sem histórico detalhado)
                     if (i.paid && i.paidAt && (!i.history || i.history.length === 0)) {
                         const paidDate = i.paidAt.split('T')[0];
                         if (paidDate >= dashStartDate && paidDate <= dashEndDate) {
                             cashIn += i.amount;
                         }
                     }
-                    // Soma pagamentos via histórico (parciais ou totais)
                     if (i.history) {
                         i.history.forEach(h => {
                             if (h.type !== 'abatement' && h.date >= dashStartDate && h.date <= dashEndDate) {
@@ -1025,7 +1149,6 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         const today = getBrazilDateString();
         const nextWeek = addDays(today, 7);
 
-        // Lógica Detalhada de Atrasados e Próximos
         const overdueList = [];
         const upcomingList = [];
 
@@ -1035,7 +1158,7 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
                     if (!i.paid) {
                         const itemData = { 
                             ...i, 
-                            sale: s, // Para ter a venda completa ao chamar o Whatsapp
+                            sale: s,
                             saleId: s.id, 
                             customerName: s.customerName, 
                             customerPhone: s.customerPhone,
@@ -1061,15 +1184,8 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         const realProfit = cashIn - periodCost;
         
         return { 
-            totalReceivable, 
-            totalReceived: cashIn, 
-            totalOverdue, 
-            totalUpcoming,
-            estimatedProfit, 
-            realProfit, 
-            periodCost,
-            overdueList,
-            upcomingList 
+            totalReceivable, totalReceived: cashIn, totalOverdue, totalUpcoming,
+            estimatedProfit, realProfit, periodCost, overdueList, upcomingList 
         };
     }, [sales, dashStartDate, dashEndDate]);
 
@@ -1093,7 +1209,13 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         setDeleteModal({ open: false, type: null, id: null });
     };
 
-    // --- LÓGICA DE PAGAMENTO ---
+    const handleUpdateProfile = async (updatedData) => {
+        await updateDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'profile', 'info'), updatedData);
+        await updateDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'all_users', user.uid), updatedData);
+        setProfileModalOpen(false);
+    };
+
+    // --- NOVA LÓGICA DE PAGAMENTO ---
     const handleClickPay = (sale, index) => {
         const item = sale.installments[index];
         if (item.paid) return; 
@@ -1110,87 +1232,26 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         const currentInstallment = updatedInstallments[index];
         const currentAmount = currentInstallment.amount;
 
-        // Criar ou atualizar histórico
         let newHistory = currentInstallment.history || [];
-
         const timestamp = new Date().toISOString();
 
         if (amountPaid < currentAmount) {
-            // Pagamento Parcial
-            newHistory.push({
-                date: datePaid,
-                amount: amountPaid,
-                type: 'partial',
-                timestamp: timestamp
-            });
-
-            updatedInstallments[index] = {
-                ...currentInstallment,
-                amount: currentAmount - amountPaid,
-                history: newHistory
-            };
+            newHistory.push({ date: datePaid, amount: amountPaid, type: 'partial', timestamp: timestamp });
+            updatedInstallments[index] = { ...currentInstallment, amount: currentAmount - amountPaid, history: newHistory };
         } else if (amountPaid === currentAmount) {
-            // Pagamento Total Exato
-            newHistory.push({
-                date: datePaid,
-                amount: amountPaid,
-                type: 'full',
-                timestamp: timestamp
-            });
-
-            updatedInstallments[index] = {
-                ...currentInstallment,
-                paid: true,
-                paidAt: datePaid, 
-                history: newHistory,
-                amount: 0,
-                originalAmount: currentInstallment.originalAmount || currentInstallment.amount
-            };
+            newHistory.push({ date: datePaid, amount: amountPaid, type: 'full', timestamp: timestamp });
+            updatedInstallments[index] = { ...currentInstallment, paid: true, paidAt: datePaid, history: newHistory, amount: 0, originalAmount: currentInstallment.originalAmount || currentInstallment.amount };
         } else {
-            // Pagamento com Excedente
             const surplus = amountPaid - currentAmount;
-            
-            // 1. Quita a parcela atual
-            newHistory.push({
-                date: datePaid,
-                amount: currentAmount, 
-                surplus: surplus,
-                type: 'full_surplus',
-                timestamp: timestamp
-            });
+            newHistory.push({ date: datePaid, amount: currentAmount, surplus: surplus, type: 'full_surplus', timestamp: timestamp });
+            updatedInstallments[index] = { ...currentInstallment, paid: true, paidAt: datePaid, amount: 0, history: newHistory, originalAmount: currentInstallment.originalAmount || currentInstallment.amount };
 
-            updatedInstallments[index] = {
-                ...currentInstallment,
-                paid: true,
-                paidAt: datePaid,
-                amount: 0,
-                history: newHistory,
-                originalAmount: currentInstallment.originalAmount || currentInstallment.amount
-            };
-
-            // 2. Abate da próxima parcela
             if (index + 1 < updatedInstallments.length) {
                 const next = updatedInstallments[index + 1];
                 const newNextAmount = next.amount - surplus;
-                
                 let nextHistory = next.history || [];
-                nextHistory.push({
-                    date: datePaid,
-                    amount: surplus,
-                    type: 'abatement',
-                    fromInstallment: index, // Referência de onde veio
-                    sourceTimestamp: timestamp, // Para linkar com o pagamento original se for excluído
-                    timestamp: new Date().toISOString()
-                });
-
-                updatedInstallments[index + 1] = {
-                    ...next,
-                    amount: newNextAmount > 0 ? newNextAmount : 0,
-                    paid: newNextAmount <= 0,
-                    paidAt: newNextAmount <= 0 ? datePaid : null,
-                    history: nextHistory,
-                    originalAmount: next.originalAmount || next.amount
-                };
+                nextHistory.push({ date: datePaid, amount: surplus, type: 'abatement', fromInstallment: index, sourceTimestamp: timestamp, timestamp: new Date().toISOString() });
+                updatedInstallments[index + 1] = { ...next, amount: newNextAmount > 0 ? newNextAmount : 0, paid: newNextAmount <= 0, paidAt: newNextAmount <= 0 ? datePaid : null, history: nextHistory, originalAmount: next.originalAmount || next.amount };
             }
         }
 
@@ -1203,7 +1264,7 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         setPaymentModal({ open: false, saleId: null, index: null, item: null, isLast: false });
     };
 
-    // --- LÓGICA DE EXCLUSÃO DE PAGAMENTO ---
+    // --- NOVA LÓGICA DE EXCLUSÃO DE PAGAMENTO ---
     const handleDeletePayment = async () => {
         const { saleId, instIndex, histIndex, historyItem } = deletePaymentModal;
         const sale = sales.find(s => s.id === saleId);
@@ -1212,98 +1273,61 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         let updatedInstallments = [...sale.installments];
         const currentInst = updatedInstallments[instIndex];
         
-        // 1. Remove o item do histórico da parcela atual
         const updatedHistory = currentInst.history.filter((_, i) => i !== histIndex);
-        
-        // 2. Recalcula o valor da parcela atual
         let newAmount = currentInst.amount + historyItem.amount;
         
-        updatedInstallments[instIndex] = {
-            ...currentInst,
-            amount: newAmount,
-            paid: false, 
-            paidAt: null,
-            history: updatedHistory
-        };
+        updatedInstallments[instIndex] = { ...currentInst, amount: newAmount, paid: false, paidAt: null, history: updatedHistory };
 
-        // 3. Se for do tipo 'full_surplus', precisa remover o abatimento da próxima parcela
         if (historyItem.type === 'full_surplus' && instIndex + 1 < updatedInstallments.length) {
             const nextInst = updatedInstallments[instIndex + 1];
             const nextHistory = nextInst.history ? nextInst.history.filter(h => h.sourceTimestamp !== historyItem.timestamp) : [];
             const surplusAmount = historyItem.surplus;
-            
-            updatedInstallments[instIndex + 1] = {
-                ...nextInst,
-                amount: nextInst.amount + surplusAmount,
-                paid: false, 
-                paidAt: null,
-                history: nextHistory
-            };
+            updatedInstallments[instIndex + 1] = { ...nextInst, amount: nextInst.amount + surplusAmount, paid: false, paidAt: null, history: nextHistory };
         }
 
         const allPaid = updatedInstallments.every(i => i.paid);
-        await updateDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'sales', saleId), { 
-            installments: updatedInstallments, 
-            status: 'active' 
-        });
+        await updateDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'sales', saleId), { installments: updatedInstallments, status: 'active' });
 
         setDeletePaymentModal({ open: false, saleId: null, instIndex: null, histIndex: null, historyItem: null });
     };
 
     const confirmDeletePayment = (saleId, instIndex, histIndex, historyItem) => {
-        if (historyItem.type === 'abatement') {
-            alert("Para cancelar este abatimento, exclua o pagamento com excedente na parcela anterior.");
-            return;
-        }
+        if (historyItem.type === 'abatement') return alert("Para cancelar este abatimento, exclua o pagamento com excedente na parcela anterior.");
         setDeletePaymentModal({ open: true, saleId, instIndex, histIndex, historyItem });
     };
 
     const handlePayFromList = async (item) => {
         const sale = sales.find(s => s.id === item.saleId);
-        if (sale) {
-            handleClickPay(sale, item.installmentIndex);
-        }
+        if (sale) handleClickPay(sale, item.installmentIndex);
     };
 
-    // Correção: Ajustar preço total considerando a diferença da alteração e não somar tudo novamente
     const saveEditedInstallment = async (newData) => {
         const { saleId, installmentIndex } = editInstallmentModal;
         const sale = sales.find(s => s.id === saleId);
         if(!sale) return;
         const updated = [...sale.installments];
-        
         const oldAmount = updated[installmentIndex].amount;
         const newAmount = newData.amount;
         const diff = newAmount - oldAmount;
 
         updated[installmentIndex] = newData;
         const allPaid = updated.every(i => i.paid);
-        
-        // O Total é recalculado apenas baseando-se na diferença do que foi editado
         const newTotal = (sale.totalPrice || 0) + diff;
 
-        await updateDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'sales', saleId), { 
-            installments: updated, 
-            totalPrice: newTotal, 
-            status: allPaid ? 'completed' : 'active' 
-        });
+        await updateDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'sales', saleId), { installments: updated, totalPrice: newTotal, status: allPaid ? 'completed' : 'active' });
     };
 
-    // --- NOVA LÓGICA DE GERAÇÃO DE MENSAGENS WHATSAPP ---
-    const getWhatsappLink = (type, sale, installment, historyItem, storeName) => {
-        const cleanPhone = sale?.customerPhone?.replace(/\D/g, '');
-        if (!cleanPhone) return '#';
-        
-        const store = storeName || "Nossa Loja";
+    // --- GERADOR DE MENSAGENS E ACIONADOR DE WHATSAPP ---
+    const handleOpenWA = (type, sale, installment, historyItem) => {
+        if (!sale || !sale.customerPhone) return;
+
+        const store = userProfile?.storeName || "Nossa Loja";
         const contractId = sale.id ? `EMP-${sale.id.slice(-5).toUpperCase()}` : '00000';
-        
         let msg = "";
 
-        if (type === 'registro') {
-            const firstInst = sale.installments?.[0];
-            const firstDueDate = firstInst ? formatDate(firstInst.dueDate) : '--/--/----';
-            
-            msg = `📄 *CONTRATO REGISTRADO*\n`;
+        if (type === 'registro' || type === 'quitacao') {
+            const isQuitacao = type === 'quitacao';
+            msg = isQuitacao ? `🌟 *CONTRATO QUITADO*\n` : `📄 *CONTRATO REGISTRADO*\n`;
             msg += `━━━━━━━━━━━━━━━━━━━\n\n`;
             msg += `📋 *Contrato:* ${contractId}\n`;
             msg += `📅 *Data:* ${formatDate(sale.saleDate)}\n\n`;
@@ -1312,14 +1336,27 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
             msg += `\n`;
             msg += `💵 *Valor da Compra:* ${formatCurrency(sale.totalPrice)}\n`;
             if (sale.entryAmount) msg += `💰 *Valor de Entrada:* ${formatCurrency(sale.entryAmount)}\n`;
-            msg += `📆 *1º Vencimento:* ${firstDueDate}\n\n`;
-            msg += `📊 *STATUS DA PARCELA:*\n`;
-            msg += `1️⃣ ⏳ ${firstDueDate} - Em Aberto\n\n`;
-            msg += `━━━━━━━━━━━━━━━━━━━\n`;
-            msg += `Qualquer dúvida, estamos à disposição!`;
+            
+            if (!isQuitacao && sale.installments?.length > 0) {
+                msg += `📆 *1º Vencimento:* ${formatDate(sale.installments[0].dueDate)}\n`;
+            }
+
+            if (isQuitacao) {
+                msg += `\n🎉 Parabéns! Informamos que o seu contrato no valor total de *${formatCurrency(sale.totalPrice)}* foi totalmente quitado.\n`;
+            }
+
+            msg += `\n📊 *STATUS DAS PARCELAS:*\n`;
+            sale.installments?.forEach(inst => {
+                const statusIcon = inst.paid ? '✅' : '⏳';
+                const statusText = inst.paid ? 'Pago' : 'Em Aberto';
+                const dateToShow = inst.paid && inst.paidAt ? formatDate(inst.paidAt) : formatDate(inst.dueDate);
+                msg += `${inst.number}️⃣ ${statusIcon} ${dateToShow} - ${statusText}\n`;
+            });
+
+            msg += `\n━━━━━━━━━━━━━━━━━━━\n`;
+            msg += isQuitacao ? `Muito obrigado pela confiança!\n*${store}*` : `Qualquer dúvida, estamos à disposição!\n*${store}*`;
         } 
         else if (type === 'cobranca' && installment) {
-            // calculate days diff
             const today = new Date();
             today.setHours(0,0,0,0);
             const [y,m,d] = installment.dueDate.split('T')[0].split('-');
@@ -1328,7 +1365,7 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
             const daysDiff = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
             
             let statusHeader = "📋 *LEMBRETE DE PAGAMENTO*";
-            let daysText = `(em ${daysDiff} dias)`;
+            let daysText = `(em ${daysDiff} dia${daysDiff>1?'s':''})`;
             let instStatus = "⏳ Em Aberto";
 
             if (daysDiff === 0) {
@@ -1347,8 +1384,16 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
             msg += `📊 *Parcela:* ${installment.number}/${sale.installmentsCount || sale.installments?.length}\n`;
             msg += `📆 *Vencimento:* ${formatDate(installment.dueDate)} ${daysText}\n\n`;
             msg += `📊 *STATUS DA PARCELA:*\n`;
-            msg += `${installment.number}️⃣ ${instStatus}\n\n`;
-            msg += `Qualquer dúvida, estou à disposição!\n`;
+            msg += `${installment.number}️⃣ ${instStatus}\n`;
+
+            if (userProfile?.pixKey && userProfile?.pixBank && userProfile?.pixName) {
+                msg += `\n💳 *DADOS PARA PAGAMENTO (PIX):*\n`;
+                msg += `🏦 *Banco:* ${userProfile.pixBank}\n`;
+                msg += `👤 *Titular:* ${userProfile.pixName}\n`;
+                msg += `🔑 *Chave PIX:* ${applyPixMask(userProfile.pixKey, userProfile.pixType)}\n`;
+            }
+
+            msg += `\nQualquer dúvida, estou à disposição!\n`;
             msg += `━━━━━━━━━━━━━━━━━━━`;
         }
         else if (type === 'recibo' && installment) {
@@ -1366,10 +1411,9 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
             msg += `📊 *Parcela:* ${installment.number}/${totalInst}\n`;
             msg += `📆 *Data:* ${formatDate(paidDate)}\n\n`;
             
-            // Verifica status da próxima
             const nextOpen = sale.installments?.find(i => !i.paid);
             if (nextOpen) {
-                msg += `📊 *STATUS DAS PARCELAS:*\n`;
+                msg += `📊 *PRÓXIMA PARCELA:*\n`;
                 msg += `${nextOpen.number}️⃣ ⏳ ${formatDate(nextOpen.dueDate)} - Em Aberto\n`;
             } else {
                 msg += `🎉 *STATUS: COMPRA QUITADA!*\n`;
@@ -1377,18 +1421,8 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
             msg += `\n━━━━━━━━━━━━━━━━━━━\n`;
             msg += `Muito obrigado!`;
         }
-        else if (type === 'quitacao') {
-            msg = `🌟 *CONTRATO QUITADO*\n`;
-            msg += `━━━━━━━━━━━━━━━━━━━\n\n`;
-            msg += `📋 *Contrato:* ${contractId}\n`;
-            msg += `👤 *Cliente:* ${sale.customerName}\n\n`;
-            msg += `🎉 Parabéns! Informamos que o seu contrato no valor total de *${formatCurrency(sale.totalPrice)}* foi totalmente quitado.\n\n`;
-            msg += `Muito obrigado pela confiança!\n`;
-            msg += `━━━━━━━━━━━━━━━━━━━\n`;
-            msg += `*${store}*`;
-        }
 
-        return `https://wa.me/55${cleanPhone}?text=${encodeURIComponent(msg)}`;
+        setWaChooserModal({ open: true, phone: sale.customerPhone, message: msg });
     };
 
     if (showAdminPanel) return React.createElement(AdminUsersPanel, { onClose: () => setShowAdminPanel(false) });
@@ -1414,8 +1448,9 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
                     ),
                     React.createElement('div', { className: "flex gap-2" },
                         userProfile?.role === 'admin' && React.createElement('button', { onClick: () => setShowAdminPanel(true), className: "bg-slate-800 p-2 rounded-full text-yellow-400 border border-slate-700 hover:bg-slate-700" }, React.createElement(Users, { size: 20 })),
+                        React.createElement('button', { onClick: () => setProfileModalOpen(true), className: "bg-slate-800 p-2 rounded-full text-blue-400 border border-slate-700 hover:bg-slate-700" }, React.createElement(User, { size: 20 })),
                         React.createElement('button', { onClick: onLogout, className: "bg-slate-800 p-2 rounded-full text-red-400 border border-slate-700 hover:bg-slate-700" }, React.createElement(LogOut, { size: 20 })),
-                         React.createElement('button', { onClick: () => setIsSaleModalOpen(true), className: "bg-yellow-500 hover:bg-yellow-400 text-slate-900 p-2 rounded-full shadow-lg transition-transform active:scale-95" }, React.createElement(PlusCircle, { size: 20 }))
+                         React.createElement('button', { onClick: () => setIsSaleModalOpen(true), className: "bg-yellow-500 hover:bg-yellow-400 text-slate-900 p-2 rounded-full shadow-lg transition-transform active:scale-95 ml-2" }, React.createElement(PlusCircle, { size: 20 }))
                     )
                 ),
                 React.createElement('div', { className: "flex space-x-1 overflow-x-auto no-scrollbar justify-start lg:justify-center" },
@@ -1544,12 +1579,15 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
                 React.createElement(Pagination, { totalItems: sortedCustomers.length, itemsPerPage: ITEMS_PER_PAGE, currentPage: customersPage, onPageChange: setCustomersPage })
             )
         ),
+        
+        // MODAIS GERAIS
+        React.createElement(UserProfileModal, { isOpen: profileModalOpen, onClose: () => setProfileModalOpen(false), userProfile: userProfile, onSave: handleUpdateProfile }),
         React.createElement(CustomerFormModal, { isOpen: customerModalData.open, onClose: () => setCustomerModalData({open:false, data:null}), initialData: customerModalData.data, onSave: handleSaveCustomer }),
         React.createElement(ProductFormModal, { isOpen: productModalData.open, onClose: () => setProductModalData({open:false, data:null}), initialData: productModalData.data, onSave: handleSaveProduct, lastCode: products.length > 0 ? String(products.reduce((max, p) => Math.max(max, parseInt(p.code || '0', 10) || 0), 0)).padStart(6, '0') : null }),
         React.createElement(NewSaleModal, { isOpen: isSaleModalOpen, onClose: () => setIsSaleModalOpen(false), customers: customers, products: products, onSave: handleAddSale }),
         React.createElement(EditInstallmentModal, { isOpen: editInstallmentModal.open, onClose: () => setEditInstallmentModal({ open: false, saleId: null, data: null }), installment: editInstallmentModal.data, onSave: saveEditedInstallment }),
         
-        // MODAL NOVO: DETALHES COMPLETOS DA VENDA (Substitui o antigo inline)
+        // MODAL DE DETALHES COMPLETOS DA VENDA
         React.createElement(SaleDetailsModal, {
             isOpen: !!activeSaleDetails,
             onClose: () => setSelectedSaleDetail(null),
@@ -1558,22 +1596,20 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
             onEdit: setEditInstallmentModal,
             onDeletePayment: confirmDeletePayment,
             onDeleteSale: requestDelete,
-            getWhatsappLink: getWhatsappLink,
-            storeName: userProfile?.storeName
+            onOpenWA: handleOpenWA
         }),
 
-        // MODAL NOVO: LISTA DE PARCELAS
+        // MODAL DE LISTA DE PARCELAS
         React.createElement(InstallmentListModal, { 
             isOpen: installmentListModal.open, 
             onClose: () => setInstallmentListModal({ open: false, type: null, data: [] }),
             title: installmentListModal.type === 'overdue' ? 'Parcelas em Atraso' : 'Vencendo em 7 Dias',
             items: installmentListModal.data,
             onPay: handlePayFromList,
-            getWhatsappLink: getWhatsappLink,
-            storeName: userProfile?.storeName
+            onOpenWA: handleOpenWA
         }),
         
-        // MODAL NOVO: CONFIRMAÇÃO DE PAGAMENTO COM VALOR
+        // MODAL DE CONFIRMAÇÃO DE PAGAMENTO
         React.createElement(PaymentConfirmationModal, {
             isOpen: paymentModal.open,
             onClose: () => setPaymentModal({ open: false, saleId: null, index: null, item: null, isLast: false }),
@@ -1582,7 +1618,7 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
             isLast: paymentModal.isLast
         }),
 
-        // MODAL NOVO: CONFIRMAÇÃO DE EXCLUSÃO DE PAGAMENTO
+        // MODAL DE EXCLUSÃO DE PAGAMENTO
         React.createElement(ConfirmModal, {
             isOpen: deletePaymentModal.open,
             title: "Estornar Pagamento?",
@@ -1591,6 +1627,13 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
             onConfirm: handleDeletePayment
         }),
 
+        // SELETOR DE WHATSAPP E CONFIRM DELETE
+        React.createElement(WhatsAppChooserModal, {
+            isOpen: waChooserModal.open,
+            phone: waChooserModal.phone,
+            message: waChooserModal.message,
+            onClose: () => setWaChooserModal({ open: false, phone: '', message: '' })
+        }),
         React.createElement(ConfirmModal, { isOpen: deleteModal.open, title: "Tem certeza?", message: "O registro será apagado permanentemente.", onClose: () => { setDeleteModal({ open: false, id: null, type: null }); setSelectedSaleDetail(null); }, onConfirm: confirmDelete })
     );
 };
