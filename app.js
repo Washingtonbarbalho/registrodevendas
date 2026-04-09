@@ -33,33 +33,37 @@ const auth = getAuth(app);
 const APP_ID = 'vendas-aura-main';
 const ADMIN_EMAIL = "washington.wn8@gmail.com";
 
-// --- HELPERS GERAIS ---
-const formatCurrency = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+// --- HELPERS GERAIS (COM PROTEÇÕES CONTRA DADOS ANTIGOS) ---
+const formatCurrency = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0);
 
 const parseMoney = (valStr) => {
     if (!valStr) return 0;
     if (typeof valStr === 'number') return valStr;
-    const clean = valStr.replace(/\./g, '').replace(',', '.');
+    const clean = String(valStr).replace(/\./g, '').replace(',', '.');
     return parseFloat(clean) || 0;
 };
 
 const maskMoney = (value) => {
+    if (value == null) return "0,00";
     let v = String(value).replace(/\D/g, "");
-    v = (v / 100).toFixed(2) + "";
+    if (!v) return "0,00";
+    v = (Number(v) / 100).toFixed(2) + "";
     v = v.replace(".", ",");
     v = v.replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1.");
     return v;
 };
 
 const maskPhone = (v) => {
-    v = v.replace(/\D/g, "");
+    if (!v) return '';
+    v = String(v).replace(/\D/g, "");
     v = v.replace(/^(\d{2})(\d)/g, "($1) $2");
     v = v.replace(/(\d)(\d{4})$/, "$1-$2");
     return v;
 };
 
 const maskCpfCnpj = (v) => {
-    v = v.replace(/\D/g, "");
+    if (!v) return '';
+    v = String(v).replace(/\D/g, "");
     if (v.length <= 11) {
         v = v.replace(/(\d{3})(\d)/, "$1.$2");
         v = v.replace(/(\d{3})(\d)/, "$1.$2");
@@ -74,7 +78,8 @@ const maskCpfCnpj = (v) => {
 };
 
 const maskZipCode = (v) => {
-    v = v.replace(/\D/g, "");
+    if (!v) return '';
+    v = String(v).replace(/\D/g, "");
     v = v.replace(/^(\d{5})(\d)/, "$1-$2");
     return v.slice(0, 9);
 };
@@ -88,8 +93,8 @@ const applyPixMask = (val, type) => {
 
 const formatDate = (dateStr) => {
     if (!dateStr) return '--/--/----';
-    if (dateStr.includes('T')) {
-        const isoDate = dateStr.split('T')[0];
+    if (String(dateStr).includes('T')) {
+        const isoDate = String(dateStr).split('T')[0];
         const [year, month, day] = isoDate.split('-');
         return `${day}/${month}/${year}`;
     }
@@ -102,6 +107,7 @@ const getBrazilDateString = () => {
 };
 
 const addDays = (dateStr, days) => {
+    if (!dateStr) return '';
     const date = new Date(dateStr + 'T12:00:00'); 
     date.setDate(date.getDate() + days);
     return date.toLocaleDateString('pt-BR', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'America/Sao_Paulo' }).split('/').reverse().join('-');
@@ -121,13 +127,11 @@ const getCurrentMonthEnd = () => {
 // --- COMPONENTES DE UI ---
 
 const MoneyInput = ({ value, onChange, placeholder, className, autoFocus, disabled }) => {
-    const [display, setDisplay] = useState(typeof value === 'number' ? maskMoney(value.toFixed(2)) : value);
+    const [display, setDisplay] = useState(typeof value === 'number' ? maskMoney(value) : maskMoney(value));
     
     useEffect(() => { 
-        if (typeof value === 'number') {
-            setDisplay(maskMoney(value.toFixed(2))); 
-        } else if (typeof value === 'string') {
-            setDisplay(value);
+        if (typeof value === 'number' || typeof value === 'string') {
+            setDisplay(maskMoney(value));
         }
     }, [value]);
 
@@ -140,12 +144,12 @@ const MoneyInput = ({ value, onChange, placeholder, className, autoFocus, disabl
 
 const UpperInput = ({ value, onChange, placeholder, className, autoFocus }) => {
     const handleChange = (e) => { onChange(e.target.value.toUpperCase()); };
-    return React.createElement('input', { autoFocus: autoFocus, className: className, placeholder: placeholder, value: value, onChange: handleChange });
+    return React.createElement('input', { autoFocus: autoFocus, className: className, placeholder: placeholder, value: value || '', onChange: handleChange });
 };
 
 const PhoneInput = ({ value, onChange, placeholder, className }) => {
     const handleChange = (e) => { onChange(maskPhone(e.target.value)); };
-    return React.createElement('input', { type: "tel", className: className, placeholder: placeholder, value: value, maxLength: 15, onChange: handleChange });
+    return React.createElement('input', { type: "tel", className: className, placeholder: placeholder, value: value || '', maxLength: 15, onChange: handleChange });
 };
 
 const Pagination = ({ totalItems, itemsPerPage, currentPage, onPageChange }) => {
@@ -369,15 +373,15 @@ const InventoryMovementModal = ({ isOpen, onClose, product, initialData, onSave 
     useEffect(() => {
         if (isOpen && product) {
             if (initialData) {
-                setType(initialData.type);
-                setSubType(initialData.subType);
-                setQty(initialData.quantity.toString());
-                setCostPrice(initialData.costPrice ? maskMoney(initialData.costPrice.toFixed(2)) : '');
+                setType(initialData.type || 'entrada');
+                setSubType(initialData.subType || 'ajuste');
+                setQty(initialData.quantity ? initialData.quantity.toString() : '');
+                setCostPrice(initialData.costPrice ? maskMoney(initialData.costPrice) : '');
                 setReason(initialData.reason || '');
-                setDate(initialData.date ? initialData.date.split('T')[0] : getBrazilDateString());
+                setDate(initialData.date ? String(initialData.date).split('T')[0] : getBrazilDateString());
             } else {
                 setType('entrada'); setSubType('compra'); setQty(''); setReason('');
-                setCostPrice(product.costPrice ? maskMoney(product.costPrice.toFixed(2)) : '');
+                setCostPrice(product.costPrice ? maskMoney(product.costPrice) : '');
                 setDate(getBrazilDateString());
             }
         }
@@ -413,7 +417,7 @@ const InventoryMovementModal = ({ isOpen, onClose, product, initialData, onSave 
             React.createElement('div', { className: "p-5 space-y-4" },
                 React.createElement('div', null,
                     React.createElement('p', { className: "text-xs font-bold text-slate-400 uppercase" }, "Produto"),
-                    React.createElement('p', { className: "font-bold text-slate-800" }, product.name),
+                    React.createElement('p', { className: "font-bold text-slate-800" }, product.name || 'Produto sem nome'),
                     React.createElement('p', { className: "text-xs text-slate-500" }, `Estoque atual: ${product.stock || 0}`)
                 ),
                 
@@ -480,7 +484,12 @@ const InventoryHistoryModal = ({ isOpen, onClose, product, userId, onEditMovemen
         const q = query(collection(db, 'artifacts', APP_ID, 'users', userId, 'inventory_movements'), where('productId', '==', product.id));
         const unsub = onSnapshot(q, (snap) => {
             const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-            list.sort((a, b) => b.createdAt?.toMillis() - a.createdAt?.toMillis() || b.date.localeCompare(a.date));
+            // Ordenação super segura
+            list.sort((a, b) => {
+                const timeA = a.createdAt?.toMillis?.() || 0;
+                const timeB = b.createdAt?.toMillis?.() || 0;
+                return timeB - timeA || String(b.date || '').localeCompare(String(a.date || ''));
+            });
             setMovements(list);
             setLoading(false);
         });
@@ -505,7 +514,7 @@ const InventoryHistoryModal = ({ isOpen, onClose, product, userId, onEditMovemen
             React.createElement('div', { className: "p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-2xl" },
                 React.createElement('div', null,
                     React.createElement('h3', { className: "font-bold text-lg text-slate-800 flex items-center gap-2" }, React.createElement(ClipboardList, { className: "text-purple-500", size: 20 }), "Histórico do Produto"),
-                    React.createElement('p', { className: "text-xs font-bold text-slate-500 mt-1" }, product.name)
+                    React.createElement('p', { className: "text-xs font-bold text-slate-500 mt-1" }, product.name || 'Produto sem nome')
                 ),
                 React.createElement('button', { onClick: onClose, className: "p-2 hover:bg-slate-200 rounded-full" }, React.createElement(X, { size: 20 }))
             ),
@@ -518,13 +527,13 @@ const InventoryHistoryModal = ({ isOpen, onClose, product, userId, onEditMovemen
                             React.createElement('div', { className: "flex items-center gap-3" },
                                 React.createElement('div', { className: `w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg shrink-0 ${m.type === 'entrada' ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-500'}` }, m.type === 'entrada' ? '+' : '-'),
                                 React.createElement('div', null,
-                                    React.createElement('p', { className: "text-sm font-bold text-slate-800 uppercase" }, m.subType),
+                                    React.createElement('p', { className: "text-sm font-bold text-slate-800 uppercase" }, m.subType || 'Desconhecido'),
                                     React.createElement('p', { className: "text-[10px] text-slate-400" }, formatDate(m.date)),
                                     m.reason && React.createElement('p', { className: "text-xs text-slate-500 mt-0.5 line-clamp-2" }, m.reason)
                                 )
                             ),
                             React.createElement('div', { className: "flex flex-col items-end gap-2 shrink-0" },
-                                React.createElement('span', { className: "font-bold text-lg text-slate-700" }, m.quantity),
+                                React.createElement('span', { className: "font-bold text-lg text-slate-700" }, m.quantity || 0),
                                 m.source === 'manual' && React.createElement('div', { className: "flex gap-1" },
                                     React.createElement('button', { onClick: () => onEditMovement(m), className: "text-[10px] bg-blue-50 text-blue-500 px-2 py-1 rounded hover:bg-blue-100 font-bold" }, "Editar"),
                                     React.createElement('button', { onClick: () => handleDelete(m), className: "text-[10px] bg-red-50 text-red-500 px-2 py-1 rounded hover:bg-red-100 font-bold" }, "Excluir")
@@ -559,12 +568,12 @@ const ProductFormModal = ({ isOpen, onClose, onSave, lastCode, initialData }) =>
         if (initialData) {
             setName(initialData.name || '');
             setDescription(initialData.description || '');
-            setCostPrice(initialData.costPrice ? maskMoney(initialData.costPrice.toFixed(2)) : '');
-            setSellPrice(initialData.sellPrice ? maskMoney(initialData.sellPrice.toFixed(2)) : '');
+            setCostPrice(initialData.costPrice ? maskMoney(initialData.costPrice) : '');
+            setSellPrice(initialData.sellPrice ? maskMoney(initialData.sellPrice) : '');
             setStock(initialData.stock || '');
             
             setIsPromoActive(initialData.isPromoActive || false);
-            setPromoPrice(initialData.promoPrice ? maskMoney(initialData.promoPrice.toFixed(2)) : '');
+            setPromoPrice(initialData.promoPrice ? maskMoney(initialData.promoPrice) : '');
             setPromoCampaignName(initialData.promoCampaignName || '');
             setPromoStartDate(initialData.promoStartDate || '');
             setPromoEndDate(initialData.promoEndDate || '');
@@ -574,7 +583,7 @@ const ProductFormModal = ({ isOpen, onClose, onSave, lastCode, initialData }) =>
         } 
     }, [initialData, isOpen]);
     
-    const nextCode = useMemo(() => { if (initialData) return initialData.code; if (!lastCode) return '000001'; const num = parseInt(lastCode, 10) + 1; return String(num).padStart(6, '0'); }, [lastCode, initialData]);
+    const nextCode = useMemo(() => { if (initialData) return initialData.code || '000001'; if (!lastCode) return '000001'; const num = parseInt(lastCode, 10) + 1; return String(num).padStart(6, '0'); }, [lastCode, initialData]);
     
     const costVal = parseMoney(costPrice);
     const sellVal = parseMoney(sellPrice);
@@ -650,8 +659,8 @@ const ProductDetailsModal = ({ isOpen, onClose, product }) => {
     if (!isOpen || !product) return null;
 
     const today = getBrazilDateString();
-    const isPromoValid = product.isPromoActive && product.promoStartDate <= today && product.promoEndDate >= today;
-    const profitVal = product.sellPrice - (product.costPrice || 0);
+    const isPromoValid = product.isPromoActive && (product.promoStartDate || '') <= today && (product.promoEndDate || '9999-12-31') >= today;
+    const profitVal = (product.sellPrice || 0) - (product.costPrice || 0);
     const profitMargin = product.sellPrice > 0 ? ((profitVal / product.sellPrice) * 100).toFixed(2) : 0;
 
     return React.createElement('div', { className: "fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-[70] backdrop-blur-sm" },
@@ -659,13 +668,13 @@ const ProductDetailsModal = ({ isOpen, onClose, product }) => {
             React.createElement('div', { className: "p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-2xl" },
                 React.createElement('div', null,
                     React.createElement('h3', { className: "font-bold text-lg text-slate-800 flex items-center gap-2" }, React.createElement(Package, { className: "text-yellow-600", size: 20 }), "Detalhes do Produto"),
-                    React.createElement('p', { className: "text-xs font-mono text-slate-400 mt-1" }, `CÓD: #${product.code}`)
+                    React.createElement('p', { className: "text-xs font-mono text-slate-400 mt-1" }, `CÓD: #${product.code || 'S/N'}`)
                 ),
                 React.createElement('button', { onClick: onClose, className: "p-2 hover:bg-slate-200 rounded-full text-slate-500" }, React.createElement(X, { size: 20 }))
             ),
             React.createElement('div', { className: "flex-1 overflow-y-auto p-5 space-y-5" },
                 React.createElement('div', null,
-                    React.createElement('h2', { className: "text-xl font-bold text-slate-800" }, product.name),
+                    React.createElement('h2', { className: "text-xl font-bold text-slate-800" }, product.name || 'Produto Sem Nome'),
                     product.description && React.createElement('p', { className: "text-sm text-slate-500 mt-2" }, product.description)
                 ),
                 
@@ -708,22 +717,273 @@ const ProductDetailsModal = ({ isOpen, onClose, product }) => {
     );
 };
 
-const CancelSaleModal = ({ isOpen, onClose, onConfirm, sale }) => {
-    const [reason, setReason] = useState('');
-    if (!isOpen || !sale) return null;
-    return React.createElement('div', { className: "fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-[70] backdrop-blur-sm" },
-        React.createElement('div', { className: "bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl animate-fade-in" },
-            React.createElement('div', { className: "flex items-center gap-2 mb-4 text-red-600" }, React.createElement(Ban, { size: 24 }), React.createElement('h3', { className: "text-lg font-bold" }, "Cancelar Venda")),
-            React.createElement('p', { className: "text-sm text-slate-500 mb-4" }, "A venda será marcada como cancelada, não contabilizará mais no financeiro e os produtos retornarão ao estoque automaticamente."),
-            React.createElement('label', { className: "block text-xs font-bold text-slate-500 uppercase mb-1" }, "Motivo do Cancelamento *"),
-            React.createElement('textarea', { autoFocus: true, value: reason, onChange: e => setReason(e.target.value), placeholder: "Descreva o motivo...", className: "w-full p-3 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-red-500 h-24 resize-none mb-6" }),
-            React.createElement('div', { className: "flex gap-3" },
-                React.createElement('button', { onClick: onClose, className: "flex-1 p-3 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200" }, "Voltar"),
-                React.createElement('button', { onClick: () => { onConfirm(reason); onClose(); }, disabled: !reason.trim(), className: "flex-1 p-3 bg-red-600 text-white font-bold rounded-xl shadow-lg hover:bg-red-700 disabled:opacity-50" }, "Confirmar Cancelamento")
+const CustomerFormModal = ({ isOpen, onClose, onSave, initialData }) => {
+    const [name, setName] = useState('');
+    const [phone, setPhone] = useState('');
+    const [cpf, setCpf] = useState('');
+    const [birthDate, setBirthDate] = useState('');
+    
+    // Endereço
+    const [zipCode, setZipCode] = useState('');
+    const [street, setStreet] = useState('');
+    const [number, setNumber] = useState('');
+    const [complement, setComplement] = useState('');
+    const [neighborhood, setNeighborhood] = useState('');
+    const [cityState, setCityState] = useState('');
+    const [reference, setReference] = useState('');
+
+    useEffect(() => { 
+        if (initialData) { 
+            setName(initialData.name || ''); 
+            setPhone(initialData.phone || ''); 
+            setCpf(initialData.cpf ? maskCpfCnpj(initialData.cpf) : '');
+            setBirthDate(initialData.birthDate || '');
+            setZipCode(initialData.zipCode ? maskZipCode(initialData.zipCode) : '');
+            setStreet(initialData.street || '');
+            setNumber(initialData.number || '');
+            setComplement(initialData.complement || '');
+            setNeighborhood(initialData.neighborhood || '');
+            setCityState(initialData.cityState || '');
+            setReference(initialData.reference || '');
+        } else { 
+            setName(''); setPhone(''); setCpf(''); setBirthDate('');
+            setZipCode(''); setStreet(''); setNumber(''); setComplement(''); setNeighborhood(''); setCityState(''); setReference('');
+        } 
+    }, [initialData, isOpen]);
+
+    const handleCepChange = async (e) => {
+        const val = maskZipCode(e.target.value);
+        setZipCode(val);
+        if (val.length === 9) {
+            try {
+                const res = await fetch(`https://viacep.com.br/ws/${val.replace('-', '')}/json/`);
+                const data = await res.json();
+                if (!data.erro) {
+                    setStreet(data.logradouro || '');
+                    setNeighborhood(data.bairro || '');
+                    setCityState(`${data.localidade || ''}/${data.uf || ''}`);
+                }
+            } catch (err) { console.error(err); }
+        }
+    };
+
+    const handleSubmit = () => { 
+        if (!name) return; 
+        onSave({ 
+            name, phone, cpf: String(cpf || '').replace(/\D/g, ''), birthDate,
+            zipCode: String(zipCode || '').replace(/\D/g, ''), street, number, complement, neighborhood, cityState, reference
+        }); 
+        onClose(); 
+    };
+
+    if (!isOpen) return null;
+
+    return React.createElement('div', { className: "fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-[60] backdrop-blur-sm" },
+        React.createElement('div', { className: "bg-white rounded-2xl w-full max-w-md max-h-[90vh] flex flex-col shadow-2xl animate-fade-in" },
+            React.createElement('div', { className: "p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-2xl" },
+                React.createElement('h3', { className: "text-lg font-bold text-slate-800 flex items-center gap-2" }, React.createElement(Users, { className: "text-yellow-500", size: 20 }), initialData ? 'Editar Cliente' : 'Novo Cliente'),
+                React.createElement('button', { onClick: onClose, className: "p-2 hover:bg-slate-200 rounded-full" }, React.createElement(X, { size: 20 }))
+            ),
+            React.createElement('div', { className: "flex-1 overflow-y-auto p-4 space-y-5" },
+                React.createElement('div', { className: "space-y-3" },
+                    React.createElement('p', { className: "text-[10px] font-bold text-slate-400 uppercase flex items-center gap-1" }, React.createElement(User, { size: 14 }), "Dados Pessoais"),
+                    React.createElement('div', null, React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1" }, "Nome Completo *"), React.createElement(UpperInput, { value: name, onChange: setName, className: "w-full p-3 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-yellow-500" })),
+                    React.createElement('div', null, React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1" }, "WhatsApp"), React.createElement(PhoneInput, { value: phone, onChange: setPhone, className: "w-full p-3 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-yellow-500" })),
+                    React.createElement('div', { className: "grid grid-cols-2 gap-3" },
+                        React.createElement('div', null, React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1" }, "CPF (Opcional)"), React.createElement('input', { value: cpf, onChange: e => setCpf(maskCpfCnpj(e.target.value)), className: "w-full p-3 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-yellow-500" })),
+                        React.createElement('div', null, React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1" }, "Nascimento (Opcional)"), React.createElement('input', { type: "date", value: birthDate, onChange: e => setBirthDate(e.target.value), className: "w-full p-3 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-yellow-500" }))
+                    )
+                ),
+                
+                React.createElement('div', { className: "space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-100" },
+                    React.createElement('p', { className: "text-[10px] font-bold text-slate-400 uppercase flex items-center gap-1" }, React.createElement(MapPin, { size: 14 }), "Endereço"),
+                    React.createElement('div', { className: "grid grid-cols-3 gap-3" },
+                        React.createElement('div', { className: "col-span-1" }, React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1" }, "CEP"), React.createElement('input', { value: zipCode, onChange: handleCepChange, maxLength: 9, placeholder: "00000-000", className: "w-full p-3 border border-slate-200 rounded-lg text-sm bg-white" })),
+                        React.createElement('div', { className: "col-span-2" }, React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1" }, "Cidade / Estado"), React.createElement(UpperInput, { value: cityState, onChange: setCityState, className: "w-full p-3 border border-slate-200 rounded-lg text-sm bg-white" }))
+                    ),
+                    React.createElement('div', { className: "grid grid-cols-4 gap-3" },
+                        React.createElement('div', { className: "col-span-3" }, React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1" }, "Rua / Avenida"), React.createElement(UpperInput, { value: street, onChange: setStreet, className: "w-full p-3 border border-slate-200 rounded-lg text-sm bg-white" })),
+                        React.createElement('div', { className: "col-span-1" }, React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1" }, "Nº"), React.createElement(UpperInput, { value: number, onChange: setNumber, className: "w-full p-3 border border-slate-200 rounded-lg text-sm bg-white" }))
+                    ),
+                    React.createElement('div', null, React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1" }, "Bairro"), React.createElement(UpperInput, { value: neighborhood, onChange: setNeighborhood, className: "w-full p-3 border border-slate-200 rounded-lg text-sm bg-white" })),
+                    React.createElement('div', { className: "grid grid-cols-2 gap-3" },
+                        React.createElement('div', null, React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1" }, "Complemento"), React.createElement(UpperInput, { value: complement, onChange: setComplement, className: "w-full p-3 border border-slate-200 rounded-lg text-sm bg-white" })),
+                        React.createElement('div', null, React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1" }, "Ponto de Ref."), React.createElement(UpperInput, { value: reference, onChange: setReference, className: "w-full p-3 border border-slate-200 rounded-lg text-sm bg-white" }))
+                    )
+                )
+            ),
+            React.createElement('div', { className: "p-4 border-t border-slate-100 flex gap-2 bg-white rounded-b-2xl" }, 
+                React.createElement('button', { onClick: onClose, className: "flex-1 p-3 text-slate-500 font-bold hover:bg-slate-50 rounded-lg" }, "Cancelar"), 
+                React.createElement('button', { onClick: handleSubmit, disabled: !name, className: "flex-1 p-3 bg-yellow-500 text-white font-bold rounded-lg shadow-sm hover:bg-yellow-600 disabled:opacity-50" }, "Salvar Cliente")
             )
         )
     );
 };
+
+const NewSaleModal = ({ isOpen, onClose, customers, products, onSave }) => {
+    const [step, setStep] = useState(1);
+    const [customerId, setCustomerId] = useState('');
+    const [customerSearch, setCustomerSearch] = useState('');
+    const [productSearch, setProductSearch] = useState('');
+    const [cart, setCart] = useState([]);
+    
+    const [selectedProductId, setSelectedProductId] = useState('');
+    const [currentQty, setCurrentQty] = useState(1);
+    const [currentCost, setCurrentCost] = useState(''); 
+    const [currentPrice, setCurrentPrice] = useState('');
+    
+    const [saleDate, setSaleDate] = useState(getBrazilDateString()); 
+    const [saleType, setSaleType] = useState('prazo');
+    const [frequency, setFrequency] = useState('monthly');
+    const [installmentsCount, setInstallmentsCount] = useState(1);
+    const [firstDueDate, setFirstDueDate] = useState('');
+    const [entryAmount, setEntryAmount] = useState('');
+    const [directMethod, setDirectMethod] = useState('pix');
+    const [cardInstallments, setCardInstallments] = useState(1);
+
+    useEffect(() => { 
+        if (isOpen) { 
+            const today = getBrazilDateString(); 
+            setSaleDate(today); setFirstDueDate(addDays(today, 30)); setStep(1); setCart([]); setCustomerId(''); setEntryAmount(''); setSaleType('prazo'); setCustomerSearch(''); setProductSearch(''); setCurrentQty(1); setCurrentCost(''); setCurrentPrice(''); setSelectedProductId('');
+        } 
+    }, [isOpen]);
+    
+    useEffect(() => { let daysToAdd = 30; if (frequency === 'weekly') daysToAdd = 7; else if (frequency === 'biweekly') daysToAdd = 15; setFirstDueDate(addDays(saleDate, daysToAdd)); }, [frequency, saleDate]);
+
+    const handleProductSelect = (e) => {
+        const pid = e.target.value;
+        setSelectedProductId(pid);
+        const p = products.find(x => x.id === pid);
+        if (p) {
+            const today = getBrazilDateString();
+            let activePrice = p.sellPrice || 0;
+            if (p.isPromoActive && (p.promoStartDate || '') <= today && (p.promoEndDate || '9999-12-31') >= today) {
+                activePrice = p.promoPrice || activePrice;
+            }
+            setCurrentPrice(activePrice);
+            setCurrentCost(p.costPrice || 0);
+        } else {
+            setCurrentPrice('');
+            setCurrentCost('');
+        }
+    };
+
+    const filteredCustomers = customers.filter(c => (c.name || '').toLowerCase().includes((customerSearch || '').toLowerCase()));
+    const filteredProducts = products.filter(p => (p.name || '').toLowerCase().includes((productSearch || '').toLowerCase()) || (p.code || '').includes(productSearch));
+    const totalCartValue = cart.reduce((acc, item) => acc + item.price, 0);
+    const entryValue = parseMoney(entryAmount) || 0;
+    const totalRemaining = Math.max(0, totalCartValue - entryValue);
+
+    const handleAddItem = () => {
+        const qty = parseInt(currentQty) || 1;
+        const unitCost = currentCost || 0;
+        const unitPrice = parseMoney(currentPrice);
+        if(!selectedProductId || unitPrice <= 0 || qty <= 0) return;
+        const prod = products.find(p => p.id === selectedProductId);
+        const totalLineCost = unitCost * qty;
+        const totalLinePrice = unitPrice * qty;
+        const newItem = { tempId: Date.now(), productId: prod.id, productName: prod.name || 'Produto', productCode: prod.code || 'S/N', quantity: qty, cost: totalLineCost, price: totalLinePrice, unitPrice: unitPrice, unitCost: unitCost };
+        setCart([...cart, newItem]);
+        setSelectedProductId(''); setCurrentQty(1); setCurrentCost(''); setCurrentPrice(''); setProductSearch('');
+    };
+    const handleRemoveItem = (id) => setCart(cart.filter(i => i.tempId !== id));
+
+    const calculateInstallments = () => {
+        const total = totalRemaining;
+        const count = parseInt(installmentsCount) || 1;
+        if (total <= 0) return [];
+        const amountPerInstallment = total / count;
+        const installments = [];
+        let currentDateStr = firstDueDate; 
+        for (let i = 0; i < count; i++) {
+            installments.push({ number: i + 1, amount: amountPerInstallment, dueDate: currentDateStr, paid: false, paidAt: null });
+            if (frequency === 'weekly') currentDateStr = addDays(currentDateStr, 7);
+            else if (frequency === 'biweekly') currentDateStr = addDays(currentDateStr, 15);
+            else currentDateStr = addDays(currentDateStr, 30);
+        }
+        return installments;
+    };
+
+    const handleFinish = () => {
+        if (!customerId || cart.length === 0) return;
+        const customer = customers.find(c => c.id === customerId);
+        let saleData = { customerId: customerId, customerName: customer.name || 'Cliente', customerPhone: customer.phone || '', items: cart, totalCost: cart.reduce((acc, i) => acc + i.cost, 0), totalPrice: totalCartValue, saleDate: saleDate, saleType: saleType, status: 'active' };
+        if (saleType === 'prazo') {
+            const finalInstallments = calculateInstallments();
+            saleData = { ...saleData, entryAmount: entryValue, frequency, installmentsCount: finalInstallments.length, installments: finalInstallments, status: finalInstallments.length === 0 && entryValue >= totalCartValue ? 'completed' : 'active' };
+        } else {
+            saleData = { ...saleData, paymentMethod: directMethod, entryAmount: entryValue, cardAmount: totalRemaining, cardInstallments: directMethod === 'credit' ? parseInt(cardInstallments) : 1, installments: [], status: 'completed' };
+        }
+        onSave(saleData); onClose();
+    };
+
+    if (!isOpen) return null;
+    return React.createElement('div', { className: "fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-[50]" },
+        React.createElement('div', { className: "bg-white rounded-2xl w-full max-w-md p-6 animate-fade-in shadow-2xl flex flex-col max-h-[90vh]" },
+            React.createElement('div', { className: "flex items-center justify-between mb-4" }, React.createElement('h2', { className: "text-xl font-bold text-slate-800 flex items-center gap-2" }, React.createElement(ShoppingBag, { className: "text-yellow-600" }), "Nova Venda"), React.createElement('div', { className: "flex gap-1" }, [1,2,3].map(i => React.createElement('div', { key: i, className: `h-2 w-8 rounded-full ${step >= i ? 'bg-yellow-500' : 'bg-slate-200'}` })))),
+            React.createElement('div', { className: "flex-1 overflow-y-auto pr-1" },
+                step === 1 && React.createElement('div', { className: "space-y-4" },
+                    React.createElement('div', { className: "bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3" },
+                        React.createElement('label', { className: "text-xs font-bold text-slate-400 uppercase" }, "Buscar Cliente"),
+                        React.createElement('div', { className: "relative" }, React.createElement(Search, { className: "absolute left-3 top-3 text-slate-400", size: 16 }), React.createElement('input', { className: "w-full p-2 pl-9 border border-slate-200 rounded-lg text-sm bg-white", placeholder: "Filtrar por nome...", value: customerSearch, onChange: e => setCustomerSearch(e.target.value) })),
+                        React.createElement('select', { className: "w-full p-3 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500", value: customerId, onChange: e => setCustomerId(e.target.value) }, React.createElement('option', { value: "" }, "Selecione..."), filteredCustomers.map(c => React.createElement('option', { key: c.id, value: c.id }, c.name || 'Sem Nome')))
+                    )
+                ),
+                step === 2 && React.createElement('div', { className: "space-y-4" },
+                    React.createElement('div', { className: "bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3" },
+                        React.createElement('div', { className: "relative" }, React.createElement(Search, { className: "absolute left-3 top-3 text-slate-400", size: 16 }), React.createElement('input', { className: "w-full p-2 pl-9 border border-slate-200 rounded-lg text-sm bg-white", placeholder: "Filtrar produtos...", value: productSearch, onChange: e => setProductSearch(e.target.value) })),
+                        React.createElement('select', { className: "w-full p-3 bg-white border border-slate-200 rounded-lg text-sm", value: selectedProductId, onChange: handleProductSelect }, 
+                            React.createElement('option', { value: "" }, "Escolha na lista..."), 
+                            filteredProducts.map(p => React.createElement('option', { key: p.id, value: p.id }, `#${p.code || 'S/N'} - ${p.name || 'Produto'} (Estoque: ${p.stock || 0})`))
+                        ),
+                        React.createElement('div', { className: "flex gap-2" },
+                            React.createElement('div', { className: "w-24" }, React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1" }, "Qtd"), React.createElement('input', { type: "number", min: "1", className: "w-full p-3 border border-slate-200 rounded-lg text-center font-bold outline-none focus:ring-2 focus:ring-yellow-500", value: currentQty, onChange: e => setCurrentQty(e.target.value) })),
+                            React.createElement('div', { className: "flex-1" }, React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1" }, "Preço Unitário"), React.createElement(MoneyInput, { placeholder: "0,00", value: currentPrice, onChange: setCurrentPrice, disabled: !selectedProductId, className: "w-full p-3 pl-8 border border-slate-200 rounded-lg bg-white outline-none focus:ring-2 focus:ring-yellow-500" }))
+                        ),
+                        React.createElement('button', { onClick: handleAddItem, disabled: !selectedProductId || !currentPrice || currentQty < 1, className: "w-full py-2 bg-slate-800 text-white rounded-lg font-bold text-sm disabled:opacity-50 hover:bg-slate-700" }, "+ Adicionar Item")
+                    ),
+                    React.createElement('div', { className: "space-y-2" },
+                        React.createElement('label', { className: "text-xs font-bold text-slate-400 uppercase" }, `Carrinho (${cart.reduce((a,b)=>a+(parseInt(b.quantity)||1),0)} itens)`),
+                        cart.length === 0 ? React.createElement('p', { className: "text-center text-slate-400 text-sm py-4 italic" }, "Vazio") : cart.map(item => React.createElement('div', { key: item.tempId, className: "flex justify-between items-center bg-yellow-50 p-3 rounded-lg border border-yellow-100" }, React.createElement('div', null, React.createElement('p', { className: "font-bold text-sm text-slate-800" }, `${item.quantity}x ${item.productName}`), React.createElement('p', { className: "text-xs text-slate-500" }, `Total: ${formatCurrency(item.price)}`)), React.createElement('button', { onClick: () => handleRemoveItem(item.tempId), className: "text-red-400 hover:text-red-600" }, React.createElement(Trash2, { size: 16 })))),
+                        cart.length > 0 && React.createElement('div', { className: "text-right font-bold text-lg text-slate-800 pt-2 border-t" }, `Total: ${formatCurrency(totalCartValue)}`)
+                    )
+                ),
+                step === 3 && React.createElement('div', { className: "space-y-4" },
+                    React.createElement('div', null, React.createElement('label', { className: "block text-xs font-bold text-slate-500 uppercase mb-1 flex items-center gap-1" }, React.createElement(Calendar, { size: 12 }), " Data da Venda"), React.createElement('input', { type: "date", className: "w-full p-3 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500", value: saleDate, onChange: e => setSaleDate(e.target.value) })),
+                    React.createElement('div', { className: "flex bg-slate-100 p-1 rounded-xl mb-2" },
+                        React.createElement('button', { onClick: () => setSaleType('prazo'), className: `flex-1 py-2 text-sm font-bold rounded-lg transition-all ${saleType === 'prazo' ? 'bg-white shadow text-slate-800' : 'text-slate-400'}` }, "A Prazo (Fiado)"),
+                        React.createElement('button', { onClick: () => setSaleType('direct'), className: `flex-1 py-2 text-sm font-bold rounded-lg transition-all ${saleType === 'direct' ? 'bg-emerald-500 shadow text-white' : 'text-slate-400'}` }, "Caixa / Cartão")
+                    ),
+                    saleType === 'prazo' && React.createElement('div', { className: "animate-fade-in space-y-4" },
+                        React.createElement('div', null, React.createElement('label', { className: "block text-xs font-bold text-slate-500 uppercase mb-1" }, "Entrada (Opcional)"), React.createElement(MoneyInput, { value: entryAmount, onChange: setEntryAmount })),
+                        totalRemaining > 0 && React.createElement(React.Fragment, null,
+                            React.createElement('div', null, React.createElement('label', { className: "block text-xs font-bold text-slate-500 uppercase mb-1" }, "Frequência"), React.createElement('select', { className: "w-full p-3 border border-slate-200 rounded-lg", value: frequency, onChange: e => setFrequency(e.target.value) }, React.createElement('option', { value: "weekly" }, "Semanal"), React.createElement('option', { value: "biweekly" }, "Quinzenal"), React.createElement('option', { value: "monthly" }, "Mensal"))),
+                            React.createElement('div', { className: "grid grid-cols-2 gap-4" },
+                                React.createElement('div', null, React.createElement('label', { className: "block text-xs font-bold text-slate-500 uppercase mb-1" }, "Parcelas"), React.createElement('select', { className: "w-full p-3 border border-slate-200 rounded-lg", value: installmentsCount, onChange: e => setInstallmentsCount(e.target.value) }, Array.from({length: 12}, (_, i) => i + 1).map(n => React.createElement('option', { key: n, value: n }, `${n}x`)))),
+                                React.createElement('div', null, React.createElement('label', { className: "block text-xs font-bold text-slate-500 uppercase mb-1" }, "1ª Data"), React.createElement('input', { type: "date", className: "w-full p-3 border border-slate-200 rounded-lg", value: firstDueDate, onChange: e => setFirstDueDate(e.target.value) }))
+                            )
+                        )
+                    ),
+                    saleType === 'direct' && React.createElement('div', { className: "animate-fade-in space-y-4" },
+                        React.createElement('div', { className: "grid grid-cols-2 gap-3" },
+                            ['pix','money','debit','credit'].map(m => React.createElement('button', { key: m, onClick: () => setDirectMethod(m), className: `p-4 rounded-xl border flex flex-col items-center gap-2 ${directMethod === m ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-200 text-slate-500 hover:bg-slate-50'}` }, React.createElement(m === 'pix' ? QrCode : m === 'money' ? Banknote : CreditCard, { size: 24 }), React.createElement('span', { className: "text-xs font-bold uppercase" }, m === 'money' ? 'Dinheiro' : m === 'debit' ? 'Débito' : m === 'credit' ? 'Crédito' : 'PIX')))
+                        ),
+                        directMethod === 'credit' && React.createElement('div', { className: "space-y-4 pt-2 border-t border-slate-100" },
+                            React.createElement('div', null, React.createElement('label', { className: "block text-xs font-bold text-slate-500 uppercase mb-1" }, "Entrada (Dinheiro/Pix)"), React.createElement(MoneyInput, { value: entryAmount, onChange: setEntryAmount })),
+                            React.createElement('div', { className: "bg-slate-50 p-4 rounded-xl border border-slate-200" }, React.createElement('label', { className: "block text-xs font-bold text-slate-500 uppercase mb-2" }, "Parcelas da Maquininha"), React.createElement('select', { className: "w-full p-3 border border-slate-200 rounded-lg", value: cardInstallments, onChange: e => setCardInstallments(e.target.value) }, React.createElement('option', { value: "1" }, "1x (À Vista)"), Array.from({length: 11}, (_, i) => i + 2).map(n => React.createElement('option', { key: n, value: n }, `${n}x`))))
+                        )
+                    )
+                )
+            ),
+            React.createElement('div', { className: "flex gap-3 mt-6 pt-4 border-t border-slate-100" },
+                step === 1 && React.createElement(React.Fragment, null, React.createElement('button', { onClick: onClose, className: "flex-1 p-3 text-slate-500 font-bold" }, "Cancelar"), React.createElement('button', { onClick: () => setStep(2), disabled: !customerId, className: "flex-1 p-3 bg-slate-900 text-white font-bold rounded-xl disabled:opacity-50" }, "Próximo")),
+                step === 2 && React.createElement(React.Fragment, null, React.createElement('button', { onClick: () => setStep(1), className: "flex-1 p-3 text-slate-500 font-bold" }, "Voltar"), React.createElement('button', { onClick: () => setStep(3), disabled: cart.length === 0, className: "flex-1 p-3 bg-slate-900 text-white font-bold rounded-xl disabled:opacity-50" }, "Pagamento")),
+                step === 3 && React.createElement(React.Fragment, null, React.createElement('button', { onClick: () => setStep(2), className: "flex-1 p-3 text-slate-500 font-bold" }, "Voltar"), React.createElement('button', { onClick: handleFinish, className: "flex-1 p-3 bg-yellow-500 text-white font-bold rounded-xl shadow-lg shadow-yellow-200 hover:bg-yellow-600" }, "Finalizar"))
+            )
+        )
+    );
+};
+
 
 // --- MODAL DE DETALHES COMPLETOS DA VENDA ---
 const SaleDetailsModal = ({ isOpen, onClose, sale, onPay, onEdit, onDeletePayment, onDeleteSale, onOpenWA, onCancelSale }) => {
@@ -744,7 +1004,7 @@ const SaleDetailsModal = ({ isOpen, onClose, sale, onPay, onEdit, onDeletePaymen
             React.createElement('div', { className: "p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-2xl" },
                 React.createElement('div', null,
                     React.createElement('h3', { className: "font-bold text-lg text-slate-800" }, "Detalhes da " + (sale.saleType === 'direct' ? "Venda" : "Cobrança")),
-                    React.createElement('p', { className: "text-xs text-slate-500 font-medium" }, sale.customerName)
+                    React.createElement('p', { className: "text-xs text-slate-500 font-medium" }, sale.customerName || 'Cliente')
                 ),
                 React.createElement('div', { className: "flex gap-2 items-center" },
                     !isCancelled && React.createElement('button', { 
@@ -760,7 +1020,7 @@ const SaleDetailsModal = ({ isOpen, onClose, sale, onPay, onEdit, onDeletePaymen
             React.createElement('div', { className: "flex-1 overflow-y-auto p-4 space-y-4" },
                 isCancelled && React.createElement('div', { className: "bg-red-50 text-red-600 p-4 rounded-xl border border-red-100 flex items-center gap-3" },
                     React.createElement(Ban, { size: 24 }),
-                    React.createElement('div', null, React.createElement('p', { className: "font-bold text-sm uppercase" }, "Venda Cancelada"), React.createElement('p', { className: "text-xs mt-1" }, `Motivo: ${sale.cancelReason}`))
+                    React.createElement('div', null, React.createElement('p', { className: "font-bold text-sm uppercase" }, "Venda Cancelada"), React.createElement('p', { className: "text-xs mt-1" }, `Motivo: ${sale.cancelReason || 'Não informado'}`))
                 ),
 
                 // Resumo Principal
@@ -780,9 +1040,9 @@ const SaleDetailsModal = ({ isOpen, onClose, sale, onPay, onEdit, onDeletePaymen
                 // Itens
                 React.createElement('div', { className: "bg-white p-4 rounded-xl border border-slate-200" },
                     React.createElement('p', { className: "text-xs font-bold text-slate-400 uppercase mb-3 flex items-center gap-2" }, React.createElement(Package, { size: 14 }), "Itens da Venda"),
-                    sale.items.map((item, idx) => React.createElement('div', { key: idx, className: "flex justify-between text-sm py-2 border-b border-slate-50 last:border-0" },
-                        React.createElement('span', { className: "text-slate-700" }, item.quantity ? `${item.quantity}x ${item.productName}` : item.productName),
-                        React.createElement('span', { className: "font-mono text-slate-800 font-bold" }, formatCurrency(item.price))
+                    (sale.items || []).map((item, idx) => React.createElement('div', { key: idx, className: "flex justify-between text-sm py-2 border-b border-slate-50 last:border-0" },
+                        React.createElement('span', { className: "text-slate-700" }, item.quantity ? `${item.quantity}x ${item.productName || 'Produto'}` : (item.productName || 'Produto')),
+                        React.createElement('span', { className: "font-mono text-slate-800 font-bold" }, formatCurrency(item.price || 0))
                     ))
                 ),
 
@@ -811,8 +1071,8 @@ const SaleDetailsModal = ({ isOpen, onClose, sale, onPay, onEdit, onDeletePaymen
                 // Parcelas a Prazo
                 ((sale.saleType === 'prazo' || !sale.saleType) && !isCancelled) && React.createElement('div', { className: "space-y-3" },
                     React.createElement('p', { className: "text-xs font-bold text-slate-400 uppercase flex items-center gap-2" }, React.createElement(Calendar, { size: 14 }), "Parcelamento"),
-                    sale.installments && sale.installments.map((inst, idx) => {
-                        const isOverdue = !inst.paid && inst.dueDate < getBrazilDateString();
+                    (sale.installments || []).map((inst, idx) => {
+                        const isOverdue = !inst.paid && (inst.dueDate || '') < getBrazilDateString();
                         let paidDisplayDate = '';
                         if (inst.paid && inst.paidAt) paidDisplayDate = formatDate(inst.paidAt);
                         
@@ -828,7 +1088,7 @@ const SaleDetailsModal = ({ isOpen, onClose, sale, onPay, onEdit, onDeletePaymen
                                         )
                                     )
                                 ),
-                                React.createElement('p', { className: "font-bold text-slate-800 text-lg" }, formatCurrency(inst.amount))
+                                React.createElement('p', { className: "font-bold text-slate-800 text-lg" }, formatCurrency(inst.amount || 0))
                             ),
                             inst.history && inst.history.length > 0 && React.createElement('div', { className: "mt-1 pt-3 border-t border-slate-100 text-xs bg-slate-50 -mx-4 px-4 pb-2" },
                                 React.createElement('p', { className: "text-[10px] uppercase font-bold text-slate-400 mb-2 flex items-center gap-1" }, React.createElement(History, { size: 12 }), "Histórico de Pagamentos"),
@@ -838,7 +1098,7 @@ const SaleDetailsModal = ({ isOpen, onClose, sale, onPay, onEdit, onDeletePaymen
                                         h.type !== 'abatement' && React.createElement('button', { onClick: (e) => { e.stopPropagation(); onOpenWA('recibo', sale, inst, h); }, className: "text-green-500 hover:text-green-600 bg-green-50 p-1 rounded transition-colors ml-1", title: "Enviar Recibo" }, React.createElement(MessageCircle, { size: 12 })),
                                         h.type !== 'abatement' && React.createElement('button', { onClick: () => onDeletePayment(sale.id, idx, hIdx, h), className: "text-red-400 hover:text-red-600 bg-red-50 p-1 rounded transition-colors" }, React.createElement(XCircle, { size: 12 }))
                                     ),
-                                    React.createElement('span', { className: "font-bold" }, formatCurrency(h.amount))
+                                    React.createElement('span', { className: "font-bold" }, formatCurrency(h.amount || 0))
                                 ))
                             ),
                             !inst.paid ? React.createElement('div', { className: "flex gap-2 mt-2" },
@@ -921,7 +1181,6 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
     const [paymentModal, setPaymentModal] = useState({ open: false, saleId: null, index: null, item: null, isLast: false });
     const [deletePaymentModal, setDeletePaymentModal] = useState({ open: false, saleId: null, instIndex: null, histIndex: null, historyItem: null });
 
-    // Estado do Seletor de WhatsApp
     const [waChooserModal, setWaChooserModal] = useState({ open: false, phone: '', message: '' });
 
     useEffect(() => {
@@ -935,12 +1194,10 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         return () => { unsubC(); unsubP(); unsubS(); };
     }, [user.uid]);
 
-    // Auto-update dates when period changes
     useEffect(() => { if (dashPeriod === 'month') { setDashStartDate(getCurrentMonthStart()); setDashEndDate(getCurrentMonthEnd()); } }, [dashPeriod]);
     useEffect(() => { if (salesPeriod === 'month') { setSalesStart(getCurrentMonthStart()); setSalesEnd(getCurrentMonthEnd()); } }, [salesPeriod]);
     useEffect(() => { if (cashierPeriod === 'month') { setCashierStart(getCurrentMonthStart()); setCashierEnd(getCurrentMonthEnd()); } }, [cashierPeriod]);
 
-    // Reset pagination when searching/filtering
     useEffect(() => setSalesPage(1), [salesSearch, salesPeriod, salesStart, salesEnd]);
     useEffect(() => setCashierPage(1), [cashierSearch, cashierPeriod, cashierStart, cashierEnd]);
     useEffect(() => setProductsPage(1), [productSearch]);
@@ -948,21 +1205,21 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
     useEffect(() => setCustomersPage(1), [customerSearch]);
 
     const sortedProducts = useMemo(() => {
-        const list = [...products].sort((a, b) => a.code.localeCompare(b.code));
+        const list = [...products].sort((a, b) => (a.code || '').localeCompare(b.code || ''));
         if (!productSearch) return list;
-        return list.filter(p => p.name.toLowerCase().includes(productSearch.toLowerCase()) || p.code.includes(productSearch));
+        return list.filter(p => (p.name || '').toLowerCase().includes(productSearch.toLowerCase()) || (p.code || '').includes(productSearch));
     }, [products, productSearch]);
 
     const inventoryProducts = useMemo(() => {
-        const list = [...products].sort((a, b) => a.code.localeCompare(b.code));
+        const list = [...products].sort((a, b) => (a.code || '').localeCompare(b.code || ''));
         if (!inventorySearch) return list;
-        return list.filter(p => p.name.toLowerCase().includes(inventorySearch.toLowerCase()) || p.code.includes(inventorySearch));
+        return list.filter(p => (p.name || '').toLowerCase().includes(inventorySearch.toLowerCase()) || (p.code || '').includes(inventorySearch));
     }, [products, inventorySearch]);
 
     const sortedCustomers = useMemo(() => {
-        const list = [...customers].sort((a, b) => a.name.localeCompare(b.name));
+        const list = [...customers].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
         if (!customerSearch) return list;
-        return list.filter(c => c.name.toLowerCase().includes(customerSearch.toLowerCase()));
+        return list.filter(c => (c.name || '').toLowerCase().includes(customerSearch.toLowerCase()));
     }, [customers, customerSearch]);
 
     const displayedSales = useMemo(() => {
@@ -971,24 +1228,24 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         if (salesSearch) {
             const lower = salesSearch.toLowerCase();
             return baseSales.filter(s => 
-                s.customerName.toLowerCase().includes(lower) || 
-                (s.items && s.items.some(i => i.productName.toLowerCase().includes(lower)))
-            ).sort((a, b) => b.saleDate.localeCompare(a.saleDate));
+                (s.customerName || '').toLowerCase().includes(lower) || 
+                (s.items && s.items.some(i => (i.productName || '').toLowerCase().includes(lower)))
+            ).sort((a, b) => (b.saleDate || '').localeCompare(a.saleDate || ''));
         }
         
         let active = baseSales.filter(s => s.status !== 'completed' && s.status !== 'cancelled');
-        let completed = baseSales.filter(s => s.status === 'completed' && s.saleDate >= salesStart && s.saleDate <= salesEnd);
-        let cancelled = baseSales.filter(s => s.status === 'cancelled' && s.saleDate >= salesStart && s.saleDate <= salesEnd);
+        let completed = baseSales.filter(s => s.status === 'completed' && (s.saleDate || '') >= salesStart && (s.saleDate || '') <= salesEnd);
+        let cancelled = baseSales.filter(s => s.status === 'cancelled' && (s.saleDate || '') >= salesStart && (s.saleDate || '') <= salesEnd);
         
         active.sort((a, b) => {
             const getNextDue = (sale) => {
                 const pending = sale.installments?.find(i => !i.paid);
-                return pending ? pending.dueDate : '9999-99-99';
+                return pending ? (pending.dueDate || '') : '9999-99-99';
             };
             return getNextDue(a).localeCompare(getNextDue(b));
         });
-        completed.sort((a, b) => b.saleDate.localeCompare(a.saleDate));
-        cancelled.sort((a, b) => b.saleDate.localeCompare(a.saleDate));
+        completed.sort((a, b) => (b.saleDate || '').localeCompare(a.saleDate || ''));
+        cancelled.sort((a, b) => (b.saleDate || '').localeCompare(a.saleDate || ''));
         
         return [...active, ...completed, ...cancelled];
     }, [sales, salesSearch, salesStart, salesEnd]);
@@ -998,36 +1255,36 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         if (cashierSearch) {
             const lower = cashierSearch.toLowerCase();
             return list.filter(s => 
-                s.customerName.toLowerCase().includes(lower) || 
-                (s.items && s.items.some(i => i.productName.toLowerCase().includes(lower)))
-            ).sort((a, b) => b.saleDate.localeCompare(a.saleDate));
+                (s.customerName || '').toLowerCase().includes(lower) || 
+                (s.items && s.items.some(i => (i.productName || '').toLowerCase().includes(lower)))
+            ).sort((a, b) => (b.saleDate || '').localeCompare(a.saleDate || ''));
         } else {
-            return list.filter(s => s.saleDate >= cashierStart && s.saleDate <= cashierEnd)
-                       .sort((a, b) => b.saleDate.localeCompare(a.saleDate));
+            return list.filter(s => (s.saleDate || '') >= cashierStart && (s.saleDate || '') <= cashierEnd)
+                       .sort((a, b) => (b.saleDate || '').localeCompare(a.saleDate || ''));
         }
     }, [sales, cashierSearch, cashierStart, cashierEnd]);
 
     const dashboardTotals = useMemo(() => {
         const validSales = sales.filter(s => s.status !== 'cancelled');
-        const periodSales = validSales.filter(s => s.saleDate >= dashStartDate && s.saleDate <= dashEndDate);
+        const periodSales = validSales.filter(s => (s.saleDate || '') >= dashStartDate && (s.saleDate || '') <= dashEndDate);
         
-        const totalReceivable = validSales.filter(s => s.saleType === 'prazo' || !s.saleType).reduce((acc, s) => acc + (s.installments || []).filter(i => !i.paid).reduce((sum, i) => sum + i.amount, 0), 0);
+        const totalReceivable = validSales.filter(s => s.saleType === 'prazo' || !s.saleType).reduce((acc, s) => acc + (s.installments || []).filter(i => !i.paid).reduce((sum, i) => sum + (i.amount || 0), 0), 0);
         let cashIn = 0;
-        periodSales.forEach(s => { if (s.saleType === 'direct') cashIn += s.totalPrice; if (s.saleType === 'prazo' && s.entryAmount) cashIn += s.entryAmount; });
+        periodSales.forEach(s => { if (s.saleType === 'direct') cashIn += (s.totalPrice || 0); if (s.saleType === 'prazo' && s.entryAmount) cashIn += s.entryAmount; });
         
         validSales.forEach(s => {
             if (s.installments) {
                 s.installments.forEach(i => {
                     if (i.paid && i.paidAt && (!i.history || i.history.length === 0)) {
-                        const paidDate = i.paidAt.split('T')[0];
+                        const paidDate = String(i.paidAt).split('T')[0];
                         if (paidDate >= dashStartDate && paidDate <= dashEndDate) {
-                            cashIn += i.amount;
+                            cashIn += (i.amount || 0);
                         }
                     }
                     if (i.history) {
                         i.history.forEach(h => {
-                            if (h.type !== 'abatement' && h.date >= dashStartDate && h.date <= dashEndDate) {
-                                cashIn += h.amount;
+                            if (h.type !== 'abatement' && (h.date || '') >= dashStartDate && (h.date || '') <= dashEndDate) {
+                                cashIn += (h.amount || 0);
                             }
                         });
                     }
@@ -1047,13 +1304,13 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
                     if (!i.paid) {
                         const itemData = { 
                             ...i, sale: s, saleId: s.id, 
-                            customerName: s.customerName, customerPhone: s.customerPhone,
-                            installmentIndex: idx, isOverdue: i.dueDate < today
+                            customerName: s.customerName || 'Cliente', customerPhone: s.customerPhone || '',
+                            installmentIndex: idx, isOverdue: (i.dueDate || '') < today
                         };
 
-                        if (i.dueDate < today) {
+                        if ((i.dueDate || '') < today) {
                             overdueList.push(itemData);
-                        } else if (i.dueDate <= nextWeek) {
+                        } else if ((i.dueDate || '') <= nextWeek) {
                             upcomingList.push(itemData);
                         }
                     }
@@ -1061,10 +1318,10 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
             }
         });
 
-        const totalOverdue = overdueList.reduce((acc, i) => acc + i.amount, 0);
-        const totalUpcoming = upcomingList.reduce((acc, i) => acc + i.amount, 0);
+        const totalOverdue = overdueList.reduce((acc, i) => acc + (i.amount || 0), 0);
+        const totalUpcoming = upcomingList.reduce((acc, i) => acc + (i.amount || 0), 0);
 
-        const estimatedProfit = periodSales.reduce((acc, s) => acc + (s.totalPrice - (s.totalCost || 0)), 0);
+        const estimatedProfit = periodSales.reduce((acc, s) => acc + ((s.totalPrice || 0) - (s.totalCost || 0)), 0);
         const periodCost = periodSales.reduce((acc, s) => acc + (s.totalCost || 0), 0);
         const realProfit = cashIn - periodCost;
         
@@ -1083,7 +1340,7 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
     const handleSaveProduct = async (data) => {
         if (productModalData.data) {
             const oldStock = productModalData.data.stock || 0;
-            const newStock = data.stock;
+            const newStock = data.stock || 0;
             await updateDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'products', productModalData.data.id), data);
             
             if (oldStock !== newStock) {
@@ -1114,15 +1371,16 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
 
     const handleAddSale = async (data) => {
         const saleRef = await addDoc(collection(db, 'artifacts', APP_ID, 'users', user.uid, 'sales'), data);
-        for (const item of data.items) {
+        for (const item of (data.items || [])) {
+            if(!item.productId) continue;
             const p = products.find(x => x.id === item.productId);
             if (p) {
-                const newStock = (p.stock || 0) - item.quantity;
+                const newStock = (p.stock || 0) - (item.quantity || 0);
                 await updateDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'products', p.id), { stock: newStock });
                 await addDoc(collection(db, 'artifacts', APP_ID, 'users', user.uid, 'inventory_movements'), {
                     productId: p.id, type: 'saida', subType: 'venda', source: 'venda',
-                    quantity: item.quantity, saleId: saleRef.id, reason: `Venda #${saleRef.id.slice(-5).toUpperCase()}`,
-                    date: data.saleDate + 'T12:00:00', createdAt: serverTimestamp()
+                    quantity: item.quantity || 0, saleId: saleRef.id, reason: `Venda #${saleRef.id.slice(-5).toUpperCase()}`,
+                    date: (data.saleDate || getBrazilDateString()) + 'T12:00:00', createdAt: serverTimestamp()
                 });
             }
         }
@@ -1137,9 +1395,8 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         const currentCost = product.costPrice || 0;
 
         if (movData.id) {
-            // EDITANDO
             const oldMov = movData.oldData;
-            const qtyDiff = movData.quantity - oldMov.quantity;
+            const qtyDiff = (movData.quantity || 0) - (oldMov.quantity || 0);
             const stockDiff = oldMov.type === 'entrada' ? qtyDiff : -qtyDiff;
             const newStock = currentStock + stockDiff;
             
@@ -1155,23 +1412,22 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
             await updateDoc(movRef, toUpdate);
 
         } else {
-            // CRIANDO NOVO
             let newStock = currentStock;
             let newCost = currentCost;
 
             if (movData.type === 'entrada') {
-                newStock += movData.quantity;
+                newStock += (movData.quantity || 0);
                 if (movData.subType === 'compra' && movData.costPrice > 0) {
                     if (currentStock <= 0) {
                         newCost = movData.costPrice;
                     } else {
                         const totalCurrentValue = currentStock * currentCost;
-                        const totalNewValue = movData.quantity * movData.costPrice;
+                        const totalNewValue = (movData.quantity || 0) * movData.costPrice;
                         newCost = (totalCurrentValue + totalNewValue) / newStock;
                     }
                 }
             } else {
-                newStock -= movData.quantity;
+                newStock -= (movData.quantity || 0);
             }
 
             let updatePayload = { stock: newStock };
@@ -1184,24 +1440,25 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
                 ...movData, productId: product.id, source: 'manual', createdAt: serverTimestamp()
             });
         }
-        setInventoryMoveModal({ open: false, product: null, initialData: null });
     };
 
     const handleCancelSale = async (reason) => {
         const sale = cancelSaleModal.sale;
+        if (!sale) return;
+        
         await updateDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'sales', sale.id), { 
-            status: 'cancelled', cancelReason: reason, cancelledAt: new Date().toISOString() 
+            status: 'cancelled', cancelReason: reason || 'Cancelada', cancelledAt: new Date().toISOString() 
         });
 
-        // Devolve o estoque
-        for (const item of sale.items) {
+        for (const item of (sale.items || [])) {
+            if(!item.productId) continue;
             const p = products.find(x => x.id === item.productId);
             if (p) {
-                const newStock = (p.stock || 0) + item.quantity;
+                const newStock = (p.stock || 0) + (item.quantity || 0);
                 await updateDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'products', p.id), { stock: newStock });
                 await addDoc(collection(db, 'artifacts', APP_ID, 'users', user.uid, 'inventory_movements'), {
                     productId: p.id, type: 'entrada', subType: 'devolucao', source: 'cancelamento',
-                    quantity: item.quantity, saleId: sale.id, reason: `Cancelamento: ${reason}`,
+                    quantity: item.quantity || 0, saleId: sale.id, reason: `Cancelamento: ${reason}`,
                     date: getBrazilDateString() + 'T12:00:00', createdAt: serverTimestamp()
                 });
             }
@@ -1216,16 +1473,16 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         
         if (type === 'sale') {
             const sale = sales.find(s => s.id === id);
-            // Se já estava cancelada, o estoque já foi devolvido
             if (sale && sale.status !== 'cancelled') { 
-                for (const item of sale.items) {
+                for (const item of (sale.items || [])) {
+                    if(!item.productId) continue;
                     const p = products.find(x => x.id === item.productId);
                     if (p) {
-                        const newStock = (p.stock || 0) + item.quantity;
+                        const newStock = (p.stock || 0) + (item.quantity || 0);
                         await updateDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'products', p.id), { stock: newStock });
                         await addDoc(collection(db, 'artifacts', APP_ID, 'users', user.uid, 'inventory_movements'), {
                             productId: p.id, type: 'entrada', subType: 'ajuste', source: 'manual',
-                            quantity: item.quantity, reason: 'Exclusão Física de Venda', date: getBrazilDateString() + 'T12:00:00', createdAt: serverTimestamp()
+                            quantity: item.quantity || 0, reason: 'Exclusão Física de Venda', date: getBrazilDateString() + 'T12:00:00', createdAt: serverTimestamp()
                         });
                     }
                 }
@@ -1233,7 +1490,6 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         }
 
         await deleteDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, col, id));
-        setDeleteModal({ open: false, type: null, id: null });
     };
 
     const handleUpdateProfile = async (updatedData) => {
@@ -1242,8 +1498,8 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         setProfileModalOpen(false);
     };
 
-    // --- LÓGICA DE PAGAMENTO ---
     const handleClickPay = (sale, index) => {
+        if (!sale || !sale.installments || !sale.installments[index]) return;
         const item = sale.installments[index];
         if (item.paid) return; 
         const isLast = index === sale.installments.length - 1;
@@ -1255,9 +1511,11 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         const sale = sales.find(s => s.id === saleId);
         if (!sale) return;
 
-        let updatedInstallments = [...sale.installments];
+        let updatedInstallments = [...(sale.installments || [])];
         const currentInstallment = updatedInstallments[index];
-        const currentAmount = currentInstallment.amount;
+        if (!currentInstallment) return;
+        
+        const currentAmount = currentInstallment.amount || 0;
 
         let newHistory = currentInstallment.history || [];
         const timestamp = new Date().toISOString();
@@ -1275,7 +1533,7 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
 
             if (index + 1 < updatedInstallments.length) {
                 const next = updatedInstallments[index + 1];
-                const newNextAmount = next.amount - surplus;
+                const newNextAmount = (next.amount || 0) - surplus;
                 let nextHistory = next.history || [];
                 nextHistory.push({ date: datePaid, amount: surplus, type: 'abatement', fromInstallment: index, sourceTimestamp: timestamp, timestamp: new Date().toISOString() });
                 updatedInstallments[index + 1] = { ...next, amount: newNextAmount > 0 ? newNextAmount : 0, paid: newNextAmount <= 0, paidAt: newNextAmount <= 0 ? datePaid : null, history: nextHistory, originalAmount: next.originalAmount || next.amount };
@@ -1287,8 +1545,6 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
             installments: updatedInstallments, 
             status: allPaid ? 'completed' : 'active' 
         });
-
-        setPaymentModal({ open: false, saleId: null, index: null, item: null, isLast: false });
     };
 
     const handleDeletePayment = async () => {
@@ -1296,25 +1552,23 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         const sale = sales.find(s => s.id === saleId);
         if (!sale) return;
 
-        let updatedInstallments = [...sale.installments];
+        let updatedInstallments = [...(sale.installments || [])];
         const currentInst = updatedInstallments[instIndex];
+        if (!currentInst) return;
         
-        const updatedHistory = currentInst.history.filter((_, i) => i !== histIndex);
-        let newAmount = currentInst.amount + historyItem.amount;
+        const updatedHistory = (currentInst.history || []).filter((_, i) => i !== histIndex);
+        let newAmount = (currentInst.amount || 0) + (historyItem.amount || 0);
         
         updatedInstallments[instIndex] = { ...currentInst, amount: newAmount, paid: false, paidAt: null, history: updatedHistory };
 
         if (historyItem.type === 'full_surplus' && instIndex + 1 < updatedInstallments.length) {
             const nextInst = updatedInstallments[instIndex + 1];
-            const nextHistory = nextInst.history ? nextInst.history.filter(h => h.sourceTimestamp !== historyItem.timestamp) : [];
-            const surplusAmount = historyItem.surplus;
-            updatedInstallments[instIndex + 1] = { ...nextInst, amount: nextInst.amount + surplusAmount, paid: false, paidAt: null, history: nextHistory };
+            const nextHistory = (nextInst.history || []).filter(h => h.sourceTimestamp !== historyItem.timestamp);
+            const surplusAmount = historyItem.surplus || 0;
+            updatedInstallments[instIndex + 1] = { ...nextInst, amount: (nextInst.amount || 0) + surplusAmount, paid: false, paidAt: null, history: nextHistory };
         }
 
-        const allPaid = updatedInstallments.every(i => i.paid);
         await updateDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'sales', saleId), { installments: updatedInstallments, status: 'active' });
-
-        setDeletePaymentModal({ open: false, saleId: null, instIndex: null, histIndex: null, historyItem: null });
     };
 
     const confirmDeletePayment = (saleId, instIndex, histIndex, historyItem) => {
@@ -1330,10 +1584,13 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
     const saveEditedInstallment = async (newData) => {
         const { saleId, installmentIndex } = editInstallmentModal;
         const sale = sales.find(s => s.id === saleId);
-        if(!sale) return;
+        if(!sale || !sale.installments) return;
+        
         const updated = [...sale.installments];
-        const oldAmount = updated[installmentIndex].amount;
-        const newAmount = newData.amount;
+        if(!updated[installmentIndex]) return;
+        
+        const oldAmount = updated[installmentIndex].amount || 0;
+        const newAmount = newData.amount || 0;
         const diff = newAmount - oldAmount;
 
         updated[installmentIndex] = newData;
@@ -1356,34 +1613,34 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
             msg += `━━━━━━━━━━━━━━━━━━━\n\n`;
             msg += `📋 *Contrato:* ${contractId}\n`;
             msg += `📅 *Data:* ${formatDate(sale.saleDate)}\n\n`;
-            msg += `👤 *Cliente:* ${sale.customerName}\n`;
+            msg += `👤 *Cliente:* ${sale.customerName || 'Cliente'}\n`;
             if (sale.customerPhone) msg += `📱 *Telefone:* ${sale.customerPhone}\n`;
             msg += `\n`;
             
             // ITENS DA VENDA
             msg += `🛍️ *ITENS DA COMPRA:*\n`;
-            sale.items?.forEach(item => {
-                msg += `▪️ ${item.quantity}x ${item.productName} - ${formatCurrency(item.price)}\n`;
+            (sale.items || []).forEach(item => {
+                msg += `▪️ ${item.quantity || 1}x ${item.productName || 'Produto'} - ${formatCurrency(item.price || 0)}\n`;
             });
             msg += `\n`;
 
-            msg += `💵 *Valor da Compra:* ${formatCurrency(sale.totalPrice)}\n`;
+            msg += `💵 *Valor da Compra:* ${formatCurrency(sale.totalPrice || 0)}\n`;
             if (sale.entryAmount) msg += `💰 *Valor de Entrada:* ${formatCurrency(sale.entryAmount)}\n`;
             
-            if (!isQuitacao && sale.installments?.length > 0) {
+            if (!isQuitacao && (sale.installments || []).length > 0) {
                 msg += `📆 *1º Vencimento:* ${formatDate(sale.installments[0].dueDate)}\n`;
             }
 
             if (isQuitacao) {
-                msg += `\n🎉 Parabéns! Informamos que o seu contrato no valor total de *${formatCurrency(sale.totalPrice)}* foi totalmente quitado.\n`;
+                msg += `\n🎉 Parabéns! Informamos que o seu contrato no valor total de *${formatCurrency(sale.totalPrice || 0)}* foi totalmente quitado.\n`;
             }
 
             msg += `\n📊 *STATUS DAS PARCELAS:*\n`;
-            sale.installments?.forEach(inst => {
+            (sale.installments || []).forEach(inst => {
                 const statusIcon = inst.paid ? '✅' : '⏳';
                 const statusText = inst.paid ? 'Pago' : 'Em Aberto';
                 const dateToShow = inst.paid && inst.paidAt ? formatDate(inst.paidAt) : formatDate(inst.dueDate);
-                const valorInst = formatCurrency(inst.originalAmount || inst.amount); 
+                const valorInst = formatCurrency(inst.originalAmount || inst.amount || 0); 
                 msg += `${inst.number}️⃣ ${statusIcon} ${dateToShow} - ${valorInst} (${statusText})\n`;
             });
 
@@ -1394,21 +1651,21 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
             msg = `🧾 *COMPROVANTE DE VENDA*\n`;
             msg += `━━━━━━━━━━━━━━━━━━━\n\n`;
             msg += `📅 *Data:* ${formatDate(sale.saleDate)}\n`;
-            msg += `👤 *Cliente:* ${sale.customerName}\n\n`;
+            msg += `👤 *Cliente:* ${sale.customerName || 'Cliente'}\n\n`;
             
             // ITENS DA VENDA
             msg += `🛍️ *ITENS DA VENDA:*\n`;
-            sale.items?.forEach(item => {
-                msg += `▪️ ${item.quantity}x ${item.productName} - ${formatCurrency(item.price)}\n`;
+            (sale.items || []).forEach(item => {
+                msg += `▪️ ${item.quantity || 1}x ${item.productName || 'Produto'} - ${formatCurrency(item.price || 0)}\n`;
             });
 
-            msg += `\n💵 *Total Pago:* ${formatCurrency(sale.totalPrice)}\n`;
+            msg += `\n💵 *Total Pago:* ${formatCurrency(sale.totalPrice || 0)}\n`;
             
             let paymentForm = 'Não informada';
             if (sale.paymentMethod === 'pix') paymentForm = 'PIX';
             else if (sale.paymentMethod === 'money') paymentForm = 'Dinheiro';
             else if (sale.paymentMethod === 'debit') paymentForm = 'Débito';
-            else if (sale.paymentMethod === 'credit') paymentForm = `Crédito (${sale.cardInstallments}x)`;
+            else if (sale.paymentMethod === 'credit') paymentForm = `Crédito (${sale.cardInstallments || 1}x)`;
             
             msg += `💳 *Forma de Pagto:* ${paymentForm}\n`;
             
@@ -1418,7 +1675,8 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         else if (type === 'cobranca' && installment) {
             const today = new Date();
             today.setHours(0,0,0,0);
-            const [y,m,d] = installment.dueDate.split('T')[0].split('-');
+            const targetDateStr = installment.dueDate || getBrazilDateString();
+            const [y,m,d] = String(targetDateStr).split('T')[0].split('-');
             const target = new Date(y, m-1, d);
             const diffTime = target - today;
             const daysDiff = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -1436,11 +1694,11 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
                 instStatus = "⚠️ Atrasada";
             }
 
-            msg = `Olá *${sale.customerName}*!\n`;
+            msg = `Olá *${sale.customerName || 'Cliente'}*!\n`;
             msg += `━━━━━━━━━━━━━━━━━━━\n\n`;
             msg += `${statusHeader}\n\n`;
-            msg += `💵 *Valor:* ${formatCurrency(installment.amount)}\n`;
-            msg += `📊 *Parcela:* ${installment.number}/${sale.installmentsCount || sale.installments?.length}\n`;
+            msg += `💵 *Valor:* ${formatCurrency(installment.amount || 0)}\n`;
+            msg += `📊 *Parcela:* ${installment.number}/${sale.installmentsCount || (sale.installments || []).length}\n`;
             msg += `📆 *Vencimento:* ${formatDate(installment.dueDate)} ${daysText}\n\n`;
             msg += `📊 *STATUS DA PARCELA:*\n`;
             msg += `${installment.number}️⃣ ${instStatus}\n`;
@@ -1458,19 +1716,19 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         else if (type === 'recibo' && installment) {
             const paidValue = historyItem ? historyItem.amount : installment.originalAmount || installment.amount;
             const paidDate = historyItem ? historyItem.date : installment.paidAt;
-            const totalInst = sale.installmentsCount || sale.installments?.length || 1;
+            const totalInst = sale.installmentsCount || (sale.installments || []).length || 1;
             
             msg = `✅ *PAGAMENTO REGISTRADO*\n`;
             msg += `━━━━━━━━━━━━━━━━━━━\n\n`;
             msg += `📋 *Contrato:* ${contractId}\n`;
-            msg += `👤 *Cliente:* ${sale.customerName}\n`;
+            msg += `👤 *Cliente:* ${sale.customerName || 'Cliente'}\n`;
             if (sale.customerPhone) msg += `📱 *Telefone:* ${sale.customerPhone}\n`;
             msg += `\n`;
-            msg += `💵 *Valor Pago:* ${formatCurrency(paidValue)}\n`;
+            msg += `💵 *Valor Pago:* ${formatCurrency(paidValue || 0)}\n`;
             msg += `📊 *Parcela:* ${installment.number}/${totalInst}\n`;
             msg += `📆 *Data:* ${formatDate(paidDate)}\n\n`;
             
-            const nextOpen = sale.installments?.find(i => !i.paid);
+            const nextOpen = (sale.installments || []).find(i => !i.paid);
             if (nextOpen) {
                 msg += `📊 *PRÓXIMA PARCELA:*\n`;
                 msg += `${nextOpen.number}️⃣ ⏳ ${formatDate(nextOpen.dueDate)} - Em Aberto\n`;
@@ -1504,7 +1762,7 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
                 React.createElement('div', { className: "flex justify-between items-center mb-4" },
                     React.createElement('div', null,
                         React.createElement('h1', { className: "text-xl lg:text-2xl font-bold bg-gradient-to-r from-yellow-200 to-yellow-500 bg-clip-text text-transparent" }, userProfile?.storeName || "Minha Hinode"),
-                        React.createElement('p', { className: "text-xs text-slate-400" }, `Olá, ${userProfile?.name?.split(' ')[0]}`)
+                        React.createElement('p', { className: "text-xs text-slate-400" }, `Olá, ${userProfile?.name?.split(' ')[0] || 'Usuário'}`)
                     ),
                     React.createElement('div', { className: "flex gap-2" },
                         userProfile?.role === 'admin' && React.createElement('button', { onClick: () => setShowAdminPanel(true), className: "bg-slate-800 p-2 rounded-full text-yellow-400 border border-slate-700 hover:bg-slate-700" }, React.createElement(Users, { size: 20 })),
@@ -1578,7 +1836,7 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
                 // GRID DE COBRANÇAS
                 React.createElement('div', { className: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" },
                     paginatedSales.map(sale => {
-                        const pendingAmount = sale.installments ? sale.installments.filter(i => !i.paid).reduce((acc, i) => acc + i.amount, 0) : 0;
+                        const pendingAmount = sale.installments ? sale.installments.filter(i => !i.paid).reduce((acc, i) => acc + (i.amount || 0), 0) : 0;
                         const paidInstallments = sale.installments ? sale.installments.filter(i => i.paid).length : 0;
                         const totalInst = sale.installmentsCount || 0;
                         const isCancelled = sale.status === 'cancelled';
@@ -1586,7 +1844,7 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
                         return React.createElement('div', { key: sale.id, className: `bg-white rounded-xl shadow-sm border overflow-hidden transition-all hover:shadow-md cursor-pointer ${isCancelled ? 'border-red-200 opacity-60 bg-red-50' : sale.status === 'completed' ? 'border-slate-100 opacity-60 bg-slate-50' : 'border-slate-100'}`, onClick: () => setSelectedSaleDetail(sale) },
                             React.createElement('div', { className: "p-4" },
                                 React.createElement('div', { className: "flex justify-between items-start mb-2" },
-                                    React.createElement('div', null, React.createElement('p', { className: `text-xs font-bold uppercase ${isCancelled ? 'text-red-500' : 'text-slate-500'}` }, sale.customerName), React.createElement('p', { className: `font-bold text-lg ${isCancelled ? 'text-red-600 line-through' : 'text-slate-800'}` }, formatCurrency(sale.totalPrice)), React.createElement('p', { className: "text-xs text-slate-400 mt-0.5" }, formatDate(sale.saleDate))),
+                                    React.createElement('div', null, React.createElement('p', { className: `text-xs font-bold uppercase ${isCancelled ? 'text-red-500' : 'text-slate-500'}` }, sale.customerName || 'Cliente'), React.createElement('p', { className: `font-bold text-lg ${isCancelled ? 'text-red-600 line-through' : 'text-slate-800'}` }, formatCurrency(sale.totalPrice || 0)), React.createElement('p', { className: "text-xs text-slate-400 mt-0.5" }, formatDate(sale.saleDate))),
                                     React.createElement('span', { className: `px-2 py-1 rounded text-xs font-bold ${isCancelled ? 'bg-red-100 text-red-700' : sale.status === 'completed' ? 'bg-emerald-100 text-emerald-700' : 'bg-yellow-100 text-yellow-700'}` }, isCancelled ? 'Cancelado' : sale.status === 'completed' ? 'Quitado' : 'Aberto')
                                 ),
                                 !isCancelled && React.createElement('div', { className: "flex justify-between items-center text-xs text-slate-500 mt-2 pt-2 border-t border-slate-50" }, React.createElement('span', { className: "flex items-center gap-1" }, React.createElement(CheckCircle, { size: 12, className: paidInstallments === totalInst ? 'text-emerald-500' : 'text-slate-400' }), `Pagos: ${paidInstallments}/${totalInst}`), React.createElement('span', null, pendingAmount > 0 ? `Resta: ${formatCurrency(pendingAmount)}` : 'Concluído'))
@@ -1609,9 +1867,9 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
                         return React.createElement('div', { key: sale.id, className: `bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden transition-all hover:shadow-md cursor-pointer ${isCancelled ? 'opacity-50' : ''}`, onClick: () => setSelectedSaleDetail(sale) },
                             React.createElement('div', { className: "p-4 flex flex-col gap-2" },
                                 React.createElement('div', { className: "flex justify-between items-start" },
-                                    React.createElement('div', null, React.createElement('p', { className: `font-bold text-lg ${isCancelled ? 'text-slate-400 line-through' : 'text-slate-800'}` }, formatCurrency(sale.totalPrice)), React.createElement('p', { className: "text-sm text-slate-500" }, sale.customerName)),
+                                    React.createElement('div', null, React.createElement('p', { className: `font-bold text-lg ${isCancelled ? 'text-slate-400 line-through' : 'text-slate-800'}` }, formatCurrency(sale.totalPrice || 0)), React.createElement('p', { className: "text-sm text-slate-500" }, sale.customerName || 'Cliente')),
                                     React.createElement('div', { className: "flex flex-col items-end" },
-                                        isCancelled ? React.createElement('span', { className: "bg-red-100 text-red-700 text-xs font-bold px-2 py-1 rounded" }, "Cancelado") : React.createElement('span', { className: "bg-emerald-100 text-emerald-700 text-xs font-bold px-2 py-1 rounded capitalize flex items-center gap-1" }, sale.paymentMethod === 'pix' && React.createElement(QrCode, { size: 12 }), sale.paymentMethod === 'money' && React.createElement(Banknote, { size: 12 }), (sale.paymentMethod === 'credit' || sale.paymentMethod === 'debit') && React.createElement(CreditCard, { size: 12 }), sale.paymentMethod === 'credit' ? `Crédito ${sale.cardInstallments}x` : sale.paymentMethod === 'money' ? 'Dinheiro' : sale.paymentMethod === 'debit' ? 'Débito' : 'PIX'),
+                                        isCancelled ? React.createElement('span', { className: "bg-red-100 text-red-700 text-xs font-bold px-2 py-1 rounded" }, "Cancelado") : React.createElement('span', { className: "bg-emerald-100 text-emerald-700 text-xs font-bold px-2 py-1 rounded capitalize flex items-center gap-1" }, sale.paymentMethod === 'pix' && React.createElement(QrCode, { size: 12 }), sale.paymentMethod === 'money' && React.createElement(Banknote, { size: 12 }), (sale.paymentMethod === 'credit' || sale.paymentMethod === 'debit') && React.createElement(CreditCard, { size: 12 }), sale.paymentMethod === 'credit' ? `Crédito ${sale.cardInstallments || 1}x` : sale.paymentMethod === 'money' ? 'Dinheiro' : sale.paymentMethod === 'debit' ? 'Débito' : 'PIX'),
                                         React.createElement('span', { className: "text-xs text-slate-400 mt-1" }, formatDate(sale.saleDate))
                                     )
                                 )
@@ -1628,12 +1886,12 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
                 // GRID PRODUTOS
                 React.createElement('div', { className: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" },
                     paginatedProducts.map(p => {
-                        const isPromo = p.isPromoActive && p.promoStartDate <= getBrazilDateString() && p.promoEndDate >= getBrazilDateString();
+                        const isPromo = p.isPromoActive && (p.promoStartDate || '') <= getBrazilDateString() && (p.promoEndDate || '9999-12-31') >= getBrazilDateString();
                         return React.createElement('div', { key: p.id, className: "bg-white p-4 rounded-xl border border-slate-100 flex justify-between items-center shadow-sm" }, 
                             React.createElement('div', { className: "flex items-center gap-3" }, 
-                                React.createElement('span', { className: "text-xs font-mono bg-slate-100 text-slate-500 px-2 py-1 rounded" }, `#${p.code}`), 
+                                React.createElement('span', { className: "text-xs font-mono bg-slate-100 text-slate-500 px-2 py-1 rounded" }, `#${p.code || 'S/N'}`), 
                                 React.createElement('div', null,
-                                    React.createElement('span', { className: "font-bold text-slate-800 block" }, p.name),
+                                    React.createElement('span', { className: "font-bold text-slate-800 block" }, p.name || 'Produto'),
                                     isPromo && React.createElement('span', { className: "text-[10px] font-bold text-yellow-600 uppercase flex items-center gap-1 mt-0.5" }, React.createElement(Tag, { size: 10 }), "Promoção")
                                 )
                             ), 
@@ -1663,8 +1921,8 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
                         return React.createElement('div', { key: p.id, className: "bg-white p-4 rounded-xl border border-slate-100 flex flex-col shadow-sm" }, 
                             React.createElement('div', { className: "flex justify-between items-start mb-3" }, 
                                 React.createElement('div', null,
-                                    React.createElement('span', { className: "text-[10px] font-mono text-slate-400 block mb-0.5" }, `#${p.code}`),
-                                    React.createElement('span', { className: "font-bold text-slate-800" }, p.name)
+                                    React.createElement('span', { className: "text-[10px] font-mono text-slate-400 block mb-0.5" }, `#${p.code || 'S/N'}`),
+                                    React.createElement('span', { className: "font-bold text-slate-800" }, p.name || 'Produto')
                                 ),
                                 React.createElement('span', { className: `font-bold px-3 py-1 rounded-lg text-sm ${stock > 10 ? 'bg-emerald-50 text-emerald-600' : stock > 0 ? 'bg-yellow-50 text-yellow-600' : 'bg-red-50 text-red-600'}` }, `${stock} un`)
                             ), 
@@ -1675,7 +1933,7 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
                                 ),
                                 React.createElement('div', { className: "flex gap-2" }, 
                                     React.createElement('button', { onClick: () => setInventoryHistoryModal({open: true, product: p}), className: "bg-slate-100 text-slate-500 hover:text-purple-600 p-2 rounded-lg transition-colors", title: "Histórico" }, React.createElement(ClipboardList, { size: 16 })),
-                                    React.createElement('button', { onClick: () => setInventoryMoveModal({open: true, product: p}), className: "bg-blue-50 text-blue-600 hover:bg-blue-100 p-2 rounded-lg transition-colors font-bold flex items-center gap-1 text-xs" }, React.createElement(ArrowRightLeft, { size: 14 }), "Movimentar")
+                                    React.createElement('button', { onClick: () => setInventoryMoveModal({open: true, product: p, initialData: null}), className: "bg-blue-50 text-blue-600 hover:bg-blue-100 p-2 rounded-lg transition-colors font-bold flex items-center gap-1 text-xs" }, React.createElement(ArrowRightLeft, { size: 14 }), "Movimentar")
                                 )
                             )
                         )
@@ -1689,7 +1947,7 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
                 
                 // GRID CLIENTES
                 React.createElement('div', { className: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" },
-                    paginatedCustomers.map(c => React.createElement('div', { key: c.id, className: "bg-white p-4 rounded-xl border border-slate-100 flex justify-between items-center shadow-sm" }, React.createElement('div', null, React.createElement('p', { className: "font-bold text-slate-800" }, c.name), React.createElement('p', { className: "text-xs text-slate-500" }, c.phone || 'Sem contato')), React.createElement('div', { className: "flex gap-2" }, React.createElement('button', { onClick: () => setCustomerModalData({open: true, data: c}), className: "text-slate-300 hover:text-yellow-600 p-2" }, React.createElement(Edit2, { size: 18 })), React.createElement('button', { onClick: () => requestDelete('customer', c.id), className: "text-slate-300 hover:text-red-500 p-2" }, React.createElement(Trash2, { size: 18 })))))
+                    paginatedCustomers.map(c => React.createElement('div', { key: c.id, className: "bg-white p-4 rounded-xl border border-slate-100 flex justify-between items-center shadow-sm" }, React.createElement('div', null, React.createElement('p', { className: "font-bold text-slate-800" }, c.name || 'Sem Nome'), React.createElement('p', { className: "text-xs text-slate-500" }, c.phone || 'Sem contato')), React.createElement('div', { className: "flex gap-2" }, React.createElement('button', { onClick: () => setCustomerModalData({open: true, data: c}), className: "text-slate-300 hover:text-yellow-600 p-2" }, React.createElement(Edit2, { size: 18 })), React.createElement('button', { onClick: () => requestDelete('customer', c.id), className: "text-slate-300 hover:text-red-500 p-2" }, React.createElement(Trash2, { size: 18 })))))
                 ),
                 React.createElement(Pagination, { totalItems: sortedCustomers.length, itemsPerPage: ITEMS_PER_PAGE, currentPage: customersPage, onPageChange: setCustomersPage })
             )
@@ -1701,7 +1959,7 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         React.createElement(ProductFormModal, { isOpen: productModalData.open, onClose: () => setProductModalData({open:false, data:null}), initialData: productModalData.data, onSave: handleSaveProduct, lastCode: products.length > 0 ? String(products.reduce((max, p) => Math.max(max, parseInt(p.code || '0', 10) || 0), 0)).padStart(6, '0') : null }),
         React.createElement(ProductDetailsModal, { isOpen: productDetailsModalData.open, onClose: () => setProductDetailsModalData({open:false, data:null}), product: productDetailsModalData.data }),
         
-        React.createElement(InventoryMovementModal, { isOpen: inventoryMoveModal.open, onClose: () => setInventoryMoveModal({open: false, product: null}), product: inventoryMoveModal.product, initialData: inventoryMoveModal.initialData, onSave: handleSaveMovement }),
+        React.createElement(InventoryMovementModal, { isOpen: inventoryMoveModal.open, onClose: () => setInventoryMoveModal({open: false, product: null, initialData: null}), product: inventoryMoveModal.product, initialData: inventoryMoveModal.initialData, onSave: handleSaveMovement }),
         React.createElement(InventoryHistoryModal, { 
             isOpen: inventoryHistoryModal.open, 
             onClose: () => setInventoryHistoryModal({open: false, product: null}), 
