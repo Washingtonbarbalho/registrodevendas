@@ -274,8 +274,8 @@ const WhatsAppChooserModal = ({ isOpen, onClose, phone, message }) => {
             React.createElement('h3', { className: "text-lg font-bold text-slate-800 mb-1" }, "Enviar Mensagem"),
             React.createElement('p', { className: "text-sm text-slate-500 mb-6" }, "Escolha a ação desejada para a mensagem."),
             React.createElement('div', { className: "space-y-3" },
-                React.createElement('button', { onClick: () => handleOpen('whatsapp'), className: "w-full p-4 bg-green-500 text-white font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-green-600 shadow-sm" }, React.createElement(MessageCircle, { size: 20 }), "Abrir no WhatsApp"),
-                React.createElement('button', { onClick: () => handleOpen('copy'), className: "w-full p-4 bg-slate-100 text-slate-600 font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-slate-200" }, React.createElement(Copy, { size: 20 }), "Copiar Texto")
+                React.createElement('button', { onClick: () => handleOpen('whatsapp'), className: "w-full p-4 bg-green-500 text-white font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-green-600 shadow-sm" }, React.createElement(MessageCircle, { size: 20 }), "WhatsApp"),
+                React.createElement('button', { onClick: () => handleOpen('copy'), className: "w-full p-4 bg-slate-100 text-slate-600 font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-slate-200" }, React.createElement(Copy, { size: 20 }), "Copiar Mensagem")
             ),
             React.createElement('button', { onClick: onClose, className: "mt-4 p-2 text-slate-400 hover:text-slate-600 w-full font-bold" }, "Cancelar")
         )
@@ -840,7 +840,7 @@ const NewSaleModal = ({ isOpen, onClose, customers, products, onSave }) => {
                         totalRemaining > 0 && React.createElement(React.Fragment, null,
                             React.createElement('div', null, React.createElement('label', { className: "block text-xs font-bold text-slate-500 uppercase mb-1" }, "Frequência"), React.createElement('select', { className: "w-full p-3 border border-slate-200 rounded-lg", value: frequency, onChange: e => setFrequency(e.target.value) }, React.createElement('option', { value: "weekly" }, "Semanal"), React.createElement('option', { value: "biweekly" }, "Quinzenal"), React.createElement('option', { value: "monthly" }, "Mensal"))),
                             React.createElement('div', { className: "grid grid-cols-2 gap-4" },
-                                React.createElement('div', null, React.createElement('label', { className: "block text-xs font-bold text-slate-500 uppercase mb-1" }, "Parcelas"), React.createElement('select', { className: "w-full p-3 border border-slate-200 rounded-lg", value: installmentsCount, onChange: e => setInstallmentsCount(e.target.value) }, [1,2,3,4,5,6,8,10,12].map(n => React.createElement('option', { key: n, value: n }, `${n}x`)))),
+                                React.createElement('div', null, React.createElement('label', { className: "block text-xs font-bold text-slate-500 uppercase mb-1" }, "Parcelas"), React.createElement('select', { className: "w-full p-3 border border-slate-200 rounded-lg", value: installmentsCount, onChange: e => setInstallmentsCount(e.target.value) }, Array.from({length: 12}, (_, i) => i + 1).map(n => React.createElement('option', { key: n, value: n }, `${n}x`)))),
                                 React.createElement('div', null, React.createElement('label', { className: "block text-xs font-bold text-slate-500 uppercase mb-1" }, "1ª Data"), React.createElement('input', { type: "date", className: "w-full p-3 border border-slate-200 rounded-lg", value: firstDueDate, onChange: e => setFirstDueDate(e.target.value) }))
                             )
                         )
@@ -851,7 +851,7 @@ const NewSaleModal = ({ isOpen, onClose, customers, products, onSave }) => {
                         ),
                         directMethod === 'credit' && React.createElement('div', { className: "space-y-4 pt-2 border-t border-slate-100" },
                             React.createElement('div', null, React.createElement('label', { className: "block text-xs font-bold text-slate-500 uppercase mb-1" }, "Entrada (Dinheiro/Pix)"), React.createElement(MoneyInput, { value: entryAmount, onChange: setEntryAmount })),
-                            React.createElement('div', { className: "bg-slate-50 p-4 rounded-xl border border-slate-200" }, React.createElement('label', { className: "block text-xs font-bold text-slate-500 uppercase mb-2" }, "Parcelas da Maquininha"), React.createElement('select', { className: "w-full p-3 border border-slate-200 rounded-lg", value: cardInstallments, onChange: e => setCardInstallments(e.target.value) }, React.createElement('option', { value: "1" }, "1x (À Vista)"), [2,3,4,5,6,7,8,9,10,11,12].map(n => React.createElement('option', { key: n, value: n }, `${n}x`))))
+                            React.createElement('div', { className: "bg-slate-50 p-4 rounded-xl border border-slate-200" }, React.createElement('label', { className: "block text-xs font-bold text-slate-500 uppercase mb-2" }, "Parcelas da Maquininha"), React.createElement('select', { className: "w-full p-3 border border-slate-200 rounded-lg", value: cardInstallments, onChange: e => setCardInstallments(e.target.value) }, React.createElement('option', { value: "1" }, "1x (À Vista)"), Array.from({length: 11}, (_, i) => i + 2).map(n => React.createElement('option', { key: n, value: n }, `${n}x`))))
                         )
                     )
                 )
@@ -1090,16 +1090,15 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         
         if (salesSearch) {
             const lower = salesSearch.toLowerCase();
-            baseSales = baseSales.filter(s => s.customerName.toLowerCase().includes(lower) || s.items.some(i => i.productName.toLowerCase().includes(lower)));
+            // Ignora datas e busca tudo
+            return baseSales.filter(s => 
+                s.customerName.toLowerCase().includes(lower) || 
+                (s.items && s.items.some(i => i.productName.toLowerCase().includes(lower)))
+            ).sort((a, b) => b.saleDate.localeCompare(a.saleDate));
         }
         
         let active = baseSales.filter(s => s.status !== 'completed');
-        let completed = baseSales.filter(s => s.status === 'completed');
-        
-        // Se houver busca digitada, não filtra por data para mostrar todo o histórico do cliente
-        if (!salesSearch) {
-            completed = completed.filter(s => s.saleDate >= salesStart && s.saleDate <= salesEnd);
-        }
+        let completed = baseSales.filter(s => s.status === 'completed' && s.saleDate >= salesStart && s.saleDate <= salesEnd);
         
         active.sort((a, b) => {
             const getNextDue = (sale) => {
@@ -1117,12 +1116,15 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         let list = sales.filter(s => s.saleType === 'direct');
         if (cashierSearch) {
             const lower = cashierSearch.toLowerCase();
-            // Se houver busca digitada, ignora o filtro de data
-            list = list.filter(s => s.customerName.toLowerCase().includes(lower) || s.items.some(i => i.productName.toLowerCase().includes(lower)));
+            // Ignora datas e busca tudo
+            return list.filter(s => 
+                s.customerName.toLowerCase().includes(lower) || 
+                (s.items && s.items.some(i => i.productName.toLowerCase().includes(lower)))
+            ).sort((a, b) => b.saleDate.localeCompare(a.saleDate));
         } else {
-            list = list.filter(s => s.saleDate >= cashierStart && s.saleDate <= cashierEnd);
+            return list.filter(s => s.saleDate >= cashierStart && s.saleDate <= cashierEnd)
+                       .sort((a, b) => b.saleDate.localeCompare(a.saleDate));
         }
-        return list.sort((a, b) => b.saleDate.localeCompare(a.saleDate));
     }, [sales, cashierSearch, cashierStart, cashierEnd]);
 
     const dashboardTotals = useMemo(() => {
