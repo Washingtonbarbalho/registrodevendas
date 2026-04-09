@@ -103,7 +103,6 @@ const MoneyInput = ({ value, onChange, placeholder, className, autoFocus }) => {
         if (typeof value === 'number') {
             setDisplay(maskMoney(value.toFixed(2))); 
         } else if (typeof value === 'string') {
-            // Correção para atualizar quando o modal envia a string já formatada
             setDisplay(value);
         }
     }, [value]);
@@ -342,7 +341,7 @@ const InstallmentListModal = ({ isOpen, onClose, title, items, onPay, getWhatsap
                                 ),
                                 React.createElement('div', { className: "flex gap-2" },
                                     item.customerPhone && React.createElement('a', { 
-                                        href: getWhatsappLink(item.customerPhone, item.customerName, item.amount, item.dueDate, storeName),
+                                        href: getWhatsappLink('cobranca', item.sale, item, null, storeName),
                                         target: "_blank", rel: "noreferrer",
                                         className: "p-2 bg-green-500 text-white rounded-lg shadow-sm hover:bg-green-600 transition-colors"
                                     }, React.createElement(MessageCircle, { size: 16 })),
@@ -764,7 +763,15 @@ const SaleDetailsModal = ({ isOpen, onClose, sale, onPay, onEdit, onDeletePaymen
                     React.createElement('h3', { className: "font-bold text-lg text-slate-800" }, "Detalhes da " + (sale.saleType === 'direct' ? "Venda" : "Cobrança")),
                     React.createElement('p', { className: "text-xs text-slate-500 font-medium" }, sale.customerName)
                 ),
-                React.createElement('button', { onClick: onClose, className: "p-2 hover:bg-slate-200 rounded-full transition-colors text-slate-500" }, React.createElement(X, { size: 20 }))
+                React.createElement('div', { className: "flex gap-2 items-center" },
+                    React.createElement('a', { 
+                        href: getWhatsappLink(sale.status === 'completed' ? 'quitacao' : 'registro', sale, null, null, storeName),
+                        target: "_blank", rel: "noreferrer",
+                        className: "p-2 hover:bg-green-100 rounded-full transition-colors text-green-600",
+                        title: sale.status === 'completed' ? "Enviar Quitação" : "Enviar Resumo da Venda"
+                    }, React.createElement(MessageCircle, { size: 20 })),
+                    React.createElement('button', { onClick: onClose, className: "p-2 hover:bg-slate-200 rounded-full transition-colors text-slate-500" }, React.createElement(X, { size: 20 }))
+                )
             ),
             
             // Scrollable Content
@@ -839,16 +846,19 @@ const SaleDetailsModal = ({ isOpen, onClose, sale, onPay, onEdit, onDeletePaymen
                             inst.history && inst.history.length > 0 && React.createElement('div', { className: "mt-1 pt-3 border-t border-slate-100 text-xs bg-slate-50 -mx-4 px-4 pb-2" },
                                 React.createElement('p', { className: "text-[10px] uppercase font-bold text-slate-400 mb-2 flex items-center gap-1" }, React.createElement(History, { size: 12 }), "Histórico de Pagamentos"),
                                 inst.history.map((h, hIdx) => React.createElement('div', { key: hIdx, className: "flex justify-between items-center text-slate-600 py-1.5 border-b border-slate-100 last:border-0" },
-                                    React.createElement('div', { className: "flex items-center gap-2" },
+                                    React.createElement('div', { className: "flex items-center gap-1" },
                                         React.createElement('span', null, h.type === 'abatement' ? 'Abatimento autom.' : formatDate(h.date)),
+                                        h.type !== 'abatement' && React.createElement('a', { onClick: (e) => e.stopPropagation(), href: getWhatsappLink('recibo', sale, inst, h, storeName), target: "_blank", rel: "noreferrer", className: "text-green-500 hover:text-green-600 bg-green-50 p-1 rounded transition-colors ml-1", title: "Enviar Recibo" }, React.createElement(MessageCircle, { size: 12 })),
                                         h.type !== 'abatement' && React.createElement('button', { onClick: () => onDeletePayment(sale.id, idx, hIdx, h), className: "text-red-400 hover:text-red-600 bg-red-50 p-1 rounded transition-colors" }, React.createElement(XCircle, { size: 12 }))
                                     ),
                                     React.createElement('span', { className: "font-bold" }, formatCurrency(h.amount))
                                 ))
                             ),
-                            !inst.paid && React.createElement('div', { className: "flex gap-2 mt-2" },
+                            !inst.paid ? React.createElement('div', { className: "flex gap-2 mt-2" },
                                 React.createElement('button', { onClick: () => onEdit({ open: true, saleId: sale.id, installmentIndex: idx, data: inst }), className: "flex-1 flex items-center justify-center gap-1 py-2 text-xs font-bold text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors" }, React.createElement(Edit2, { size: 14 }), "Ajustar Valor"),
-                                sale.customerPhone && React.createElement('a', { href: getWhatsappLink(sale.customerPhone, sale.customerName, inst.amount, inst.dueDate, storeName), target: "_blank", rel: "noreferrer", className: "flex-1 flex items-center justify-center gap-1 py-2 text-xs font-bold text-white bg-green-500 rounded-lg hover:bg-green-600 transition-colors shadow-sm" }, React.createElement(MessageCircle, { size: 14 }), "Cobrar")
+                                sale.customerPhone && React.createElement('a', { href: getWhatsappLink('cobranca', sale, inst, null, storeName), target: "_blank", rel: "noreferrer", className: "flex-1 flex items-center justify-center gap-1 py-2 text-xs font-bold text-white bg-green-500 rounded-lg hover:bg-green-600 transition-colors shadow-sm" }, React.createElement(MessageCircle, { size: 14 }), "Cobrar")
+                            ) : React.createElement('div', { className: "flex gap-2 mt-2" },
+                                sale.customerPhone && React.createElement('a', { href: getWhatsappLink('recibo', sale, inst, null, storeName), target: "_blank", rel: "noreferrer", className: "flex-1 flex items-center justify-center gap-1 py-2 text-xs font-bold text-emerald-600 bg-emerald-50 rounded-lg hover:bg-emerald-100 transition-colors shadow-sm border border-emerald-100" }, React.createElement(MessageCircle, { size: 14 }), "Enviar Recibo")
                             )
                         );
                     })
@@ -1025,6 +1035,7 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
                     if (!i.paid) {
                         const itemData = { 
                             ...i, 
+                            sale: s, // Para ter a venda completa ao chamar o Whatsapp
                             saleId: s.id, 
                             customerName: s.customerName, 
                             customerPhone: s.customerPhone,
@@ -1278,24 +1289,106 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         });
     };
 
-    const getWhatsappLink = (phone, name, amount, date, storeName) => {
-        const clean = phone?.replace(/\D/g, '');
-        if (!clean) return '#';
+    // --- NOVA LÓGICA DE GERAÇÃO DE MENSAGENS WHATSAPP ---
+    const getWhatsappLink = (type, sale, installment, historyItem, storeName) => {
+        const cleanPhone = sale?.customerPhone?.replace(/\D/g, '');
+        if (!cleanPhone) return '#';
         
-        const today = getBrazilDateString();
-        const firstName = name.split(' ')[0];
-        const store = storeName || "nossa loja";
+        const store = storeName || "Nossa Loja";
+        const contractId = sale.id ? `EMP-${sale.id.slice(-5).toUpperCase()}` : '00000';
+        
         let msg = "";
 
-        if (date > today) {
-            msg = `Olá ${firstName}, tudo bem? 👋\nPassando para lembrar que sua parcela de *${formatCurrency(amount)}* na *${store}* vence dia *${formatDate(date)}*.\nSe quiser antecipar, estamos à disposição! 🌟`;
-        } else if (date === today) {
-            msg = `Oi ${firstName}! Hoje é o vencimento da sua parcela de *${formatCurrency(amount)}* na *${store}*. 🗓️\nPodemos confirmar o pagamento? Obrigado pela preferência! ✨`;
-        } else {
-            msg = `Olá ${firstName}. Notamos que sua parcela de *${formatCurrency(amount)}* na *${store}* venceu dia *${formatDate(date)}*. ⚠️\nPodemos agendar o pagamento para hoje e evitar juros? Aguardo seu retorno! 🤝`;
+        if (type === 'registro') {
+            const firstInst = sale.installments?.[0];
+            const firstDueDate = firstInst ? formatDate(firstInst.dueDate) : '--/--/----';
+            
+            msg = `📄 *CONTRATO REGISTRADO*\n`;
+            msg += `━━━━━━━━━━━━━━━━━━━\n\n`;
+            msg += `📋 *Contrato:* ${contractId}\n`;
+            msg += `📅 *Data:* ${formatDate(sale.saleDate)}\n\n`;
+            msg += `👤 *Cliente:* ${sale.customerName}\n`;
+            if (sale.customerPhone) msg += `📱 *Telefone:* ${sale.customerPhone}\n`;
+            msg += `\n`;
+            msg += `💵 *Valor da Compra:* ${formatCurrency(sale.totalPrice)}\n`;
+            if (sale.entryAmount) msg += `💰 *Valor de Entrada:* ${formatCurrency(sale.entryAmount)}\n`;
+            msg += `📆 *1º Vencimento:* ${firstDueDate}\n\n`;
+            msg += `📊 *STATUS DA PARCELA:*\n`;
+            msg += `1️⃣ ⏳ ${firstDueDate} - Em Aberto\n\n`;
+            msg += `━━━━━━━━━━━━━━━━━━━\n`;
+            msg += `Qualquer dúvida, estamos à disposição!`;
+        } 
+        else if (type === 'cobranca' && installment) {
+            // calculate days diff
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            const [y,m,d] = installment.dueDate.split('T')[0].split('-');
+            const target = new Date(y, m-1, d);
+            const diffTime = target - today;
+            const daysDiff = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            
+            let statusHeader = "📋 *LEMBRETE DE PAGAMENTO*";
+            let daysText = `(em ${daysDiff} dias)`;
+            let instStatus = "⏳ Em Aberto";
+
+            if (daysDiff === 0) {
+                statusHeader = "🔔 *VENCIMENTO HOJE*";
+                daysText = "(HOJE)";
+            } else if (daysDiff < 0) {
+                statusHeader = "⚠️ *AVISO DE ATRASO*";
+                daysText = `(Vencido há ${Math.abs(daysDiff)} dias)`;
+                instStatus = "⚠️ Atrasada";
+            }
+
+            msg = `Olá *${sale.customerName}*!\n`;
+            msg += `━━━━━━━━━━━━━━━━━━━\n\n`;
+            msg += `${statusHeader}\n\n`;
+            msg += `💵 *Valor:* ${formatCurrency(installment.amount)}\n`;
+            msg += `📊 *Parcela:* ${installment.number}/${sale.installmentsCount || sale.installments?.length}\n`;
+            msg += `📆 *Vencimento:* ${formatDate(installment.dueDate)} ${daysText}\n\n`;
+            msg += `📊 *STATUS DA PARCELA:*\n`;
+            msg += `${installment.number}️⃣ ${instStatus}\n\n`;
+            msg += `Qualquer dúvida, estou à disposição!\n`;
+            msg += `━━━━━━━━━━━━━━━━━━━`;
+        }
+        else if (type === 'recibo' && installment) {
+            const paidValue = historyItem ? historyItem.amount : installment.originalAmount || installment.amount;
+            const paidDate = historyItem ? historyItem.date : installment.paidAt;
+            const totalInst = sale.installmentsCount || sale.installments?.length || 1;
+            
+            msg = `✅ *PAGAMENTO REGISTRADO*\n`;
+            msg += `━━━━━━━━━━━━━━━━━━━\n\n`;
+            msg += `📋 *Contrato:* ${contractId}\n`;
+            msg += `👤 *Cliente:* ${sale.customerName}\n`;
+            if (sale.customerPhone) msg += `📱 *Telefone:* ${sale.customerPhone}\n`;
+            msg += `\n`;
+            msg += `💵 *Valor Pago:* ${formatCurrency(paidValue)}\n`;
+            msg += `📊 *Parcela:* ${installment.number}/${totalInst}\n`;
+            msg += `📆 *Data:* ${formatDate(paidDate)}\n\n`;
+            
+            // Verifica status da próxima
+            const nextOpen = sale.installments?.find(i => !i.paid);
+            if (nextOpen) {
+                msg += `📊 *STATUS DAS PARCELAS:*\n`;
+                msg += `${nextOpen.number}️⃣ ⏳ ${formatDate(nextOpen.dueDate)} - Em Aberto\n`;
+            } else {
+                msg += `🎉 *STATUS: COMPRA QUITADA!*\n`;
+            }
+            msg += `\n━━━━━━━━━━━━━━━━━━━\n`;
+            msg += `Muito obrigado!`;
+        }
+        else if (type === 'quitacao') {
+            msg = `🌟 *CONTRATO QUITADO*\n`;
+            msg += `━━━━━━━━━━━━━━━━━━━\n\n`;
+            msg += `📋 *Contrato:* ${contractId}\n`;
+            msg += `👤 *Cliente:* ${sale.customerName}\n\n`;
+            msg += `🎉 Parabéns! Informamos que o seu contrato no valor total de *${formatCurrency(sale.totalPrice)}* foi totalmente quitado.\n\n`;
+            msg += `Muito obrigado pela confiança!\n`;
+            msg += `━━━━━━━━━━━━━━━━━━━\n`;
+            msg += `*${store}*`;
         }
 
-        return `https://wa.me/55${clean}?text=${encodeURIComponent(msg)}`;
+        return `https://wa.me/55${cleanPhone}?text=${encodeURIComponent(msg)}`;
     };
 
     if (showAdminPanel) return React.createElement(AdminUsersPanel, { onClose: () => setShowAdminPanel(false) });
