@@ -953,7 +953,7 @@ const InventoryMovementModal = ({ isOpen, onClose, product, onSave }) => {
                     )
                 ),
                 
-                (type === 'entrada' && subType === 'compra') && React.createElement('p', { className: "text-[10px] text-blue-500 font-bold bg-blue-50 p-2 rounded" }, "O Custo Unitário será atualizado via Custo Médio para futuras vendas."),
+                (type === 'entrada' && subType === 'compra') && React.createElement('p', { className: "text-[10px] text-blue-500 font-bold bg-blue-50 p-2 rounded" }, "O Custo Unitário será atualizado utilizando o Custo Médio (Média Ponderada) para futuras vendas."),
 
                 React.createElement('div', null,
                     React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1" }, "Observação (Opcional)"),
@@ -977,22 +977,49 @@ const InventoryHistoryModal = ({ isOpen, onClose, product, userId }) => {
     useEffect(() => {
         if (!isOpen || !product) return;
         setLoading(true);
-        const q = query(collection(db, 'artifacts', APP_ID, 'users', userId, 'inventory_movements'), where('productId', '==', product.id));
-        const unsub = onSnapshot(q, (snap) => {
-            const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-            
-            // Correção do erro que impedia o carregamento
-            list.sort((a, b) => {
-                const timeA = a.createdAt?.seconds || 0;
-                const timeB = b.createdAt?.seconds || 0;
-                if (timeA !== timeB) return timeB - timeA;
-                return b.date.localeCompare(a.date);
+        
+        try {
+            const q = query(collection(db, 'artifacts', APP_ID, 'users', userId, 'inventory_movements'), where('productId', '==', product.id));
+            const unsub = onSnapshot(q, (snap) => {
+                try {
+                    const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                    
+                    // Ordenação Totalmente Segura para não quebrar com dados legados
+                    list.sort((a, b) => {
+                        const getMillis = (item) => {
+                            if (!item || !item.createdAt) return 0;
+                            if (typeof item.createdAt.toMillis === 'function') return item.createdAt.toMillis();
+                            if (item.createdAt.seconds) return item.createdAt.seconds * 1000;
+                            return 0;
+                        };
+                        
+                        const timeA = getMillis(a);
+                        const timeB = getMillis(b);
+                        
+                        if (timeA !== timeB) return timeB - timeA;
+                        
+                        // Fallback seguro usando date
+                        const dateA = a.date || '';
+                        const dateB = b.date || '';
+                        return dateB.localeCompare(dateA);
+                    });
+                    
+                    setMovements(list);
+                    setLoading(false);
+                } catch (innerErr) {
+                    console.error("Erro interno ao processar movimentações:", innerErr);
+                    setLoading(false);
+                }
+            }, (error) => {
+                console.error("Erro de conexão no histórico:", error);
+                setLoading(false);
             });
             
-            setMovements(list);
+            return () => unsub();
+        } catch (setupErr) {
+            console.error("Erro ao configurar busca no histórico:", setupErr);
             setLoading(false);
-        });
-        return () => unsub();
+        }
     }, [isOpen, product, userId]);
 
     const handleDelete = async (mov) => {
