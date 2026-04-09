@@ -7,7 +7,7 @@ import {
     PieChart, BarChart3, ArrowUpRight, ArrowDownRight, PackageMinus,
     LogOut, Lock, Mail, Phone, Store, UserCog, UserCheck, UserX, Shield,
     ChevronLeft, ChevronRight, MoreHorizontal, LayoutGrid, AlertCircle, RefreshCw,
-    Clock, Bell, History, FileText, XCircle, User, Smartphone, Copy
+    Clock, Bell, History, FileText, XCircle, User, Smartphone, Copy, Eye, Tag, MapPin
 } from 'https://esm.sh/lucide-react@0.292.0';
 
 // --- FIREBASE IMPORTS ---
@@ -43,7 +43,7 @@ const parseMoney = (valStr) => {
 };
 
 const maskMoney = (value) => {
-    let v = value.replace(/\D/g, "");
+    let v = String(value).replace(/\D/g, "");
     v = (v / 100).toFixed(2) + "";
     v = v.replace(".", ",");
     v = v.replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1.");
@@ -70,6 +70,12 @@ const maskCpfCnpj = (v) => {
         v = v.replace(/(\d{4})(\d)/, "$1-$2");
     }
     return v;
+};
+
+const maskZipCode = (v) => {
+    v = v.replace(/\D/g, "");
+    v = v.replace(/^(\d{5})(\d)/, "$1-$2");
+    return v.slice(0, 9);
 };
 
 const applyPixMask = (val, type) => {
@@ -110,7 +116,7 @@ const getCurrentMonthEnd = () => {
 
 // --- COMPONENTES DE UI ---
 
-const MoneyInput = ({ value, onChange, placeholder, className, autoFocus }) => {
+const MoneyInput = ({ value, onChange, placeholder, className, autoFocus, disabled }) => {
     const [display, setDisplay] = useState(typeof value === 'number' ? maskMoney(value.toFixed(2)) : value);
     
     useEffect(() => { 
@@ -123,8 +129,8 @@ const MoneyInput = ({ value, onChange, placeholder, className, autoFocus }) => {
 
     const handleChange = (e) => { const m = maskMoney(e.target.value); setDisplay(m); onChange(m); };
     return React.createElement('div', { className: "relative w-full" },
-        React.createElement('span', { className: "absolute left-3 top-3 text-slate-400 font-bold" }, "R$"),
-        React.createElement('input', { autoFocus: autoFocus, type: "text", inputMode: "numeric", className: className, placeholder: placeholder || "0,00", value: display, onChange: handleChange })
+        React.createElement('span', { className: `absolute left-3 top-3 font-bold ${disabled ? 'text-slate-300' : 'text-slate-400'}` }, "R$"),
+        React.createElement('input', { disabled, autoFocus: autoFocus, type: "text", inputMode: "numeric", className: className, placeholder: placeholder || "0,00", value: display, onChange: handleChange })
     );
 };
 
@@ -274,7 +280,7 @@ const WhatsAppChooserModal = ({ isOpen, onClose, phone, message }) => {
             React.createElement('h3', { className: "text-lg font-bold text-slate-800 mb-1" }, "Enviar Mensagem"),
             React.createElement('p', { className: "text-sm text-slate-500 mb-6" }, "Escolha a ação desejada para a mensagem."),
             React.createElement('div', { className: "space-y-3" },
-                React.createElement('button', { onClick: () => handleOpen('whatsapp'), className: "w-full p-4 bg-green-500 text-white font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-green-600 shadow-sm" }, React.createElement(MessageCircle, { size: 20 }), "Abrir no WhatsApp"),
+                React.createElement('button', { onClick: () => handleOpen('whatsapp'), className: "w-full p-4 bg-green-500 text-white font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-green-600 shadow-sm" }, React.createElement(MessageCircle, { size: 20 }), "WhatsApp"),
                 React.createElement('button', { onClick: () => handleOpen('copy'), className: "w-full p-4 bg-slate-100 text-slate-600 font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-slate-200" }, React.createElement(Copy, { size: 20 }), "Copiar Mensagem")
             ),
             React.createElement('button', { onClick: onClose, className: "mt-4 p-2 text-slate-400 hover:text-slate-600 w-full font-bold" }, "Cancelar")
@@ -699,16 +705,159 @@ const EditInstallmentModal = ({ isOpen, onClose, installment, onSave }) => {
 
 const ProductFormModal = ({ isOpen, onClose, onSave, lastCode, initialData }) => {
     const [name, setName] = useState('');
-    useEffect(() => { if (initialData) setName(initialData.name); else setName(''); }, [initialData, isOpen]);
+    const [description, setDescription] = useState('');
+    const [costPrice, setCostPrice] = useState('');
+    const [sellPrice, setSellPrice] = useState('');
+    
+    // Promoção
+    const [isPromoActive, setIsPromoActive] = useState(false);
+    const [promoPrice, setPromoPrice] = useState('');
+    const [promoCampaignName, setPromoCampaignName] = useState('');
+    const [promoStartDate, setPromoStartDate] = useState('');
+    const [promoEndDate, setPromoEndDate] = useState('');
+
+    useEffect(() => { 
+        if (initialData) {
+            setName(initialData.name || '');
+            setDescription(initialData.description || '');
+            setCostPrice(initialData.costPrice ? maskMoney(initialData.costPrice.toFixed(2)) : '');
+            setSellPrice(initialData.sellPrice ? maskMoney(initialData.sellPrice.toFixed(2)) : '');
+            
+            setIsPromoActive(initialData.isPromoActive || false);
+            setPromoPrice(initialData.promoPrice ? maskMoney(initialData.promoPrice.toFixed(2)) : '');
+            setPromoCampaignName(initialData.promoCampaignName || '');
+            setPromoStartDate(initialData.promoStartDate || '');
+            setPromoEndDate(initialData.promoEndDate || '');
+        } else { 
+            setName(''); setDescription(''); setCostPrice(''); setSellPrice('');
+            setIsPromoActive(false); setPromoPrice(''); setPromoCampaignName(''); setPromoStartDate(''); setPromoEndDate('');
+        } 
+    }, [initialData, isOpen]);
+    
     const nextCode = useMemo(() => { if (initialData) return initialData.code; if (!lastCode) return '000001'; const num = parseInt(lastCode, 10) + 1; return String(num).padStart(6, '0'); }, [lastCode, initialData]);
-    const handleSubmit = () => { if (!name) return; onSave({ name, code: nextCode }); setName(''); onClose(); };
+    
+    const costVal = parseMoney(costPrice);
+    const sellVal = parseMoney(sellPrice);
+    const profitVal = sellVal - costVal;
+    const profitMargin = sellVal > 0 ? ((profitVal / sellVal) * 100).toFixed(2) : '0.00';
+
+    const handleSubmit = () => { 
+        if (!name || sellVal <= 0) return; 
+        onSave({ 
+            name, code: nextCode, description, 
+            costPrice: costVal, sellPrice: sellVal,
+            isPromoActive, promoPrice: parseMoney(promoPrice), promoCampaignName, promoStartDate, promoEndDate
+        }); 
+        onClose(); 
+    };
+
     if (!isOpen) return null;
-    return React.createElement('div', { className: "fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" },
-        React.createElement('div', { className: "bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl animate-fade-in" },
-            React.createElement('h3', { className: "text-lg font-bold mb-1 flex items-center gap-2" }, React.createElement(Package, { className: "text-yellow-600" }), initialData ? 'Editar Produto' : 'Novo Produto'),
-            React.createElement('p', { className: "text-sm text-slate-400 mb-4" }, `Código: #${nextCode}`),
-            React.createElement(UpperInput, { autoFocus: true, placeholder: "Nome do Produto", value: name, onChange: setName, className: "w-full p-3 border border-slate-200 rounded-lg bg-slate-50 outline-none focus:ring-2 focus:ring-yellow-500 mb-6" }),
-            React.createElement('div', { className: "flex gap-2" }, React.createElement('button', { onClick: onClose, className: "flex-1 p-3 text-slate-500 hover:bg-slate-100 rounded-lg" }, "Cancelar"), React.createElement('button', { onClick: handleSubmit, disabled: !name, className: "flex-1 p-3 bg-yellow-500 text-white font-bold rounded-lg hover:bg-yellow-600 disabled:opacity-50" }, "Salvar"))
+
+    return React.createElement('div', { className: "fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-[60] backdrop-blur-sm" },
+        React.createElement('div', { className: "bg-white rounded-2xl w-full max-w-md max-h-[90vh] flex flex-col shadow-2xl animate-fade-in" },
+            React.createElement('div', { className: "p-4 border-b border-slate-100 flex justify-between items-center" },
+                React.createElement('div', null,
+                    React.createElement('h3', { className: "text-lg font-bold flex items-center gap-2 text-slate-800" }, React.createElement(Package, { className: "text-yellow-600" }), initialData ? 'Editar Produto' : 'Novo Produto'),
+                    React.createElement('p', { className: "text-xs font-mono text-slate-400 mt-1" }, `CÓD: #${nextCode}`)
+                ),
+                React.createElement('button', { onClick: onClose, className: "p-2 hover:bg-slate-100 rounded-full" }, React.createElement(X, { size: 20 }))
+            ),
+            
+            React.createElement('div', { className: "flex-1 overflow-y-auto p-4 space-y-4" },
+                React.createElement('div', { className: "space-y-3" },
+                    React.createElement('div', null, React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1" }, "Nome do Produto *"), React.createElement(UpperInput, { autoFocus: true, value: name, onChange: setName, className: "w-full p-3 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-yellow-500" })),
+                    React.createElement('div', null, React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1" }, "Descrição (Opcional)"), React.createElement('textarea', { value: description, onChange: e => setDescription(e.target.value), className: "w-full p-3 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-yellow-500 resize-none h-20" }))
+                ),
+
+                React.createElement('div', { className: "bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-4" },
+                    React.createElement('p', { className: "text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1" }, React.createElement(TrendingUp, { size: 14 }), "Valores e Margens"),
+                    React.createElement('div', { className: "grid grid-cols-2 gap-3" },
+                        React.createElement('div', null, React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1" }, "Custo Unitário"), React.createElement(MoneyInput, { value: costPrice, onChange: setCostPrice, className: "w-full p-3 pl-10 border border-slate-200 rounded-lg bg-white" })),
+                        React.createElement('div', null, React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1" }, "Venda Unitário *"), React.createElement(MoneyInput, { value: sellPrice, onChange: setSellPrice, className: "w-full p-3 pl-10 border border-slate-200 rounded-lg bg-white" }))
+                    ),
+                    (sellVal > 0) && React.createElement('div', { className: "flex justify-between items-center pt-2 border-t border-slate-200" },
+                        React.createElement('div', null, React.createElement('p', { className: "text-[10px] font-bold text-slate-400 uppercase" }, "Lucro em R$"), React.createElement('p', { className: `text-sm font-bold ${profitVal >= 0 ? 'text-emerald-600' : 'text-red-500'}` }, formatCurrency(profitVal))),
+                        React.createElement('div', { className: "text-right" }, React.createElement('p', { className: "text-[10px] font-bold text-slate-400 uppercase" }, "Margem de Lucro"), React.createElement('p', { className: `text-sm font-bold ${profitMargin >= 0 ? 'text-emerald-600' : 'text-red-500'}` }, `${profitMargin}%`))
+                    )
+                ),
+
+                React.createElement('div', { className: `p-4 rounded-xl border transition-colors ${isPromoActive ? 'bg-yellow-50 border-yellow-200' : 'bg-white border-slate-200'}` },
+                    React.createElement('div', { className: "flex items-center gap-2 mb-3 cursor-pointer", onClick: () => setIsPromoActive(!isPromoActive) },
+                        React.createElement('input', { type: "checkbox", checked: isPromoActive, readOnly: true, className: "w-4 h-4 accent-yellow-500 cursor-pointer" }),
+                        React.createElement('p', { className: `text-xs font-bold uppercase flex items-center gap-1 ${isPromoActive ? 'text-yellow-700' : 'text-slate-400'}` }, React.createElement(Tag, { size: 14 }), "Ativar Promoção")
+                    ),
+                    isPromoActive && React.createElement('div', { className: "space-y-3 animate-fade-in mt-4 pt-4 border-t border-yellow-200/50" },
+                        React.createElement('div', null, React.createElement('label', { className: "block text-[10px] font-bold text-yellow-700 uppercase mb-1 ml-1" }, "Preço Promocional"), React.createElement(MoneyInput, { value: promoPrice, onChange: setPromoPrice, className: "w-full p-3 pl-10 border border-yellow-300 rounded-lg bg-white focus:ring-2 focus:ring-yellow-500" })),
+                        React.createElement('div', null, React.createElement('label', { className: "block text-[10px] font-bold text-yellow-700 uppercase mb-1 ml-1" }, "Nome da Campanha"), React.createElement(UpperInput, { value: promoCampaignName, onChange: setPromoCampaignName, placeholder: "Ex: BLACK FRIDAY", className: "w-full p-3 border border-yellow-300 rounded-lg bg-white focus:ring-2 focus:ring-yellow-500" })),
+                        React.createElement('div', { className: "grid grid-cols-2 gap-3" },
+                            React.createElement('div', null, React.createElement('label', { className: "block text-[10px] font-bold text-yellow-700 uppercase mb-1 ml-1" }, "Início"), React.createElement('input', { type: "date", value: promoStartDate, onChange: e => setPromoStartDate(e.target.value), className: "w-full p-3 border border-yellow-300 rounded-lg bg-white text-sm" })),
+                            React.createElement('div', null, React.createElement('label', { className: "block text-[10px] font-bold text-yellow-700 uppercase mb-1 ml-1" }, "Fim"), React.createElement('input', { type: "date", value: promoEndDate, onChange: e => setPromoEndDate(e.target.value), className: "w-full p-3 border border-yellow-300 rounded-lg bg-white text-sm" }))
+                        )
+                    )
+                )
+            ),
+            React.createElement('div', { className: "p-4 border-t border-slate-100 flex gap-2 bg-white rounded-b-2xl" }, 
+                React.createElement('button', { onClick: onClose, className: "flex-1 p-3 text-slate-500 font-bold hover:bg-slate-50 rounded-lg" }, "Cancelar"), 
+                React.createElement('button', { onClick: handleSubmit, disabled: !name || sellVal <= 0, className: "flex-1 p-3 bg-yellow-500 text-white font-bold rounded-lg shadow-sm hover:bg-yellow-600 disabled:opacity-50" }, "Salvar Produto")
+            )
+        )
+    );
+};
+
+const ProductDetailsModal = ({ isOpen, onClose, product }) => {
+    if (!isOpen || !product) return null;
+
+    const today = getBrazilDateString();
+    const isPromoValid = product.isPromoActive && product.promoStartDate <= today && product.promoEndDate >= today;
+    const profitVal = product.sellPrice - (product.costPrice || 0);
+    const profitMargin = product.sellPrice > 0 ? ((profitVal / product.sellPrice) * 100).toFixed(2) : 0;
+
+    return React.createElement('div', { className: "fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-[70] backdrop-blur-sm" },
+        React.createElement('div', { className: "bg-white rounded-2xl w-full max-w-sm max-h-[90vh] flex flex-col shadow-2xl animate-fade-in" },
+            React.createElement('div', { className: "p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-2xl" },
+                React.createElement('div', null,
+                    React.createElement('h3', { className: "font-bold text-lg text-slate-800 flex items-center gap-2" }, React.createElement(Package, { className: "text-yellow-600", size: 20 }), "Detalhes do Produto"),
+                    React.createElement('p', { className: "text-xs font-mono text-slate-400 mt-1" }, `CÓD: #${product.code}`)
+                ),
+                React.createElement('button', { onClick: onClose, className: "p-2 hover:bg-slate-200 rounded-full text-slate-500" }, React.createElement(X, { size: 20 }))
+            ),
+            React.createElement('div', { className: "flex-1 overflow-y-auto p-5 space-y-5" },
+                React.createElement('div', null,
+                    React.createElement('h2', { className: "text-xl font-bold text-slate-800" }, product.name),
+                    product.description && React.createElement('p', { className: "text-sm text-slate-500 mt-2" }, product.description)
+                ),
+                
+                React.createElement('div', { className: "bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3" },
+                    React.createElement('div', { className: "flex justify-between items-center" },
+                        React.createElement('span', { className: "text-xs font-bold text-slate-400 uppercase" }, "Preço de Custo"),
+                        React.createElement('span', { className: "font-bold text-slate-600" }, formatCurrency(product.costPrice || 0))
+                    ),
+                    React.createElement('div', { className: "flex justify-between items-center pt-2 border-t border-slate-200" },
+                        React.createElement('span', { className: "text-xs font-bold text-slate-400 uppercase" }, "Preço de Venda"),
+                        React.createElement('span', { className: `font-bold text-lg ${isPromoValid ? 'line-through text-slate-400' : 'text-slate-800'}` }, formatCurrency(product.sellPrice || 0))
+                    ),
+                    React.createElement('div', { className: "flex justify-between items-center pt-2 border-t border-slate-200" },
+                        React.createElement('span', { className: "text-[10px] font-bold text-slate-400 uppercase" }, "Lucro Bruto / Margem"),
+                        React.createElement('span', { className: `text-xs font-bold ${profitVal >= 0 ? 'text-emerald-600' : 'text-red-500'}` }, `${formatCurrency(profitVal)} (${profitMargin}%)`)
+                    )
+                ),
+
+                product.isPromoActive && React.createElement('div', { className: `p-4 rounded-xl border ${isPromoValid ? 'bg-yellow-50 border-yellow-200' : 'bg-slate-50 border-slate-200 opacity-60'}` },
+                    React.createElement('div', { className: "flex items-center gap-2 mb-2" },
+                        React.createElement(Tag, { size: 16, className: isPromoValid ? 'text-yellow-600' : 'text-slate-400' }),
+                        React.createElement('h4', { className: `text-sm font-bold uppercase ${isPromoValid ? 'text-yellow-800' : 'text-slate-500'}` }, product.promoCampaignName || 'Promoção')
+                    ),
+                    React.createElement('div', { className: "flex justify-between items-center" },
+                        React.createElement('span', { className: "text-xs text-slate-500" }, "Preço Promocional:"),
+                        React.createElement('span', { className: `text-xl font-bold ${isPromoValid ? 'text-yellow-600' : 'text-slate-500'}` }, formatCurrency(product.promoPrice || 0))
+                    ),
+                    React.createElement('p', { className: "text-[10px] text-center mt-3 text-slate-400 font-bold" }, `Válido de ${formatDate(product.promoStartDate)} até ${formatDate(product.promoEndDate)}`),
+                    !isPromoValid && React.createElement('p', { className: "text-[10px] text-center mt-1 text-red-400 font-bold" }, "PROMOÇÃO EXPIRADA OU FUTURA")
+                )
+            ),
+            React.createElement('div', { className: "p-4 border-t border-slate-100 bg-white rounded-b-2xl" },
+                React.createElement('button', { onClick: onClose, className: "w-full py-3 bg-slate-100 text-slate-600 font-bold rounded-lg hover:bg-slate-200" }, "Fechar")
+            )
         )
     );
 };
@@ -716,15 +865,102 @@ const ProductFormModal = ({ isOpen, onClose, onSave, lastCode, initialData }) =>
 const CustomerFormModal = ({ isOpen, onClose, onSave, initialData }) => {
     const [name, setName] = useState('');
     const [phone, setPhone] = useState('');
-    useEffect(() => { if (initialData) { setName(initialData.name); setPhone(initialData.phone); } else { setName(''); setPhone(''); } }, [initialData, isOpen]);
-    const handleSubmit = () => { if (!name) return; onSave({ name, phone }); if(!initialData) { setName(''); setPhone(''); } onClose(); };
+    const [cpf, setCpf] = useState('');
+    const [birthDate, setBirthDate] = useState('');
+    
+    // Endereço
+    const [zipCode, setZipCode] = useState('');
+    const [street, setStreet] = useState('');
+    const [number, setNumber] = useState('');
+    const [complement, setComplement] = useState('');
+    const [neighborhood, setNeighborhood] = useState('');
+    const [cityState, setCityState] = useState('');
+    const [reference, setReference] = useState('');
+
+    useEffect(() => { 
+        if (initialData) { 
+            setName(initialData.name || ''); 
+            setPhone(initialData.phone || ''); 
+            setCpf(initialData.cpf ? maskCpfCnpj(initialData.cpf) : '');
+            setBirthDate(initialData.birthDate || '');
+            setZipCode(initialData.zipCode ? maskZipCode(initialData.zipCode) : '');
+            setStreet(initialData.street || '');
+            setNumber(initialData.number || '');
+            setComplement(initialData.complement || '');
+            setNeighborhood(initialData.neighborhood || '');
+            setCityState(initialData.cityState || '');
+            setReference(initialData.reference || '');
+        } else { 
+            setName(''); setPhone(''); setCpf(''); setBirthDate('');
+            setZipCode(''); setStreet(''); setNumber(''); setComplement(''); setNeighborhood(''); setCityState(''); setReference('');
+        } 
+    }, [initialData, isOpen]);
+
+    const handleCepChange = async (e) => {
+        const val = maskZipCode(e.target.value);
+        setZipCode(val);
+        if (val.length === 9) {
+            try {
+                const res = await fetch(`https://viacep.com.br/ws/${val.replace('-', '')}/json/`);
+                const data = await res.json();
+                if (!data.erro) {
+                    setStreet(data.logradouro || '');
+                    setNeighborhood(data.bairro || '');
+                    setCityState(`${data.localidade || ''}/${data.uf || ''}`);
+                }
+            } catch (err) { console.error(err); }
+        }
+    };
+
+    const handleSubmit = () => { 
+        if (!name) return; 
+        onSave({ 
+            name, phone, cpf: cpf.replace(/\D/g, ''), birthDate,
+            zipCode: zipCode.replace(/\D/g, ''), street, number, complement, neighborhood, cityState, reference
+        }); 
+        onClose(); 
+    };
+
     if (!isOpen) return null;
-    return React.createElement('div', { className: "fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" },
-        React.createElement('div', { className: "bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl animate-fade-in" },
-            React.createElement('h3', { className: "text-lg font-bold mb-4" }, initialData ? 'Editar Cliente' : 'Novo Cliente'),
-            React.createElement(UpperInput, { placeholder: "Nome Completo", value: name, onChange: setName, className: "w-full p-3 border border-slate-200 rounded-lg mb-3" }),
-            React.createElement(PhoneInput, { placeholder: "WhatsApp (11) 99999-9999", value: phone, onChange: setPhone, className: "w-full p-3 border border-slate-200 rounded-lg mb-6" }),
-            React.createElement('div', { className: "flex gap-2" }, React.createElement('button', { onClick: onClose, className: "flex-1 p-3 text-slate-500 font-bold" }, "Cancelar"), React.createElement('button', { onClick: handleSubmit, className: "flex-1 p-3 bg-slate-900 text-white font-bold rounded-lg" }, "Salvar"))
+
+    return React.createElement('div', { className: "fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-[60] backdrop-blur-sm" },
+        React.createElement('div', { className: "bg-white rounded-2xl w-full max-w-md max-h-[90vh] flex flex-col shadow-2xl animate-fade-in" },
+            React.createElement('div', { className: "p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-2xl" },
+                React.createElement('h3', { className: "text-lg font-bold text-slate-800 flex items-center gap-2" }, React.createElement(Users, { className: "text-yellow-500", size: 20 }), initialData ? 'Editar Cliente' : 'Novo Cliente'),
+                React.createElement('button', { onClick: onClose, className: "p-2 hover:bg-slate-200 rounded-full" }, React.createElement(X, { size: 20 }))
+            ),
+            React.createElement('div', { className: "flex-1 overflow-y-auto p-4 space-y-5" },
+                React.createElement('div', { className: "space-y-3" },
+                    React.createElement('p', { className: "text-[10px] font-bold text-slate-400 uppercase flex items-center gap-1" }, React.createElement(User, { size: 14 }), "Dados Pessoais"),
+                    React.createElement('div', null, React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1" }, "Nome Completo *"), React.createElement(UpperInput, { value: name, onChange: setName, className: "w-full p-3 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-yellow-500" })),
+                    React.createElement('div', null, React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1" }, "WhatsApp"), React.createElement(PhoneInput, { value: phone, onChange: setPhone, className: "w-full p-3 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-yellow-500" })),
+                    React.createElement('div', { className: "grid grid-cols-2 gap-3" },
+                        React.createElement('div', null, React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1" }, "CPF (Opcional)"), React.createElement('input', { value: cpf, onChange: e => setCpf(maskCpfCnpj(e.target.value)), className: "w-full p-3 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-yellow-500" })),
+                        React.createElement('div', null, React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1" }, "Nascimento (Opcional)"), React.createElement('input', { type: "date", value: birthDate, onChange: e => setBirthDate(e.target.value), className: "w-full p-3 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-yellow-500" }))
+                    )
+                ),
+                
+                React.createElement('div', { className: "space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-100" },
+                    React.createElement('p', { className: "text-[10px] font-bold text-slate-400 uppercase flex items-center gap-1" }, React.createElement(MapPin, { size: 14 }), "Endereço"),
+                    React.createElement('div', { className: "grid grid-cols-3 gap-3" },
+                        React.createElement('div', { className: "col-span-1" }, React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1" }, "CEP"), React.createElement('input', { value: zipCode, onChange: handleCepChange, maxLength: 9, placeholder: "00000-000", className: "w-full p-3 border border-slate-200 rounded-lg text-sm bg-white" })),
+                        React.createElement('div', { className: "col-span-2" }, React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1" }, "Cidade / Estado"), React.createElement(UpperInput, { value: cityState, onChange: setCityState, className: "w-full p-3 border border-slate-200 rounded-lg text-sm bg-white" }))
+                    ),
+                    React.createElement('div', { className: "grid grid-cols-4 gap-3" },
+                        React.createElement('div', { className: "col-span-3" }, React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1" }, "Rua / Avenida"), React.createElement(UpperInput, { value: street, onChange: setStreet, className: "w-full p-3 border border-slate-200 rounded-lg text-sm bg-white" })),
+                        React.createElement('div', { className: "col-span-1" }, React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1" }, "Nº"), React.createElement(UpperInput, { value: number, onChange: setNumber, className: "w-full p-3 border border-slate-200 rounded-lg text-sm bg-white" }))
+                    ),
+                    React.createElement('div', null, React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1" }, "Bairro"), React.createElement(UpperInput, { value: neighborhood, onChange: setNeighborhood, className: "w-full p-3 border border-slate-200 rounded-lg text-sm bg-white" })),
+                    React.createElement('div', { className: "grid grid-cols-2 gap-3" },
+                        React.createElement('div', null, React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1" }, "Complemento"), React.createElement(UpperInput, { value: complement, onChange: setComplement, className: "w-full p-3 border border-slate-200 rounded-lg text-sm bg-white" })),
+                        React.createElement('div', null, React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1" }, "Ponto de Ref."), React.createElement(UpperInput, { value: reference, onChange: setReference, className: "w-full p-3 border border-slate-200 rounded-lg text-sm bg-white" }))
+                    )
+                )
+            ),
+            React.createElement('div', { className: "p-4 border-t border-slate-100 flex gap-2 bg-white rounded-b-2xl" }, 
+                React.createElement('button', { onClick: onClose, className: "flex-1 p-3 text-slate-500 font-bold hover:bg-slate-50 rounded-lg" }, "Cancelar"), 
+                React.createElement('button', { onClick: handleSubmit, disabled: !name, className: "flex-1 p-3 bg-yellow-500 text-white font-bold rounded-lg shadow-sm hover:bg-yellow-600 disabled:opacity-50" }, "Salvar Cliente")
+            )
         )
     );
 };
@@ -735,10 +971,12 @@ const NewSaleModal = ({ isOpen, onClose, customers, products, onSave }) => {
     const [customerSearch, setCustomerSearch] = useState('');
     const [productSearch, setProductSearch] = useState('');
     const [cart, setCart] = useState([]);
+    
     const [selectedProductId, setSelectedProductId] = useState('');
     const [currentQty, setCurrentQty] = useState(1);
-    const [currentCost, setCurrentCost] = useState('');
+    const [currentCost, setCurrentCost] = useState(''); // Hidden from user
     const [currentPrice, setCurrentPrice] = useState('');
+    
     const [saleDate, setSaleDate] = useState(getBrazilDateString()); 
     const [saleType, setSaleType] = useState('prazo');
     const [frequency, setFrequency] = useState('monthly');
@@ -748,8 +986,33 @@ const NewSaleModal = ({ isOpen, onClose, customers, products, onSave }) => {
     const [directMethod, setDirectMethod] = useState('pix');
     const [cardInstallments, setCardInstallments] = useState(1);
 
-    useEffect(() => { if (isOpen) { const today = getBrazilDateString(); setSaleDate(today); setFirstDueDate(addDays(today, 30)); setStep(1); setCart([]); setCustomerId(''); setEntryAmount(''); setSaleType('prazo'); setCustomerSearch(''); setProductSearch(''); setCurrentQty(1); setCurrentCost(''); setCurrentPrice(''); } }, [isOpen]);
+    useEffect(() => { 
+        if (isOpen) { 
+            const today = getBrazilDateString(); 
+            setSaleDate(today); setFirstDueDate(addDays(today, 30)); setStep(1); setCart([]); setCustomerId(''); setEntryAmount(''); setSaleType('prazo'); setCustomerSearch(''); setProductSearch(''); setCurrentQty(1); setCurrentCost(''); setCurrentPrice(''); setSelectedProductId('');
+        } 
+    }, [isOpen]);
+    
     useEffect(() => { let daysToAdd = 30; if (frequency === 'weekly') daysToAdd = 7; else if (frequency === 'biweekly') daysToAdd = 15; setFirstDueDate(addDays(saleDate, daysToAdd)); }, [frequency, saleDate]);
+
+    // Handle Product Selection to Auto-fill Prices
+    const handleProductSelect = (e) => {
+        const pid = e.target.value;
+        setSelectedProductId(pid);
+        const p = products.find(x => x.id === pid);
+        if (p) {
+            const today = getBrazilDateString();
+            let activePrice = p.sellPrice || 0;
+            if (p.isPromoActive && p.promoStartDate <= today && p.promoEndDate >= today) {
+                activePrice = p.promoPrice || activePrice;
+            }
+            setCurrentPrice(activePrice);
+            setCurrentCost(p.costPrice || 0); // Hidden internal cost
+        } else {
+            setCurrentPrice('');
+            setCurrentCost('');
+        }
+    };
 
     const filteredCustomers = customers.filter(c => c.name.toLowerCase().includes(customerSearch.toLowerCase()));
     const filteredProducts = products.filter(p => p.name.toLowerCase().includes(productSearch.toLowerCase()) || p.code.includes(productSearch));
@@ -759,9 +1022,9 @@ const NewSaleModal = ({ isOpen, onClose, customers, products, onSave }) => {
 
     const handleAddItem = () => {
         const qty = parseInt(currentQty) || 1;
-        const unitCost = parseMoney(currentCost);
+        const unitCost = currentCost || 0; // Fetched internally
         const unitPrice = parseMoney(currentPrice);
-        if(!selectedProductId || unitCost <= 0 || unitPrice <= 0 || qty <= 0) return;
+        if(!selectedProductId || unitPrice <= 0 || qty <= 0) return;
         const prod = products.find(p => p.id === selectedProductId);
         const totalLineCost = unitCost * qty;
         const totalLinePrice = unitPrice * qty;
@@ -801,7 +1064,7 @@ const NewSaleModal = ({ isOpen, onClose, customers, products, onSave }) => {
     };
 
     if (!isOpen) return null;
-    return React.createElement('div', { className: "fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" },
+    return React.createElement('div', { className: "fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-[50]" },
         React.createElement('div', { className: "bg-white rounded-2xl w-full max-w-md p-6 animate-fade-in shadow-2xl flex flex-col max-h-[90vh]" },
             React.createElement('div', { className: "flex items-center justify-between mb-4" }, React.createElement('h2', { className: "text-xl font-bold text-slate-800 flex items-center gap-2" }, React.createElement(ShoppingBag, { className: "text-yellow-600" }), "Nova Venda"), React.createElement('div', { className: "flex gap-1" }, [1,2,3].map(i => React.createElement('div', { key: i, className: `h-2 w-8 rounded-full ${step >= i ? 'bg-yellow-500' : 'bg-slate-200'}` })))),
             React.createElement('div', { className: "flex-1 overflow-y-auto pr-1" },
@@ -815,13 +1078,12 @@ const NewSaleModal = ({ isOpen, onClose, customers, products, onSave }) => {
                 step === 2 && React.createElement('div', { className: "space-y-4" },
                     React.createElement('div', { className: "bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3" },
                         React.createElement('div', { className: "relative" }, React.createElement(Search, { className: "absolute left-3 top-3 text-slate-400", size: 16 }), React.createElement('input', { className: "w-full p-2 pl-9 border border-slate-200 rounded-lg text-sm bg-white", placeholder: "Filtrar produtos...", value: productSearch, onChange: e => setProductSearch(e.target.value) })),
-                        React.createElement('select', { className: "w-full p-3 bg-white border border-slate-200 rounded-lg", value: selectedProductId, onChange: e => setSelectedProductId(e.target.value) }, React.createElement('option', { value: "" }, "Escolha na lista..."), filteredProducts.map(p => React.createElement('option', { key: p.id, value: p.id }, `#${p.code} - ${p.name}`))),
+                        React.createElement('select', { className: "w-full p-3 bg-white border border-slate-200 rounded-lg", value: selectedProductId, onChange: handleProductSelect }, React.createElement('option', { value: "" }, "Escolha na lista..."), filteredProducts.map(p => React.createElement('option', { key: p.id, value: p.id }, `#${p.code} - ${p.name}`))),
                         React.createElement('div', { className: "flex gap-2" },
-                            React.createElement('div', { className: "w-20" }, React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1" }, "Qtd"), React.createElement('input', { type: "number", min: "1", className: "w-full p-3 border border-slate-200 rounded-lg text-center font-bold focus:outline-none focus:ring-2 focus:ring-yellow-500", value: currentQty, onChange: e => setCurrentQty(e.target.value) })),
-                            React.createElement('div', { className: "flex-1" }, React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1" }, "Custo Unit."), React.createElement(MoneyInput, { placeholder: "0,00", value: currentCost, onChange: setCurrentCost, className: "w-full p-3 pl-10 border border-slate-200 rounded-lg bg-white" })),
-                            React.createElement('div', { className: "flex-1" }, React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1" }, "Venda Unit."), React.createElement(MoneyInput, { placeholder: "0,00", value: currentPrice, onChange: setCurrentPrice, className: "w-full p-3 pl-10 border border-slate-200 rounded-lg bg-white" }))
+                            React.createElement('div', { className: "w-24" }, React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1" }, "Qtd"), React.createElement('input', { type: "number", min: "1", className: "w-full p-3 border border-slate-200 rounded-lg text-center font-bold focus:outline-none focus:ring-2 focus:ring-yellow-500", value: currentQty, onChange: e => setCurrentQty(e.target.value) })),
+                            React.createElement('div', { className: "flex-1" }, React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1" }, "Preço Unitário"), React.createElement(MoneyInput, { placeholder: "0,00", value: currentPrice, onChange: setCurrentPrice, disabled: !selectedProductId, className: "w-full p-3 pl-10 border border-slate-200 rounded-lg bg-white focus:ring-2 focus:ring-yellow-500" }))
                         ),
-                        React.createElement('button', { onClick: handleAddItem, disabled: !selectedProductId || !currentCost || !currentPrice || currentQty < 1, className: "w-full py-2 bg-slate-800 text-white rounded-lg font-bold text-sm disabled:opacity-50" }, "+ Adicionar Item")
+                        React.createElement('button', { onClick: handleAddItem, disabled: !selectedProductId || !currentPrice || currentQty < 1, className: "w-full py-2 bg-slate-800 text-white rounded-lg font-bold text-sm disabled:opacity-50 hover:bg-slate-700" }, "+ Adicionar Item")
                     ),
                     React.createElement('div', { className: "space-y-2" },
                         React.createElement('label', { className: "text-xs font-bold text-slate-400 uppercase" }, `Carrinho (${cart.reduce((a,b)=>a+(parseInt(b.quantity)||1),0)} itens)`),
@@ -1034,6 +1296,7 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
     // MODALS
     const [isSaleModalOpen, setIsSaleModalOpen] = useState(false);
     const [productModalData, setProductModalData] = useState({ open: false, data: null });
+    const [productDetailsModalData, setProductDetailsModalData] = useState({ open: false, data: null });
     const [customerModalData, setCustomerModalData] = useState({ open: false, data: null });
     const [profileModalOpen, setProfileModalOpen] = useState(false);
     
@@ -1329,7 +1592,7 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         if (!sale || !sale.customerPhone) return;
 
         const store = userProfile?.storeName || "Nossa Loja";
-        const contractId = sale.id ? `VP-${sale.id.slice(-5).toUpperCase()}` : '00000'; // Alterado para VP-
+        const contractId = sale.id ? `VP-${sale.id.slice(-5).toUpperCase()}` : '00000';
         let msg = "";
 
         if (type === 'registro' || type === 'quitacao') {
@@ -1365,7 +1628,6 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
                 const statusIcon = inst.paid ? '✅' : '⏳';
                 const statusText = inst.paid ? 'Pago' : 'Em Aberto';
                 const dateToShow = inst.paid && inst.paidAt ? formatDate(inst.paidAt) : formatDate(inst.dueDate);
-                // Busca o valor da parcela (caso tenha sido paga e o valor zerado, mostra o original)
                 const valorInst = formatCurrency(inst.originalAmount || inst.amount); 
                 msg += `${inst.number}️⃣ ${statusIcon} ${dateToShow} - ${valorInst} (${statusText})\n`;
             });
@@ -1606,7 +1868,23 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
                 
                 // GRID PRODUTOS
                 React.createElement('div', { className: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" },
-                    paginatedProducts.map(p => React.createElement('div', { key: p.id, className: "bg-white p-4 rounded-xl border border-slate-100 flex justify-between items-center shadow-sm" }, React.createElement('div', { className: "flex items-center gap-3" }, React.createElement('span', { className: "text-xs font-mono bg-slate-100 text-slate-500 px-2 py-1 rounded" }, `#${p.code}`), React.createElement('span', { className: "font-bold text-slate-800" }, p.name)), React.createElement('div', { className: "flex gap-2" }, React.createElement('button', { onClick: () => setProductModalData({open: true, data: p}), className: "text-slate-300 hover:text-yellow-600 p-2" }, React.createElement(Edit2, { size: 18 })), React.createElement('button', { onClick: () => requestDelete('product', p.id), className: "text-slate-300 hover:text-red-500 p-2" }, React.createElement(Trash2, { size: 18 })))))
+                    paginatedProducts.map(p => {
+                        const isPromo = p.isPromoActive && p.promoStartDate <= getBrazilDateString() && p.promoEndDate >= getBrazilDateString();
+                        return React.createElement('div', { key: p.id, className: "bg-white p-4 rounded-xl border border-slate-100 flex justify-between items-center shadow-sm" }, 
+                            React.createElement('div', { className: "flex items-center gap-3" }, 
+                                React.createElement('span', { className: "text-xs font-mono bg-slate-100 text-slate-500 px-2 py-1 rounded" }, `#${p.code}`), 
+                                React.createElement('div', null,
+                                    React.createElement('span', { className: "font-bold text-slate-800 block" }, p.name),
+                                    isPromo && React.createElement('span', { className: "text-[10px] font-bold text-yellow-600 uppercase flex items-center gap-1 mt-0.5" }, React.createElement(Tag, { size: 10 }), "Promoção")
+                                )
+                            ), 
+                            React.createElement('div', { className: "flex gap-1" }, 
+                                React.createElement('button', { onClick: () => setProductDetailsModalData({open: true, data: p}), className: "text-slate-300 hover:text-blue-500 p-2" }, React.createElement(Eye, { size: 18 })),
+                                React.createElement('button', { onClick: () => setProductModalData({open: true, data: p}), className: "text-slate-300 hover:text-yellow-600 p-2" }, React.createElement(Edit2, { size: 18 })), 
+                                React.createElement('button', { onClick: () => requestDelete('product', p.id), className: "text-slate-300 hover:text-red-500 p-2" }, React.createElement(Trash2, { size: 18 }))
+                            )
+                        )
+                    })
                 ),
                 React.createElement(Pagination, { totalItems: sortedProducts.length, itemsPerPage: ITEMS_PER_PAGE, currentPage: productsPage, onPageChange: setProductsPage })
             ),
@@ -1626,6 +1904,7 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         React.createElement(UserProfileModal, { isOpen: profileModalOpen, onClose: () => setProfileModalOpen(false), userProfile: userProfile, onSave: handleUpdateProfile }),
         React.createElement(CustomerFormModal, { isOpen: customerModalData.open, onClose: () => setCustomerModalData({open:false, data:null}), initialData: customerModalData.data, onSave: handleSaveCustomer }),
         React.createElement(ProductFormModal, { isOpen: productModalData.open, onClose: () => setProductModalData({open:false, data:null}), initialData: productModalData.data, onSave: handleSaveProduct, lastCode: products.length > 0 ? String(products.reduce((max, p) => Math.max(max, parseInt(p.code || '0', 10) || 0), 0)).padStart(6, '0') : null }),
+        React.createElement(ProductDetailsModal, { isOpen: productDetailsModalData.open, onClose: () => setProductDetailsModalData({open:false, data:null}), product: productDetailsModalData.data }),
         React.createElement(NewSaleModal, { isOpen: isSaleModalOpen, onClose: () => setIsSaleModalOpen(false), customers: customers, products: products, onSave: handleAddSale }),
         React.createElement(EditInstallmentModal, { isOpen: editInstallmentModal.open, onClose: () => setEditInstallmentModal({ open: false, saleId: null, data: null }), installment: editInstallmentModal.data, onSave: saveEditedInstallment }),
         
