@@ -261,15 +261,8 @@ const WhatsAppChooserModal = ({ isOpen, onClose, phone, message }) => {
         const encodedMsg = encodeURIComponent(message);
         const cleanPhone = phone?.replace(/\D/g, '') || '';
 
-        if (type === 'personal') {
+        if (type === 'whatsapp') {
             window.open(`https://api.whatsapp.com/send?phone=55${cleanPhone}&text=${encodedMsg}`, '_blank');
-        } else if (type === 'business') {
-            const isAndroid = /Android/i.test(navigator.userAgent);
-            if (isAndroid) {
-                window.open(`intent://send?phone=55${cleanPhone}&text=${encodedMsg}#Intent;package=com.whatsapp.w4b;scheme=whatsapp;end`, '_blank');
-            } else {
-                window.open(`https://api.whatsapp.com/send?phone=55${cleanPhone}&text=${encodedMsg}`, '_blank');
-            }
         } else if (type === 'copy') {
             navigator.clipboard.writeText(message);
         }
@@ -279,11 +272,10 @@ const WhatsAppChooserModal = ({ isOpen, onClose, phone, message }) => {
     return React.createElement('div', { className: "fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-[90] backdrop-blur-sm" },
         React.createElement('div', { className: "bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl animate-fade-in text-center" },
             React.createElement('h3', { className: "text-lg font-bold text-slate-800 mb-1" }, "Enviar Mensagem"),
-            React.createElement('p', { className: "text-sm text-slate-500 mb-6" }, "Escolha por onde deseja enviar a mensagem para o cliente."),
+            React.createElement('p', { className: "text-sm text-slate-500 mb-6" }, "Escolha a ação desejada para a mensagem."),
             React.createElement('div', { className: "space-y-3" },
-                React.createElement('button', { onClick: () => handleOpen('personal'), className: "w-full p-4 bg-green-500 text-white font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-green-600 shadow-sm" }, React.createElement(MessageCircle, { size: 20 }), "WhatsApp Pessoal"),
-                React.createElement('button', { onClick: () => handleOpen('business'), className: "w-full p-4 bg-slate-800 text-white font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-slate-700 shadow-sm" }, React.createElement(Smartphone, { size: 20 }), "WhatsApp Business"),
-                React.createElement('button', { onClick: () => handleOpen('copy'), className: "w-full p-4 bg-slate-100 text-slate-600 font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-slate-200" }, React.createElement(Copy, { size: 20 }), "Apenas Copiar Texto")
+                React.createElement('button', { onClick: () => handleOpen('whatsapp'), className: "w-full p-4 bg-green-500 text-white font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-green-600 shadow-sm" }, React.createElement(MessageCircle, { size: 20 }), "Abrir no WhatsApp"),
+                React.createElement('button', { onClick: () => handleOpen('copy'), className: "w-full p-4 bg-slate-100 text-slate-600 font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-slate-200" }, React.createElement(Copy, { size: 20 }), "Copiar Texto")
             ),
             React.createElement('button', { onClick: onClose, className: "mt-4 p-2 text-slate-400 hover:text-slate-600 w-full font-bold" }, "Cancelar")
         )
@@ -883,6 +875,9 @@ const SaleDetailsModal = ({ isOpen, onClose, sale, onPay, onEdit, onDeletePaymen
     const totalInst = sale.installmentsCount || 0;
     const profit = sale.totalPrice - (sale.totalCost || 0);
 
+    const waType = sale.saleType === 'direct' ? 'comprovante' : (sale.status === 'completed' ? 'quitacao' : 'registro');
+    const waTitle = sale.saleType === 'direct' ? 'Enviar Comprovante' : (sale.status === 'completed' ? 'Enviar Quitação' : 'Enviar Resumo da Venda');
+
     return React.createElement('div', { className: "fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-[55] backdrop-blur-sm" },
         React.createElement('div', { className: "bg-white rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col shadow-2xl animate-fade-in" },
             // Header
@@ -893,9 +888,9 @@ const SaleDetailsModal = ({ isOpen, onClose, sale, onPay, onEdit, onDeletePaymen
                 ),
                 React.createElement('div', { className: "flex gap-2 items-center" },
                     React.createElement('button', { 
-                        onClick: () => onOpenWA(sale.status === 'completed' ? 'quitacao' : 'registro', sale, null, null),
+                        onClick: () => onOpenWA(waType, sale, null, null),
                         className: "p-2 hover:bg-green-100 rounded-full transition-colors text-green-600",
-                        title: sale.status === 'completed' ? "Enviar Quitação" : "Enviar Resumo da Venda"
+                        title: waTitle
                     }, React.createElement(MessageCircle, { size: 20 })),
                     React.createElement('button', { onClick: onClose, className: "p-2 hover:bg-slate-200 rounded-full transition-colors text-slate-500" }, React.createElement(X, { size: 20 }))
                 )
@@ -1092,13 +1087,20 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
 
     const displayedSales = useMemo(() => {
         let baseSales = sales.filter(s => s.saleType === 'prazo' || !s.saleType);
+        
         if (salesSearch) {
             const lower = salesSearch.toLowerCase();
             baseSales = baseSales.filter(s => s.customerName.toLowerCase().includes(lower) || s.items.some(i => i.productName.toLowerCase().includes(lower)));
         }
+        
         let active = baseSales.filter(s => s.status !== 'completed');
         let completed = baseSales.filter(s => s.status === 'completed');
-        completed = completed.filter(s => s.saleDate >= salesStart && s.saleDate <= salesEnd);
+        
+        // Se houver busca digitada, não filtra por data para mostrar todo o histórico do cliente
+        if (!salesSearch) {
+            completed = completed.filter(s => s.saleDate >= salesStart && s.saleDate <= salesEnd);
+        }
+        
         active.sort((a, b) => {
             const getNextDue = (sale) => {
                 const pending = sale.installments?.find(i => !i.paid);
@@ -1107,15 +1109,18 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
             return getNextDue(a).localeCompare(getNextDue(b));
         });
         completed.sort((a, b) => b.saleDate.localeCompare(a.saleDate));
+        
         return [...active, ...completed];
     }, [sales, salesSearch, salesStart, salesEnd]);
 
     const directSales = useMemo(() => {
         let list = sales.filter(s => s.saleType === 'direct');
-        list = list.filter(s => s.saleDate >= cashierStart && s.saleDate <= cashierEnd);
         if (cashierSearch) {
             const lower = cashierSearch.toLowerCase();
+            // Se houver busca digitada, ignora o filtro de data
             list = list.filter(s => s.customerName.toLowerCase().includes(lower) || s.items.some(i => i.productName.toLowerCase().includes(lower)));
+        } else {
+            list = list.filter(s => s.saleDate >= cashierStart && s.saleDate <= cashierEnd);
         }
         return list.sort((a, b) => b.saleDate.localeCompare(a.saleDate));
     }, [sales, cashierSearch, cashierStart, cashierEnd]);
@@ -1215,7 +1220,7 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         setProfileModalOpen(false);
     };
 
-    // --- NOVA LÓGICA DE PAGAMENTO ---
+    // --- LÓGICA DE PAGAMENTO ---
     const handleClickPay = (sale, index) => {
         const item = sale.installments[index];
         if (item.paid) return; 
@@ -1264,7 +1269,7 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         setPaymentModal({ open: false, saleId: null, index: null, item: null, isLast: false });
     };
 
-    // --- NOVA LÓGICA DE EXCLUSÃO DE PAGAMENTO ---
+    // --- LÓGICA DE EXCLUSÃO DE PAGAMENTO ---
     const handleDeletePayment = async () => {
         const { saleId, instIndex, histIndex, historyItem } = deletePaymentModal;
         const sale = sales.find(s => s.id === saleId);
@@ -1334,6 +1339,14 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
             msg += `👤 *Cliente:* ${sale.customerName}\n`;
             if (sale.customerPhone) msg += `📱 *Telefone:* ${sale.customerPhone}\n`;
             msg += `\n`;
+            
+            // ITENS DA VENDA
+            msg += `🛍️ *ITENS DA COMPRA:*\n`;
+            sale.items?.forEach(item => {
+                msg += `▪️ ${item.quantity}x ${item.productName} - ${formatCurrency(item.price)}\n`;
+            });
+            msg += `\n`;
+
             msg += `💵 *Valor da Compra:* ${formatCurrency(sale.totalPrice)}\n`;
             if (sale.entryAmount) msg += `💰 *Valor de Entrada:* ${formatCurrency(sale.entryAmount)}\n`;
             
@@ -1356,6 +1369,31 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
             msg += `\n━━━━━━━━━━━━━━━━━━━\n`;
             msg += isQuitacao ? `Muito obrigado pela confiança!\n*${store}*` : `Qualquer dúvida, estamos à disposição!\n*${store}*`;
         } 
+        else if (type === 'comprovante') {
+            msg = `🧾 *COMPROVANTE DE VENDA*\n`;
+            msg += `━━━━━━━━━━━━━━━━━━━\n\n`;
+            msg += `📅 *Data:* ${formatDate(sale.saleDate)}\n`;
+            msg += `👤 *Cliente:* ${sale.customerName}\n\n`;
+            
+            // ITENS DA VENDA
+            msg += `🛍️ *ITENS DA VENDA:*\n`;
+            sale.items?.forEach(item => {
+                msg += `▪️ ${item.quantity}x ${item.productName} - ${formatCurrency(item.price)}\n`;
+            });
+
+            msg += `\n💵 *Total Pago:* ${formatCurrency(sale.totalPrice)}\n`;
+            
+            let paymentForm = 'Não informada';
+            if (sale.paymentMethod === 'pix') paymentForm = 'PIX';
+            else if (sale.paymentMethod === 'money') paymentForm = 'Dinheiro';
+            else if (sale.paymentMethod === 'debit') paymentForm = 'Débito';
+            else if (sale.paymentMethod === 'credit') paymentForm = `Crédito (${sale.cardInstallments}x)`;
+            
+            msg += `💳 *Forma de Pagto:* ${paymentForm}\n`;
+            
+            msg += `\n━━━━━━━━━━━━━━━━━━━\n`;
+            msg += `Muito obrigado pela preferência!\n*${store}*`;
+        }
         else if (type === 'cobranca' && installment) {
             const today = new Date();
             today.setHours(0,0,0,0);
