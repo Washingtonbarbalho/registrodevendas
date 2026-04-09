@@ -88,10 +88,16 @@ const applyPixMask = (val, type) => {
 
 const formatDate = (dateStr) => {
     if (!dateStr) return '--/--/----';
+    let isoDate = dateStr;
     if (dateStr.includes('T')) {
-        const isoDate = dateStr.split('T')[0];
-        const [year, month, day] = isoDate.split('-');
-        return `${day}/${month}/${year}`;
+        isoDate = dateStr.split('T')[0];
+    }
+    if (isoDate.includes('-')) {
+        const parts = isoDate.split('-');
+        if (parts.length === 3 && parts[0].length === 4) {
+            const [year, month, day] = parts;
+            return `${day}/${month}/${year}`;
+        }
     }
     return dateStr;
 };
@@ -947,7 +953,7 @@ const InventoryMovementModal = ({ isOpen, onClose, product, onSave }) => {
                     )
                 ),
                 
-                (type === 'entrada' && subType === 'compra') && React.createElement('p', { className: "text-[10px] text-blue-500 font-bold bg-blue-50 p-2 rounded" }, "O Custo Unitário do produto será atualizado para futuras vendas."),
+                (type === 'entrada' && subType === 'compra') && React.createElement('p', { className: "text-[10px] text-blue-500 font-bold bg-blue-50 p-2 rounded" }, "O Custo Unitário será atualizado via Custo Médio para futuras vendas."),
 
                 React.createElement('div', null,
                     React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1" }, "Observação (Opcional)"),
@@ -974,7 +980,15 @@ const InventoryHistoryModal = ({ isOpen, onClose, product, userId }) => {
         const q = query(collection(db, 'artifacts', APP_ID, 'users', userId, 'inventory_movements'), where('productId', '==', product.id));
         const unsub = onSnapshot(q, (snap) => {
             const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-            list.sort((a, b) => b.createdAt?.toMillis() - a.createdAt?.toMillis() || b.date.localeCompare(a.date));
+            
+            // Correção do erro que impedia o carregamento
+            list.sort((a, b) => {
+                const timeA = a.createdAt?.seconds || 0;
+                const timeB = b.createdAt?.seconds || 0;
+                if (timeA !== timeB) return timeB - timeA;
+                return b.date.localeCompare(a.date);
+            });
+            
             setMovements(list);
             setLoading(false);
         });
@@ -1722,15 +1736,31 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
     const handleSaveMovement = async (movData) => {
         const pRef = doc(db, 'artifacts', APP_ID, 'users', user.uid, 'products', inventoryMoveModal.product.id);
         const currentStock = inventoryMoveModal.product.stock || 0;
+        const currentCost = inventoryMoveModal.product.costPrice || 0;
         const newStock = movData.type === 'entrada' ? currentStock + movData.quantity : currentStock - movData.quantity;
         
         let updatePayload = { stock: newStock };
-        if (movData.costPrice) updatePayload.costPrice = movData.costPrice;
+
+        // REGRA DE CUSTO MÉDIO (Média Ponderada Móvel)
+        if (movData.type === 'entrada' && movData.subType === 'compra' && typeof movData.costPrice === 'number') {
+            const totalValorAtual = currentStock * currentCost;
+            const totalValorNovaCompra = movData.quantity * movData.costPrice;
+            const qtdTotalFutura = currentStock + movData.quantity;
+
+            let novoCustoMedio = 0;
+            if (qtdTotalFutura > 0) {
+                 novoCustoMedio = (totalValorAtual + totalValorNovaCompra) / qtdTotalFutura;
+            }
+
+            updatePayload.costPrice = novoCustoMedio;
+        }
 
         await updateDoc(pRef, updatePayload);
         await addDoc(collection(db, 'artifacts', APP_ID, 'users', user.uid, 'inventory_movements'), {
             ...movData, productId: inventoryMoveModal.product.id, source: 'manual', createdAt: serverTimestamp()
         });
+
+        setInventoryMoveModal({ open: false, product: null });
     };
 
     const handleCancelSale = async (reason) => {
