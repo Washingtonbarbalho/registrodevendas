@@ -7,7 +7,7 @@ import {
     PieChart, BarChart3, ArrowUpRight, ArrowDownRight, PackageMinus,
     LogOut, Lock, Mail, Phone, Store, UserCog, UserCheck, UserX, Shield,
     ChevronLeft, ChevronRight, MoreHorizontal, LayoutGrid, AlertCircle, RefreshCw,
-    Clock, Bell, History, FileText, XCircle, User, Smartphone, Copy, Tag, Info, MapPin
+    Clock, Bell, History, FileText, XCircle, User, Smartphone, Copy, Tag, Info, MapPin, BadgePercent, Receipt
 } from 'https://esm.sh/lucide-react@0.292.0';
 
 // --- FIREBASE IMPORTS ---
@@ -39,6 +39,14 @@ const parseMoney = (valStr) => {
     if (!valStr) return 0;
     if (typeof valStr === 'number') return valStr;
     const clean = valStr.replace(/\./g, '').replace(',', '.');
+    return parseFloat(clean) || 0;
+};
+
+// Usado especificamente para converter o input da taxa (ex: 5,39 ou 5.39 -> 5.39 real)
+const parsePercent = (valStr) => {
+    if (!valStr) return 0;
+    if (typeof valStr === 'number') return valStr;
+    const clean = valStr.toString().replace(',', '.');
     return parseFloat(clean) || 0;
 };
 
@@ -114,6 +122,26 @@ const getCurrentMonthEnd = () => {
     return new Date(d.getFullYear(), d.getMonth() + 1, 0).toLocaleDateString('pt-BR', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'America/Sao_Paulo' }).split('/').reverse().join('-');
 };
 
+// --- FUNÇÃO DO MOTOR DE TAXAS ---
+const getCardRate = (method, mode, brand, installments) => {
+    const inst = parseInt(installments) || 1;
+    if (mode === 'link') {
+        if (method === 'debit') return 2.58; 
+        const linkRates = { 1: 4.20, 2: 6.09, 3: 7.01, 4: 7.91, 5: 8.80, 6: 9.67, 7: 12.59, 8: 13.42, 9: 14.25, 10: 15.06, 11: 15.87, 12: 16.66 };
+        return linkRates[inst] || 4.20;
+    } else {
+        if (brand === 'visa_master') {
+            if (method === 'debit') return 1.37;
+            const vmRates = { 1: 3.15, 2: 5.39, 3: 6.12, 4: 6.85, 5: 7.57, 6: 8.28, 7: 8.99, 8: 9.69, 9: 10.38, 10: 11.06, 11: 11.74, 12: 12.40 };
+            return vmRates[inst] || 3.15;
+        } else { // Outras (Elo, Amex...)
+            if (method === 'debit') return 2.58;
+            const outRates = { 1: 4.91, 2: 6.47, 3: 7.20, 4: 7.92, 5: 8.63, 6: 9.33, 7: 10.03, 8: 10.72, 9: 11.41, 10: 12.08, 11: 12.75, 12: 13.41 };
+            return outRates[inst] || 4.91;
+        }
+    }
+};
+
 
 // --- COMPONENTES DE UI ---
 
@@ -133,6 +161,16 @@ const MoneyInput = ({ value, onChange, placeholder, className, autoFocus, disabl
         React.createElement('span', { className: `absolute left-3 top-3 font-bold ${disabled ? 'text-slate-300' : 'text-slate-400'}` }, "R$"),
         React.createElement('input', { autoFocus: autoFocus, disabled: disabled, type: "text", inputMode: "numeric", className: className, placeholder: placeholder || "0,00", value: display, onChange: handleChange })
     );
+};
+
+const UpperInput = ({ value, onChange, placeholder, className, autoFocus }) => {
+    const handleChange = (e) => { onChange(e.target.value.toUpperCase()); };
+    return React.createElement('input', { autoFocus: autoFocus, className: className, placeholder: placeholder, value: value, onChange: handleChange });
+};
+
+const PhoneInput = ({ value, onChange, placeholder, className }) => {
+    const handleChange = (e) => { onChange(maskPhone(e.target.value)); };
+    return React.createElement('input', { type: "tel", className: className, placeholder: placeholder, value: value, maxLength: 15, onChange: handleChange });
 };
 
 const Pagination = ({ totalItems, itemsPerPage, currentPage, onPageChange }) => {
@@ -234,16 +272,34 @@ const DateRangeFilter = ({ period, startDate, endDate, onPeriodChange, onStartCh
     );
 };
 
-const ConfirmModal = ({ isOpen, onClose, onConfirm, title, message }) => {
+const ConfirmModal = ({ isOpen, onClose, onConfirm, title, message, isCancel, onReasonChange, reasonValue }) => {
     if (!isOpen) return null;
     return React.createElement('div', { className: "fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-[70] backdrop-blur-sm" },
-        React.createElement('div', { className: "bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl animate-fade-in text-center" },
-            React.createElement('div', { className: "mx-auto w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mb-4" }, React.createElement(AlertTriangle, { className: "text-red-500" })),
-            React.createElement('h3', { className: "text-lg font-bold text-slate-800 mb-2" }, title),
-            React.createElement('p', { className: "text-slate-500 mb-6" }, message),
-            React.createElement('div', { className: "flex gap-3" },
-                React.createElement('button', { onClick: onClose, className: "flex-1 p-3 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200" }, "Cancelar"),
-                React.createElement('button', { onClick: onConfirm, className: "flex-1 p-3 bg-red-500 text-white font-bold rounded-xl hover:bg-red-600 shadow-lg shadow-red-200" }, "Sim, Excluir")
+        React.createElement('div', { className: "bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl animate-fade-in text-center flex flex-col max-h-[90vh]" },
+            React.createElement('div', { className: `mx-auto w-12 h-12 rounded-full flex items-center justify-center mb-4 shrink-0 ${isCancel ? 'bg-orange-100' : 'bg-red-100'}` }, 
+                isCancel ? React.createElement(PackageMinus, { className: "text-orange-500" }) : React.createElement(AlertTriangle, { className: "text-red-500" })
+            ),
+            React.createElement('h3', { className: "text-lg font-bold text-slate-800 mb-2 shrink-0" }, title),
+            React.createElement('p', { className: "text-slate-500 mb-4 shrink-0 text-sm" }, message),
+            
+            isCancel && React.createElement('div', { className: "mb-6 text-left" },
+                React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1" }, "Motivo do Cancelamento *"),
+                React.createElement('textarea', { 
+                    className: "w-full p-3 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-orange-500 text-sm", 
+                    rows: 3, 
+                    placeholder: "Ex: Cliente desistiu, erro no lançamento...",
+                    value: reasonValue,
+                    onChange: e => onReasonChange(e.target.value)
+                })
+            ),
+
+            React.createElement('div', { className: "flex gap-3 shrink-0" },
+                React.createElement('button', { onClick: onClose, className: "flex-1 p-3 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200" }, "Voltar"),
+                React.createElement('button', { 
+                    onClick: onConfirm, 
+                    disabled: isCancel && !reasonValue.trim(),
+                    className: `flex-1 p-3 text-white font-bold rounded-xl shadow-lg disabled:opacity-50 ${isCancel ? 'bg-orange-500 hover:bg-orange-600 shadow-orange-200' : 'bg-red-500 hover:bg-red-600 shadow-red-200'}` 
+                }, isCancel ? "Confirmar" : "Sim, Excluir")
             )
         )
     );
@@ -897,34 +953,70 @@ const CustomerFormModal = ({ isOpen, onClose, onSave, initialData }) => {
 
 const NewSaleModal = ({ isOpen, onClose, customers, products, onSave }) => {
     const [step, setStep] = useState(1);
+    
+    // Step 1: Cliente
     const [customerId, setCustomerId] = useState('');
     const [customerSearch, setCustomerSearch] = useState('');
+    const [showCustomerList, setShowCustomerList] = useState(false);
+
+    // Step 2: Produtos e Descontos
     const [productSearch, setProductSearch] = useState('');
+    const [showProductList, setShowProductList] = useState(false);
     const [cart, setCart] = useState([]);
     const [selectedProductId, setSelectedProductId] = useState('');
+    const [baseUnitPrice, setBaseUnitPrice] = useState(0); // Preço original do produto
     const [currentQty, setCurrentQty] = useState(1);
-    const [currentCost, setCurrentCost] = useState(''); // Mantido na lógica de trás para o lucro
-    const [currentPrice, setCurrentPrice] = useState('');
+    const [currentCost, setCurrentCost] = useState(0); // Mantido oculto na logica
+    const [currentPrice, setCurrentPrice] = useState(''); // Preço cobrado na venda
+    const [currentDiscount, setCurrentDiscount] = useState(''); // Desconto unitário manual
+    
+    // Step 3: Pagamento e Taxas
     const [saleDate, setSaleDate] = useState(getBrazilDateString()); 
     const [saleType, setSaleType] = useState('prazo');
+    const [entryAmount, setEntryAmount] = useState('');
+    
+    // A Prazo
     const [frequency, setFrequency] = useState('monthly');
     const [installmentsCount, setInstallmentsCount] = useState(1);
     const [firstDueDate, setFirstDueDate] = useState('');
-    const [entryAmount, setEntryAmount] = useState('');
+    
+    // Caixa/Cartão (Direto)
     const [directMethod, setDirectMethod] = useState('pix');
     const [cardInstallments, setCardInstallments] = useState(1);
-    const [showCustomerList, setShowCustomerList] = useState(false);
-    const [showProductList, setShowProductList] = useState(false);
+    const [cardMode, setCardMode] = useState('presencial'); // 'presencial', 'link'
+    const [cardBrand, setCardBrand] = useState('visa_master'); // 'visa_master', 'outras'
+    const [feeType, setFeeType] = useState('sem_juros'); // 'sem_juros', 'com_juros'
+    const [feePercent, setFeePercent] = useState('0,00');
 
-    useEffect(() => { if (isOpen) { const today = getBrazilDateString(); setSaleDate(today); setFirstDueDate(addDays(today, 30)); setStep(1); setCart([]); setCustomerId(''); setEntryAmount(''); setSaleType('prazo'); setCustomerSearch(''); setProductSearch(''); setCurrentQty(1); setCurrentCost(''); setCurrentPrice(''); setShowCustomerList(false); setShowProductList(false); } }, [isOpen]);
+    useEffect(() => { 
+        if (isOpen) { 
+            const today = getBrazilDateString(); 
+            setSaleDate(today); setFirstDueDate(addDays(today, 30)); setStep(1); 
+            setCart([]); setCustomerId(''); setEntryAmount(''); setSaleType('prazo'); 
+            setCustomerSearch(''); setProductSearch(''); setCurrentQty(1); 
+            setCurrentCost(0); setCurrentPrice(''); setBaseUnitPrice(0); setCurrentDiscount(''); 
+            setShowCustomerList(false); setShowProductList(false);
+            setDirectMethod('pix'); setCardInstallments(1); setCardMode('presencial'); setCardBrand('visa_master'); setFeeType('sem_juros'); setFeePercent('0,00');
+        } 
+    }, [isOpen]);
+
     useEffect(() => { let daysToAdd = 30; if (frequency === 'weekly') daysToAdd = 7; else if (frequency === 'biweekly') daysToAdd = 15; setFirstDueDate(addDays(saleDate, daysToAdd)); }, [frequency, saleDate]);
+
+    // Calcula taxa de cartão padrão automaticamente se não for editada pelo usuário
+    useEffect(() => {
+        if(saleType !== 'direct' || (directMethod !== 'credit' && directMethod !== 'debit')) return;
+        const rate = getCardRate(directMethod, cardMode, cardBrand, cardInstallments);
+        setFeePercent(rate.toFixed(2).replace('.', ','));
+    }, [directMethod, cardMode, cardBrand, cardInstallments, saleType]);
 
     const filteredCustomers = customers.filter(c => c.name.toLowerCase().includes(customerSearch.toLowerCase()));
     const filteredProducts = products.filter(p => p.name.toLowerCase().includes(productSearch.toLowerCase()) || p.code.includes(productSearch));
+    
     const totalCartValue = cart.reduce((acc, item) => acc + item.price, 0);
     const entryValue = parseMoney(entryAmount) || 0;
     const totalRemaining = Math.max(0, totalCartValue - entryValue);
 
+    // --- Lógica de Descontos Automáticos ---
     const handleSelectProduct = (p) => {
         setSelectedProductId(p.id); 
         setProductSearch(`#${p.code} - ${p.name}`); 
@@ -938,18 +1030,35 @@ const NewSaleModal = ({ isOpen, onClose, customers, products, onSave }) => {
             price = p.promoPrice || 0;
         }
 
-        setCurrentCost(maskMoney((cost * 100).toFixed(0)));
+        setCurrentCost(cost);
+        setBaseUnitPrice(price);
         setCurrentPrice(maskMoney((price * 100).toFixed(0)));
+        setCurrentDiscount('');
+    };
+
+    const handleDiscountChange = (valStr) => {
+        setCurrentDiscount(valStr);
+        const discountVal = parseMoney(valStr);
+        const newPrice = Math.max(0, baseUnitPrice - discountVal);
+        setCurrentPrice(maskMoney((newPrice * 100).toFixed(0)));
+    };
+
+    const handlePriceChange = (valStr) => {
+        setCurrentPrice(valStr);
+        const priceVal = parseMoney(valStr);
+        const discountVal = Math.max(0, baseUnitPrice - priceVal);
+        setCurrentDiscount(maskMoney((discountVal * 100).toFixed(0)));
     };
 
     const handleAddItem = () => {
         const qty = parseInt(currentQty) || 1;
-        const unitCost = parseMoney(currentCost);
         const unitPrice = parseMoney(currentPrice);
-        if(!selectedProductId || unitPrice <= 0 || qty <= 0) return;
+        const unitDiscount = parseMoney(currentDiscount);
+        
+        if(!selectedProductId || unitPrice < 0 || qty <= 0) return;
         
         const prod = products.find(p => p.id === selectedProductId);
-        const totalLineCost = unitCost * qty;
+        const totalLineCost = currentCost * qty;
         const totalLinePrice = unitPrice * qty;
         
         const newItem = { 
@@ -961,11 +1070,12 @@ const NewSaleModal = ({ isOpen, onClose, customers, products, onSave }) => {
             cost: totalLineCost, 
             price: totalLinePrice, 
             unitPrice: unitPrice, 
-            unitCost: unitCost 
+            unitCost: currentCost,
+            unitDiscount: unitDiscount 
         };
         
         setCart([...cart, newItem]);
-        setSelectedProductId(''); setCurrentQty(1); setCurrentCost(''); setCurrentPrice(''); setProductSearch('');
+        setSelectedProductId(''); setCurrentQty(1); setCurrentCost(0); setCurrentPrice(''); setBaseUnitPrice(0); setCurrentDiscount(''); setProductSearch('');
     };
     
     const handleRemoveItem = (id) => setCart(cart.filter(i => i.tempId !== id));
@@ -989,12 +1099,71 @@ const NewSaleModal = ({ isOpen, onClose, customers, products, onSave }) => {
     const handleFinish = () => {
         if (!customerId || cart.length === 0) return;
         const customer = customers.find(c => c.id === customerId);
-        let saleData = { customerId: customerId, customerName: customer.name, customerPhone: customer.phone, items: cart, totalCost: cart.reduce((acc, i) => acc + i.cost, 0), totalPrice: totalCartValue, saleDate: saleDate, saleType: saleType };
+        
+        const sumDiscount = cart.reduce((acc, i) => acc + (i.unitDiscount * i.quantity), 0);
+
+        let saleData = { 
+            customerId: customerId, 
+            customerName: customer.name, 
+            customerPhone: customer.phone, 
+            items: cart, 
+            totalCost: cart.reduce((acc, i) => acc + i.cost, 0), 
+            totalPrice: totalCartValue, 
+            totalDiscount: sumDiscount,
+            saleDate: saleDate, 
+            saleType: saleType,
+            status: 'active'
+        };
+
         if (saleType === 'prazo') {
             const finalInstallments = calculateInstallments();
-            saleData = { ...saleData, entryAmount: entryValue, frequency, installmentsCount: finalInstallments.length, installments: finalInstallments, status: finalInstallments.length === 0 && entryValue >= totalCartValue ? 'completed' : 'active' };
+            saleData = { 
+                ...saleData, 
+                entryAmount: entryValue, 
+                frequency, 
+                installmentsCount: finalInstallments.length, 
+                installments: finalInstallments, 
+                status: finalInstallments.length === 0 && entryValue >= totalCartValue ? 'completed' : 'active' 
+            };
         } else {
-            saleData = { ...saleData, paymentMethod: directMethod, entryAmount: entryValue, cardAmount: totalRemaining, cardInstallments: directMethod === 'credit' ? parseInt(cardInstallments) : 1, installments: [], status: 'completed' };
+            // CAIXA E CARTÃO - LOGICA DE TAXAS
+            let finalSalePrice = totalCartValue;
+            let feeObj = null;
+
+            if (directMethod === 'credit' || directMethod === 'debit') {
+                const feeP = parsePercent(feePercent) / 100;
+                const baseValue = totalRemaining;
+                let feeVal = 0;
+
+                if (feeType === 'com_juros') {
+                    const chargedToClient = feeP < 1 ? baseValue / (1 - feeP) : baseValue;
+                    feeVal = chargedToClient - baseValue;
+                    finalSalePrice += feeVal; // Aumenta o valor final da venda
+                } else {
+                    feeVal = baseValue * feeP;
+                }
+
+                feeObj = {
+                    applied: feeP > 0,
+                    percent: parsePercent(feePercent),
+                    value: feeVal,
+                    type: feeType, // 'sem_juros' ou 'com_juros'
+                    mode: cardMode,
+                    brand: cardBrand
+                };
+            }
+
+            saleData = { 
+                ...saleData, 
+                paymentMethod: directMethod, 
+                entryAmount: entryValue, 
+                cardAmount: finalSalePrice - entryValue, // O que vai ser cobrado do cartão
+                cardInstallments: directMethod === 'credit' ? parseInt(cardInstallments) : 1, 
+                installments: [], 
+                status: 'completed',
+                totalPrice: finalSalePrice, // Preço final ajustado
+                feeConfig: feeObj
+            };
         }
         onSave(saleData); onClose();
     };
@@ -1002,9 +1171,9 @@ const NewSaleModal = ({ isOpen, onClose, customers, products, onSave }) => {
     if (!isOpen) return null;
     return React.createElement('div', { className: "fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" },
         React.createElement('div', { className: "bg-white rounded-2xl w-full max-w-md p-6 animate-fade-in shadow-2xl flex flex-col max-h-[90vh]" },
-            React.createElement('div', { className: "flex items-center justify-between mb-4" }, React.createElement('h2', { className: "text-xl font-bold text-slate-800 flex items-center gap-2" }, React.createElement(ShoppingBag, { className: "text-yellow-600" }), "Nova Venda"), React.createElement('div', { className: "flex gap-1" }, [1,2,3].map(i => React.createElement('div', { key: i, className: `h-2 w-8 rounded-full ${step >= i ? 'bg-yellow-500' : 'bg-slate-200'}` })))),
-            React.createElement('div', { className: "flex-1 overflow-y-auto pr-1" },
-                step === 1 && React.createElement('div', { className: "space-y-4" },
+            React.createElement('div', { className: "flex items-center justify-between mb-4 shrink-0" }, React.createElement('h2', { className: "text-xl font-bold text-slate-800 flex items-center gap-2" }, React.createElement(ShoppingBag, { className: "text-yellow-600" }), "Nova Venda"), React.createElement('div', { className: "flex gap-1" }, [1,2,3].map(i => React.createElement('div', { key: i, className: `h-2 w-8 rounded-full ${step >= i ? 'bg-yellow-500' : 'bg-slate-200'}` })))),
+            React.createElement('div', { className: "flex-1 overflow-y-auto pr-1 no-scrollbar space-y-4" },
+                step === 1 && React.createElement('div', { className: "space-y-4 animate-fade-in" },
                     React.createElement('div', { className: "bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3" },
                         React.createElement('label', { className: "text-xs font-bold text-slate-400 uppercase" }, "Buscar Cliente"),
                         React.createElement('div', { className: "relative" },
@@ -1035,9 +1204,9 @@ const NewSaleModal = ({ isOpen, onClose, customers, products, onSave }) => {
                         )
                     )
                 ),
-                step === 2 && React.createElement('div', { className: "space-y-4" },
+                step === 2 && React.createElement('div', { className: "space-y-4 animate-fade-in" },
                     React.createElement('div', { className: "bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3" },
-                        React.createElement('label', { className: "text-xs font-bold text-slate-400 uppercase" }, "Buscar Produto"),
+                        React.createElement('label', { className: "text-xs font-bold text-slate-400 uppercase" }, "Adicionar Produto"),
                         React.createElement('div', { className: "relative" },
                             React.createElement('div', { className: "relative" },
                                 React.createElement(Search, { className: "absolute left-3 top-3.5 text-slate-400", size: 16 }),
@@ -1073,18 +1242,19 @@ const NewSaleModal = ({ isOpen, onClose, customers, products, onSave }) => {
                             )
                         ),
                         React.createElement('div', { className: "flex gap-2" },
-                            React.createElement('div', { className: "w-24" }, React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1" }, "Qtd"), React.createElement('input', { type: "number", min: "1", className: "w-full p-3 border border-slate-200 rounded-lg text-center font-bold focus:outline-none focus:ring-2 focus:ring-yellow-500", value: currentQty, onChange: e => setCurrentQty(e.target.value) })),
-                            React.createElement('div', { className: "flex-1" }, React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1" }, "Venda Unit."), React.createElement(MoneyInput, { placeholder: "0,00", value: currentPrice, onChange: setCurrentPrice, className: "w-full p-3 pl-10 border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-yellow-500" }))
+                            React.createElement('div', { className: "w-16" }, React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1" }, "Qtd"), React.createElement('input', { type: "number", min: "1", className: "w-full p-3 border border-slate-200 rounded-lg text-center font-bold focus:outline-none focus:ring-2 focus:ring-yellow-500 px-1", value: currentQty, onChange: e => setCurrentQty(e.target.value) })),
+                            React.createElement('div', { className: "flex-1" }, React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1" }, "Desconto"), React.createElement(MoneyInput, { placeholder: "0,00", value: currentDiscount, onChange: handleDiscountChange, className: "w-full p-3 pl-8 border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-yellow-500 text-sm text-red-500 font-bold" })),
+                            React.createElement('div', { className: "flex-1" }, React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1" }, "Venda R$"), React.createElement(MoneyInput, { placeholder: "0,00", value: currentPrice, onChange: handlePriceChange, className: "w-full p-3 pl-8 border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-yellow-500 text-sm font-bold text-slate-800" }))
                         ),
-                        React.createElement('button', { onClick: handleAddItem, disabled: !selectedProductId || !currentPrice || currentQty < 1, className: "w-full py-3 bg-slate-800 text-white rounded-lg font-bold text-sm disabled:opacity-50 hover:bg-slate-700 transition-colors" }, "+ Adicionar Item")
+                        React.createElement('button', { onClick: handleAddItem, disabled: !selectedProductId || !currentPrice || currentQty < 1, className: "w-full py-3 bg-slate-800 text-white rounded-lg font-bold text-sm disabled:opacity-50 hover:bg-slate-700 transition-colors flex justify-center gap-2 items-center" }, React.createElement(PlusCircle, { size: 16 }), "Adicionar no Carrinho")
                     ),
                     React.createElement('div', { className: "space-y-2" },
                         React.createElement('label', { className: "text-xs font-bold text-slate-400 uppercase" }, `Carrinho (${cart.reduce((a,b)=>a+(parseInt(b.quantity)||1),0)} itens)`),
-                        cart.length === 0 ? React.createElement('p', { className: "text-center text-slate-400 text-sm py-4 italic" }, "Vazio") : cart.map(item => React.createElement('div', { key: item.tempId, className: "flex justify-between items-center bg-yellow-50 p-3 rounded-lg border border-yellow-100" }, React.createElement('div', null, React.createElement('p', { className: "font-bold text-sm text-slate-800" }, `${item.quantity}x ${item.productName}`), React.createElement('p', { className: "text-xs text-slate-500" }, `Total: ${formatCurrency(item.price)}`)), React.createElement('button', { onClick: () => handleRemoveItem(item.tempId), className: "text-red-400 hover:text-red-600 p-2" }, React.createElement(Trash2, { size: 18 })))),
-                        cart.length > 0 && React.createElement('div', { className: "text-right font-bold text-lg text-slate-800 pt-2 border-t border-slate-100 mt-2" }, `Total: ${formatCurrency(totalCartValue)}`)
+                        cart.length === 0 ? React.createElement('p', { className: "text-center text-slate-400 text-sm py-4 italic" }, "Nenhum produto adicionado.") : cart.map(item => React.createElement('div', { key: item.tempId, className: "flex justify-between items-center bg-yellow-50 p-3 rounded-lg border border-yellow-200 shadow-sm" }, React.createElement('div', null, React.createElement('p', { className: "font-bold text-sm text-slate-800 leading-tight mb-1" }, `${item.quantity}x ${item.productName}`), React.createElement('div', { className: "flex items-center gap-2" }, React.createElement('p', { className: "text-xs font-bold text-slate-600" }, `${formatCurrency(item.price)}`), item.unitDiscount > 0 && React.createElement('span', { className: "bg-red-100 text-red-600 text-[10px] px-1.5 py-0.5 rounded font-bold" }, `-${formatCurrency(item.unitDiscount * item.quantity)}`))), React.createElement('button', { onClick: () => handleRemoveItem(item.tempId), className: "text-red-400 hover:text-red-600 p-2 bg-white rounded-full shadow-sm" }, React.createElement(Trash2, { size: 16 })))),
+                        cart.length > 0 && React.createElement('div', { className: "text-right font-bold text-xl text-slate-800 pt-3 border-t border-slate-100 mt-2" }, `Total: ${formatCurrency(totalCartValue)}`)
                     )
                 ),
-                step === 3 && React.createElement('div', { className: "space-y-4" },
+                step === 3 && React.createElement('div', { className: "space-y-4 animate-fade-in" },
                     React.createElement('div', null, React.createElement('label', { className: "block text-xs font-bold text-slate-500 uppercase mb-1 flex items-center gap-1" }, React.createElement(Calendar, { size: 12 }), " Data da Venda"), React.createElement('input', { type: "date", className: "w-full p-3 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500", value: saleDate, onChange: e => setSaleDate(e.target.value) })),
                     React.createElement('div', { className: "flex bg-slate-100 p-1 rounded-xl mb-2" },
                         React.createElement('button', { onClick: () => setSaleType('prazo'), className: `flex-1 py-2 text-sm font-bold rounded-lg transition-all ${saleType === 'prazo' ? 'bg-white shadow text-slate-800' : 'text-slate-400'}` }, "A Prazo (Fiado)"),
@@ -1093,10 +1263,10 @@ const NewSaleModal = ({ isOpen, onClose, customers, products, onSave }) => {
                     saleType === 'prazo' && React.createElement('div', { className: "animate-fade-in space-y-4" },
                         React.createElement('div', null, React.createElement('label', { className: "block text-xs font-bold text-slate-500 uppercase mb-1" }, "Entrada (Opcional)"), React.createElement(MoneyInput, { value: entryAmount, onChange: setEntryAmount })),
                         totalRemaining > 0 && React.createElement(React.Fragment, null,
-                            React.createElement('div', null, React.createElement('label', { className: "block text-xs font-bold text-slate-500 uppercase mb-1" }, "Frequência"), React.createElement('select', { className: "w-full p-3 border border-slate-200 rounded-lg", value: frequency, onChange: e => setFrequency(e.target.value) }, React.createElement('option', { value: "weekly" }, "Semanal"), React.createElement('option', { value: "biweekly" }, "Quinzenal"), React.createElement('option', { value: "monthly" }, "Mensal"))),
+                            React.createElement('div', null, React.createElement('label', { className: "block text-xs font-bold text-slate-500 uppercase mb-1" }, "Frequência"), React.createElement('select', { className: "w-full p-3 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-yellow-500", value: frequency, onChange: e => setFrequency(e.target.value) }, React.createElement('option', { value: "weekly" }, "Semanal"), React.createElement('option', { value: "biweekly" }, "Quinzenal"), React.createElement('option', { value: "monthly" }, "Mensal"))),
                             React.createElement('div', { className: "grid grid-cols-2 gap-4" },
-                                React.createElement('div', null, React.createElement('label', { className: "block text-xs font-bold text-slate-500 uppercase mb-1" }, "Parcelas"), React.createElement('select', { className: "w-full p-3 border border-slate-200 rounded-lg", value: installmentsCount, onChange: e => setInstallmentsCount(e.target.value) }, Array.from({length: 12}, (_, i) => i + 1).map(n => React.createElement('option', { key: n, value: n }, `${n}x`)))),
-                                React.createElement('div', null, React.createElement('label', { className: "block text-xs font-bold text-slate-500 uppercase mb-1" }, "1ª Data"), React.createElement('input', { type: "date", className: "w-full p-3 border border-slate-200 rounded-lg", value: firstDueDate, onChange: e => setFirstDueDate(e.target.value) }))
+                                React.createElement('div', null, React.createElement('label', { className: "block text-xs font-bold text-slate-500 uppercase mb-1" }, "Parcelas"), React.createElement('select', { className: "w-full p-3 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-yellow-500", value: installmentsCount, onChange: e => setInstallmentsCount(e.target.value) }, Array.from({length: 12}, (_, i) => i + 1).map(n => React.createElement('option', { key: n, value: n }, `${n}x`)))),
+                                React.createElement('div', null, React.createElement('label', { className: "block text-xs font-bold text-slate-500 uppercase mb-1" }, "1ª Data"), React.createElement('input', { type: "date", className: "w-full p-3 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-yellow-500", value: firstDueDate, onChange: e => setFirstDueDate(e.target.value) }))
                             )
                         )
                     ),
@@ -1104,17 +1274,49 @@ const NewSaleModal = ({ isOpen, onClose, customers, products, onSave }) => {
                         React.createElement('div', { className: "grid grid-cols-2 gap-3" },
                             ['pix','money','debit','credit'].map(m => React.createElement('button', { key: m, onClick: () => setDirectMethod(m), className: `p-4 rounded-xl border flex flex-col items-center gap-2 ${directMethod === m ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-200 text-slate-500 hover:bg-slate-50'}` }, React.createElement(m === 'pix' ? QrCode : m === 'money' ? Banknote : CreditCard, { size: 24 }), React.createElement('span', { className: "text-xs font-bold uppercase" }, m === 'money' ? 'Dinheiro' : m === 'debit' ? 'Débito' : m === 'credit' ? 'Crédito' : 'PIX')))
                         ),
-                        directMethod === 'credit' && React.createElement('div', { className: "space-y-4 pt-2 border-t border-slate-100" },
-                            React.createElement('div', null, React.createElement('label', { className: "block text-xs font-bold text-slate-500 uppercase mb-1" }, "Entrada (Dinheiro/Pix)"), React.createElement(MoneyInput, { value: entryAmount, onChange: setEntryAmount })),
-                            React.createElement('div', { className: "bg-slate-50 p-4 rounded-xl border border-slate-200" }, React.createElement('label', { className: "block text-xs font-bold text-slate-500 uppercase mb-2" }, "Parcelas da Maquininha"), React.createElement('select', { className: "w-full p-3 border border-slate-200 rounded-lg", value: cardInstallments, onChange: e => setCardInstallments(e.target.value) }, React.createElement('option', { value: "1" }, "1x (À Vista)"), Array.from({length: 11}, (_, i) => i + 2).map(n => React.createElement('option', { key: n, value: n }, `${n}x`))))
+                        (directMethod === 'credit' || directMethod === 'debit') && React.createElement('div', { className: "space-y-4 pt-4 border-t border-slate-100" },
+                            React.createElement('div', null, React.createElement('label', { className: "block text-xs font-bold text-slate-500 uppercase mb-1" }, "Entrada (Dinheiro/Pix) - Opcional"), React.createElement(MoneyInput, { value: entryAmount, onChange: setEntryAmount })),
+                            directMethod === 'credit' && React.createElement('div', null, React.createElement('label', { className: "block text-xs font-bold text-slate-500 uppercase mb-1" }, "Parcelas no Cartão"), React.createElement('select', { className: "w-full p-3 border border-slate-200 rounded-lg outline-none", value: cardInstallments, onChange: e => setCardInstallments(e.target.value) }, React.createElement('option', { value: "1" }, "1x (À Vista)"), Array.from({length: 11}, (_, i) => i + 2).map(n => React.createElement('option', { key: n, value: n }, `${n}x`)))),
+                            
+                            // NOVO: BLOCO DE TAXAS DE CARTÃO
+                            React.createElement('div', { className: "bg-orange-50 p-4 rounded-xl border border-orange-100 space-y-3" },
+                                React.createElement('p', { className: "text-xs font-bold text-orange-700 uppercase flex items-center gap-1" }, React.createElement(BadgePercent, { size: 14 }), "Configuração de Taxas"),
+                                React.createElement('div', { className: "grid grid-cols-2 gap-3" },
+                                    React.createElement('div', null, React.createElement('label', { className: "block text-[10px] font-bold text-orange-600 uppercase mb-1" }, "Modalidade"), React.createElement('select', { className: "w-full p-2 border border-orange-200 rounded text-sm outline-none text-slate-700", value: cardMode, onChange: e => setCardMode(e.target.value) }, React.createElement('option', { value: "presencial" }, "Presencial (Maquininha)"), React.createElement('option', { value: "link" }, "Link de Pagamento"))),
+                                    cardMode === 'presencial' ? React.createElement('div', null, React.createElement('label', { className: "block text-[10px] font-bold text-orange-600 uppercase mb-1" }, "Bandeira"), React.createElement('select', { className: "w-full p-2 border border-orange-200 rounded text-sm outline-none text-slate-700", value: cardBrand, onChange: e => setCardBrand(e.target.value) }, React.createElement('option', { value: "visa_master" }, "Visa / Master"), React.createElement('option', { value: "outras" }, "Outras (Elo/Amex)")) ) : React.createElement('div', null)
+                                ),
+                                React.createElement('div', { className: "grid grid-cols-2 gap-3" },
+                                    React.createElement('div', null, React.createElement('label', { className: "block text-[10px] font-bold text-orange-600 uppercase mb-1" }, "Repasse"), React.createElement('select', { className: "w-full p-2 border border-orange-200 rounded text-sm outline-none text-slate-700 font-bold", value: feeType, onChange: e => setFeeType(e.target.value) }, React.createElement('option', { value: "sem_juros" }, "Sem Juros (Loja Paga)"), React.createElement('option', { value: "com_juros" }, "Com Juros (Cliente Paga)"))),
+                                    React.createElement('div', null, React.createElement('label', { className: "block text-[10px] font-bold text-orange-600 uppercase mb-1" }, "Taxa Cobrada (%)"), React.createElement('div', { className: "relative" }, React.createElement('input', { type: "text", className: "w-full p-2 pr-6 border border-orange-200 rounded text-sm outline-none font-bold text-slate-700", value: feePercent, onChange: e => setFeePercent(e.target.value.replace(/[^0-9.,]/g, '')) }), React.createElement('span', { className: "absolute right-2 top-2 text-slate-400 text-sm" }, "%")))
+                                ),
+                                React.createElement('div', { className: "text-[10px] bg-orange-100 p-2 rounded text-orange-800 leading-tight" }, 
+                                    (() => {
+                                        const fP = parsePercent(feePercent) / 100;
+                                        if(feeType === 'sem_juros') {
+                                            const fV = totalRemaining * fP;
+                                            return React.createElement(React.Fragment, null, 
+                                                `Valor da transação: ${formatCurrency(totalRemaining)}`, React.createElement('br'),
+                                                React.createElement('strong', null, `A loja pagará ${formatCurrency(fV)} de taxa. Líquido a receber: ${formatCurrency(totalRemaining - fV)}`)
+                                            );
+                                        } else {
+                                            const charged = fP < 1 ? totalRemaining / (1 - fP) : totalRemaining;
+                                            const fV = charged - totalRemaining;
+                                            return React.createElement(React.Fragment, null, 
+                                                `Valor base: ${formatCurrency(totalRemaining)}`, React.createElement('br'),
+                                                React.createElement('strong', null, `O cliente pagará ${formatCurrency(charged)} (Taxa de ${formatCurrency(fV)} embutida).`)
+                                            );
+                                        }
+                                    })()
+                                )
+                            )
                         )
                     )
                 )
             ),
-            React.createElement('div', { className: "flex gap-3 mt-6 pt-4 border-t border-slate-100" },
-                step === 1 && React.createElement(React.Fragment, null, React.createElement('button', { onClick: onClose, className: "flex-1 p-3 text-slate-500 font-bold" }, "Cancelar"), React.createElement('button', { onClick: () => setStep(2), disabled: !customerId, className: "flex-1 p-3 bg-slate-900 text-white font-bold rounded-xl disabled:opacity-50" }, "Próximo")),
-                step === 2 && React.createElement(React.Fragment, null, React.createElement('button', { onClick: () => setStep(1), className: "flex-1 p-3 text-slate-500 font-bold" }, "Voltar"), React.createElement('button', { onClick: () => setStep(3), disabled: cart.length === 0, className: "flex-1 p-3 bg-slate-900 text-white font-bold rounded-xl disabled:opacity-50" }, "Pagamento")),
-                step === 3 && React.createElement(React.Fragment, null, React.createElement('button', { onClick: () => setStep(2), className: "flex-1 p-3 text-slate-500 font-bold" }, "Voltar"), React.createElement('button', { onClick: handleFinish, className: "flex-1 p-3 bg-yellow-500 text-white font-bold rounded-xl shadow-lg shadow-yellow-200 hover:bg-yellow-600" }, "Finalizar"))
+            React.createElement('div', { className: "flex gap-3 mt-4 pt-4 border-t border-slate-100 shrink-0" },
+                step === 1 && React.createElement(React.Fragment, null, React.createElement('button', { onClick: onClose, className: "flex-1 p-3 text-slate-500 font-bold hover:bg-slate-100 rounded-xl" }, "Cancelar"), React.createElement('button', { onClick: () => setStep(2), disabled: !customerId, className: "flex-1 p-3 bg-slate-900 text-white font-bold rounded-xl disabled:opacity-50" }, "Próximo")),
+                step === 2 && React.createElement(React.Fragment, null, React.createElement('button', { onClick: () => setStep(1), className: "flex-1 p-3 text-slate-500 font-bold hover:bg-slate-100 rounded-xl" }, "Voltar"), React.createElement('button', { onClick: () => setStep(3), disabled: cart.length === 0, className: "flex-1 p-3 bg-slate-900 text-white font-bold rounded-xl disabled:opacity-50" }, "Pagamento")),
+                step === 3 && React.createElement(React.Fragment, null, React.createElement('button', { onClick: () => setStep(2), className: "flex-1 p-3 text-slate-500 font-bold hover:bg-slate-100 rounded-xl" }, "Voltar"), React.createElement('button', { onClick: handleFinish, className: "flex-1 p-3 bg-yellow-500 text-white font-bold rounded-xl shadow-lg shadow-yellow-200 hover:bg-yellow-600" }, "Finalizar Venda"))
             )
         )
     );
@@ -1122,13 +1324,18 @@ const NewSaleModal = ({ isOpen, onClose, customers, products, onSave }) => {
 
 
 // --- MODAL DE DETALHES COMPLETOS DA VENDA ---
-const SaleDetailsModal = ({ isOpen, onClose, sale, onPay, onEdit, onDeletePayment, onDeleteSale, onOpenWA }) => {
+const SaleDetailsModal = ({ isOpen, onClose, sale, onPay, onEdit, onDeletePayment, onCancelSale, onDeleteSale, onOpenWA }) => {
     if (!isOpen || !sale) return null;
 
     const pendingAmount = sale.installments ? sale.installments.filter(i => !i.paid).reduce((acc, i) => acc + i.amount, 0) : 0;
     const paidInstallments = sale.installments ? sale.installments.filter(i => i.paid).length : 0;
     const totalInst = sale.installmentsCount || 0;
-    const profit = sale.totalPrice - (sale.totalCost || 0);
+    
+    let profit = sale.totalPrice - (sale.totalCost || 0);
+    // Deduz a taxa do lucro estimado na visualização, se for sem juros (Loja paga)
+    if (sale.feeConfig && sale.feeConfig.type === 'sem_juros') {
+        profit -= sale.feeConfig.value;
+    }
 
     const waType = sale.saleType === 'direct' ? 'comprovante' : (sale.status === 'completed' ? 'quitacao' : 'registro');
     const waTitle = sale.saleType === 'direct' ? 'Enviar Comprovante' : (sale.status === 'completed' ? 'Enviar Quitação' : 'Enviar Resumo da Venda');
@@ -1136,70 +1343,82 @@ const SaleDetailsModal = ({ isOpen, onClose, sale, onPay, onEdit, onDeletePaymen
     return React.createElement('div', { className: "fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-[55] backdrop-blur-sm" },
         React.createElement('div', { className: "bg-white rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col shadow-2xl animate-fade-in" },
             // Header
-            React.createElement('div', { className: "p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-2xl" },
+            React.createElement('div', { className: "p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-2xl shrink-0" },
                 React.createElement('div', null,
                     React.createElement('h3', { className: "font-bold text-lg text-slate-800" }, "Detalhes da " + (sale.saleType === 'direct' ? "Venda" : "Cobrança")),
                     React.createElement('p', { className: "text-xs text-slate-500 font-medium" }, sale.customerName)
                 ),
                 React.createElement('div', { className: "flex gap-2 items-center" },
-                    React.createElement('button', { 
-                        onClick: () => onOpenWA(waType, sale, null, null),
-                        className: "p-2 hover:bg-green-100 rounded-full transition-colors text-green-600",
-                        title: waTitle
-                    }, React.createElement(MessageCircle, { size: 20 })),
+                    sale.status !== 'canceled' && React.createElement('button', { onClick: () => onOpenWA(waType, sale, null, null), className: "p-2 hover:bg-green-100 rounded-full transition-colors text-green-600", title: waTitle }, React.createElement(MessageCircle, { size: 20 })),
                     React.createElement('button', { onClick: onClose, className: "p-2 hover:bg-slate-200 rounded-full transition-colors text-slate-500" }, React.createElement(X, { size: 20 }))
                 )
             ),
             
             // Scrollable Content
-            React.createElement('div', { className: "flex-1 overflow-y-auto p-4 space-y-4" },
-                // Resumo Principal
-                React.createElement('div', { className: "flex justify-between items-center" },
-                    React.createElement('div', null,
-                        React.createElement('p', { className: "font-bold text-slate-800 text-2xl" }, formatCurrency(sale.totalPrice)),
-                        React.createElement('p', { className: "text-sm text-slate-500" }, formatDate(sale.saleDate))
-                    ),
-                    React.createElement('span', { className: `px-3 py-1 rounded-full text-xs font-bold ${sale.status === 'completed' ? 'bg-emerald-100 text-emerald-700' : 'bg-yellow-100 text-yellow-700'}` }, sale.status === 'completed' ? 'Quitado' : 'Aberto')
+            React.createElement('div', { className: "flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar relative" },
+                // Marca d'água de Cancelado
+                sale.status === 'canceled' && React.createElement('div', { className: "absolute inset-0 z-0 flex items-center justify-center pointer-events-none opacity-10" }, 
+                    React.createElement('div', { className: "transform -rotate-45 text-red-600 font-black text-6xl border-4 border-red-600 p-4 rounded-xl uppercase tracking-widest" }, "Cancelado")
                 ),
 
-                sale.saleType === 'prazo' && React.createElement('div', { className: "flex justify-between items-center text-sm text-slate-500 bg-slate-50 p-3 rounded-lg border border-slate-100" },
-                    React.createElement('span', { className: "flex items-center gap-1" }, React.createElement(CheckCircle, { size: 16, className: paidInstallments === totalInst ? 'text-emerald-500' : 'text-slate-400' }), `Pagos: ${paidInstallments}/${totalInst}`),
+                // Resumo Principal
+                React.createElement('div', { className: "flex justify-between items-center relative z-10" },
+                    React.createElement('div', null,
+                        React.createElement('p', { className: `font-bold text-2xl ${sale.status === 'canceled' ? 'text-red-500 line-through' : 'text-slate-800'}` }, formatCurrency(sale.totalPrice)),
+                        React.createElement('p', { className: "text-sm text-slate-500" }, formatDate(sale.saleDate))
+                    ),
+                    React.createElement('span', { className: `px-3 py-1 rounded-full text-xs font-bold ${sale.status === 'canceled' ? 'bg-red-100 text-red-700' : sale.status === 'completed' ? 'bg-emerald-100 text-emerald-700' : 'bg-yellow-100 text-yellow-700'}` }, sale.status === 'canceled' ? 'Cancelado' : sale.status === 'completed' ? 'Quitado' : 'Aberto')
+                ),
+
+                sale.status === 'canceled' && sale.cancelReason && React.createElement('div', { className: "bg-red-50 p-3 rounded-lg border border-red-100 relative z-10" },
+                    React.createElement('p', { className: "text-[10px] uppercase font-bold text-red-500 mb-1" }, "Motivo do Cancelamento:"),
+                    React.createElement('p', { className: "text-sm text-red-700 italic" }, `"${sale.cancelReason}"`)
+                ),
+
+                sale.saleType === 'prazo' && React.createElement('div', { className: "flex justify-between items-center text-sm text-slate-500 bg-slate-50 p-3 rounded-lg border border-slate-100 relative z-10" },
+                    React.createElement('span', { className: "flex items-center gap-1" }, React.createElement(CheckCircle, { size: 16, className: paidInstallments === totalInst && sale.status !== 'canceled' ? 'text-emerald-500' : 'text-slate-400' }), `Pagos: ${paidInstallments}/${totalInst}`),
                     React.createElement('span', { className: "font-bold" }, pendingAmount > 0 ? `Resta: ${formatCurrency(pendingAmount)}` : 'Concluído')
                 ),
 
                 // Itens
-                React.createElement('div', { className: "bg-white p-4 rounded-xl border border-slate-200" },
+                React.createElement('div', { className: "bg-white p-4 rounded-xl border border-slate-200 relative z-10" },
                     React.createElement('p', { className: "text-xs font-bold text-slate-400 uppercase mb-3 flex items-center gap-2" }, React.createElement(Package, { size: 14 }), "Itens da Venda"),
                     sale.items.map((item, idx) => React.createElement('div', { key: idx, className: "flex justify-between text-sm py-2 border-b border-slate-50 last:border-0" },
-                        React.createElement('span', { className: "text-slate-700" }, item.quantity ? `${item.quantity}x ${item.productName}` : item.productName),
+                        React.createElement('div', null,
+                            React.createElement('span', { className: "text-slate-700" }, item.quantity ? `${item.quantity}x ${item.productName}` : item.productName),
+                            item.unitDiscount > 0 && React.createElement('span', { className: "ml-2 text-[10px] bg-emerald-100 text-emerald-700 px-1 rounded font-bold" }, `Desconto: ${formatCurrency(item.unitDiscount * item.quantity)}`)
+                        ),
                         React.createElement('span', { className: "font-mono text-slate-800 font-bold" }, formatCurrency(item.price))
                     ))
                 ),
 
                 // Financeiro
-                React.createElement('div', { className: "bg-white p-4 rounded-xl border border-slate-200 space-y-3" },
+                React.createElement('div', { className: "bg-white p-4 rounded-xl border border-slate-200 space-y-3 relative z-10" },
                     React.createElement('p', { className: "text-xs font-bold text-slate-400 uppercase mb-2 flex items-center gap-2" }, React.createElement(PieChart, { size: 14 }), "Resumo Financeiro"),
-                    React.createElement('div', { className: "flex justify-between text-sm" }, React.createElement('span', { className: "text-slate-500" }, "Valor Total:"), React.createElement('span', { className: "font-bold text-slate-800" }, formatCurrency(sale.totalPrice))),
+                    React.createElement('div', { className: "flex justify-between text-sm" }, React.createElement('span', { className: "text-slate-500" }, "Valor dos Produtos:"), React.createElement('span', { className: "text-slate-800 font-bold" }, formatCurrency((sale.totalPrice + (sale.totalDiscount||0)) - (sale.feeConfig?.type === 'com_juros' ? sale.feeConfig.value : 0)))),
+                    sale.totalDiscount > 0 && React.createElement('div', { className: "flex justify-between text-sm text-emerald-600" }, React.createElement('span', null, "Descontos Aplicados:"), React.createElement('span', { className: "font-bold" }, `- ${formatCurrency(sale.totalDiscount)}`)),
+                    sale.feeConfig && React.createElement('div', { className: "flex justify-between text-sm text-orange-600" }, React.createElement('span', null, sale.feeConfig.type === 'sem_juros' ? "Taxa Maquininha (Loja Paga):" : "Taxa Repassada (Cliente Paga):"), React.createElement('span', { className: "font-bold" }, `${sale.feeConfig.type === 'sem_juros' ? '-' : '+'} ${formatCurrency(sale.feeConfig.value)}`)),
                     React.createElement('div', { className: "flex justify-between text-sm" }, React.createElement('span', { className: "text-slate-500" }, "Custo Total:"), React.createElement('span', { className: "text-slate-800" }, formatCurrency(sale.totalCost || 0))),
-                    React.createElement('div', { className: "flex justify-between text-sm pt-3 border-t border-slate-100" }, React.createElement('span', { className: "font-bold text-emerald-600 flex items-center gap-1" }, React.createElement(Wallet, { size: 14 }), "Lucro Estimado:"), React.createElement('span', { className: "font-bold text-emerald-600" }, formatCurrency(profit)))
+                    React.createElement('div', { className: "flex justify-between text-sm pt-3 border-t border-slate-100" }, React.createElement('span', { className: "font-bold text-emerald-600 flex items-center gap-1" }, React.createElement(Wallet, { size: 14 }), "Lucro Estimado Líquido:"), React.createElement('span', { className: `font-bold ${profit >= 0 ? 'text-emerald-600' : 'text-red-500'}` }, formatCurrency(profit)))
                 ),
 
                 // Info Especifica de Venda Direta
                 sale.saleType === 'direct' && React.createElement(React.Fragment, null,
-                    sale.paymentMethod === 'credit' && React.createElement('div', { className: "bg-emerald-50 p-4 rounded-xl border border-emerald-100 space-y-3" },
-                        React.createElement('div', { className: "flex justify-between items-center text-sm" }, React.createElement('span', { className: "text-emerald-800" }, "Entrada (Dinheiro/Pix):"), React.createElement('span', { className: "font-bold text-emerald-800" }, formatCurrency(sale.entryAmount || 0))),
-                        React.createElement('div', { className: "flex justify-between items-center text-sm" }, React.createElement('span', { className: "text-emerald-800" }, `Passado no Cartão (${sale.cardInstallments}x):`), React.createElement('span', { className: "font-bold text-emerald-800" }, formatCurrency(sale.cardAmount || sale.totalPrice)))
+                    (sale.paymentMethod === 'credit' || sale.paymentMethod === 'debit') && React.createElement('div', { className: "bg-emerald-50 p-4 rounded-xl border border-emerald-100 space-y-3 relative z-10" },
+                        sale.entryAmount > 0 && React.createElement('div', { className: "flex justify-between items-center text-sm" }, React.createElement('span', { className: "text-emerald-800" }, "Entrada (Dinheiro/Pix):"), React.createElement('span', { className: "font-bold text-emerald-800" }, formatCurrency(sale.entryAmount))),
+                        React.createElement('div', { className: "flex justify-between items-center text-sm" }, React.createElement('span', { className: "text-emerald-800 flex items-center gap-1" }, React.createElement(Receipt, { size: 14 }), `Passado no Cartão (${sale.cardInstallments}x):`), React.createElement('span', { className: "font-bold text-emerald-800" }, formatCurrency(sale.cardAmount || sale.totalPrice))),
+                        sale.feeConfig && React.createElement('div', { className: "text-[10px] text-emerald-700 bg-emerald-100 p-2 rounded" }, `${sale.feeConfig.mode === 'link' ? 'Link Web' : 'Presencial'} - ${sale.feeConfig.brand === 'visa_master' ? 'Visa/Master' : 'Outras Bandeiras'} (${sale.feeConfig.percent}%)`)
                     )
                 ),
 
                 // Entrada a Prazo
-                (sale.saleType === 'prazo' || !sale.saleType) && sale.entryAmount > 0 && React.createElement('div', { className: "bg-emerald-50 p-4 rounded-xl border border-emerald-100 flex justify-between items-center" },
+                (sale.saleType === 'prazo' || !sale.saleType) && sale.entryAmount > 0 && React.createElement('div', { className: "bg-emerald-50 p-4 rounded-xl border border-emerald-100 flex justify-between items-center relative z-10" },
                     React.createElement('div', { className: "flex items-center gap-2" }, React.createElement(Wallet, { size: 18, className: "text-emerald-600" }), React.createElement('span', { className: "text-sm font-bold text-emerald-800" }, "Valor de Entrada")),
                     React.createElement('span', { className: "font-bold text-emerald-800 text-lg" }, formatCurrency(sale.entryAmount))
                 ),
 
                 // Parcelas a Prazo
-                (sale.saleType === 'prazo' || !sale.saleType) && React.createElement('div', { className: "space-y-3" },
+                (sale.saleType === 'prazo' || !sale.saleType) && React.createElement('div', { className: "space-y-3 relative z-10" },
                     React.createElement('p', { className: "text-xs font-bold text-slate-400 uppercase flex items-center gap-2" }, React.createElement(Calendar, { size: 14 }), "Parcelamento"),
                     sale.installments && sale.installments.map((inst, idx) => {
                         const isOverdue = !inst.paid && inst.dueDate < getBrazilDateString();
@@ -1209,41 +1428,42 @@ const SaleDetailsModal = ({ isOpen, onClose, sale, onPay, onEdit, onDeletePaymen
                         return React.createElement('div', { key: idx, className: "bg-white p-4 rounded-xl border border-slate-200 flex flex-col gap-3 shadow-sm" },
                             React.createElement('div', { className: "flex justify-between items-center" },
                                 React.createElement('div', { className: "flex items-center gap-3" },
-                                    React.createElement('button', { onClick: () => onPay(sale, idx), className: `rounded-full p-2 transition-colors shadow-sm ${inst.paid ? 'bg-emerald-500 text-white cursor-default' : 'bg-slate-100 text-slate-400 hover:bg-emerald-100 hover:text-emerald-600'}` }, React.createElement(CheckCircle, { size: 20 })),
+                                    sale.status !== 'canceled' && React.createElement('button', { onClick: () => onPay(sale, idx), className: `rounded-full p-2 transition-colors shadow-sm ${inst.paid ? 'bg-emerald-500 text-white cursor-default' : 'bg-slate-100 text-slate-400 hover:bg-emerald-100 hover:text-emerald-600'}` }, React.createElement(CheckCircle, { size: 20 })),
                                     React.createElement('div', null,
                                         React.createElement('p', { className: "text-sm font-bold text-slate-700" }, `Parcela ${inst.number}`),
                                         React.createElement('div', { className: "flex flex-col" },
                                             inst.paid && inst.paidAt ? React.createElement('span', { className: "text-xs text-emerald-600 font-bold" }, `Pago dia ${paidDisplayDate}`) : null,
-                                            React.createElement('span', { className: `text-[11px] ${inst.paid ? 'text-slate-400' : isOverdue ? 'text-red-500 font-bold' : 'text-slate-500'}` }, inst.paid ? `Vencia dia ${formatDate(inst.dueDate)}` : `Vence dia ${formatDate(inst.dueDate)}`)
+                                            React.createElement('span', { className: `text-[11px] ${inst.paid ? 'text-slate-400' : isOverdue && sale.status !== 'canceled' ? 'text-red-500 font-bold' : 'text-slate-500'}` }, inst.paid ? `Vencia dia ${formatDate(inst.dueDate)}` : `Vence dia ${formatDate(inst.dueDate)}`)
                                         )
                                     )
                                 ),
-                                React.createElement('p', { className: "font-bold text-slate-800 text-lg" }, formatCurrency(inst.amount))
+                                React.createElement('p', { className: `font-bold text-lg ${sale.status === 'canceled' ? 'text-slate-400 line-through' : 'text-slate-800'}` }, formatCurrency(inst.amount))
                             ),
                             inst.history && inst.history.length > 0 && React.createElement('div', { className: "mt-1 pt-3 border-t border-slate-100 text-xs bg-slate-50 -mx-4 px-4 pb-2" },
                                 React.createElement('p', { className: "text-[10px] uppercase font-bold text-slate-400 mb-2 flex items-center gap-1" }, React.createElement(History, { size: 12 }), "Histórico de Pagamentos"),
                                 inst.history.map((h, hIdx) => React.createElement('div', { key: hIdx, className: "flex justify-between items-center text-slate-600 py-1.5 border-b border-slate-100 last:border-0" },
                                     React.createElement('div', { className: "flex items-center gap-1" },
                                         React.createElement('span', null, h.type === 'abatement' ? 'Abatimento autom.' : formatDate(h.date)),
-                                        h.type !== 'abatement' && React.createElement('button', { onClick: (e) => { e.stopPropagation(); onOpenWA('recibo', sale, inst, h); }, className: "text-green-500 hover:text-green-600 bg-green-50 p-1 rounded transition-colors ml-1", title: "Enviar Recibo" }, React.createElement(MessageCircle, { size: 12 })),
-                                        h.type !== 'abatement' && React.createElement('button', { onClick: () => onDeletePayment(sale.id, idx, hIdx, h), className: "text-red-400 hover:text-red-600 bg-red-50 p-1 rounded transition-colors" }, React.createElement(XCircle, { size: 12 }))
+                                        h.type !== 'abatement' && sale.status !== 'canceled' && React.createElement('button', { onClick: (e) => { e.stopPropagation(); onOpenWA('recibo', sale, inst, h); }, className: "text-green-500 hover:text-green-600 bg-green-50 p-1 rounded transition-colors ml-1", title: "Enviar Recibo" }, React.createElement(MessageCircle, { size: 12 })),
+                                        h.type !== 'abatement' && sale.status !== 'canceled' && React.createElement('button', { onClick: () => onDeletePayment(sale.id, idx, hIdx, h), className: "text-red-400 hover:text-red-600 bg-red-50 p-1 rounded transition-colors" }, React.createElement(XCircle, { size: 12 }))
                                     ),
                                     React.createElement('span', { className: "font-bold" }, formatCurrency(h.amount))
                                 ))
                             ),
-                            !inst.paid ? React.createElement('div', { className: "flex gap-2 mt-2" },
+                            !inst.paid && sale.status !== 'canceled' ? React.createElement('div', { className: "flex gap-2 mt-2" },
                                 React.createElement('button', { onClick: () => onEdit({ open: true, saleId: sale.id, installmentIndex: idx, data: inst }), className: "flex-1 flex items-center justify-center gap-1 py-2 text-xs font-bold text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors" }, React.createElement(Edit2, { size: 14 }), "Ajustar Valor"),
                                 sale.customerPhone && React.createElement('button', { onClick: () => onOpenWA('cobranca', sale, inst, null), className: "flex-1 flex items-center justify-center gap-1 py-2 text-xs font-bold text-white bg-green-500 rounded-lg hover:bg-green-600 transition-colors shadow-sm" }, React.createElement(MessageCircle, { size: 14 }), "Cobrar")
-                            ) : React.createElement('div', { className: "flex gap-2 mt-2" },
+                            ) : (inst.paid && sale.status !== 'canceled') ? React.createElement('div', { className: "flex gap-2 mt-2" },
                                 sale.customerPhone && React.createElement('button', { onClick: () => onOpenWA('recibo', sale, inst, null), className: "flex-1 flex items-center justify-center gap-1 py-2 text-xs font-bold text-emerald-600 bg-emerald-50 rounded-lg hover:bg-emerald-100 transition-colors shadow-sm border border-emerald-100" }, React.createElement(MessageCircle, { size: 14 }), "Enviar Recibo")
-                            )
+                            ) : null
                         );
                     })
                 )
             ),
-            // Footer com botão de deletar
-            React.createElement('div', { className: "p-4 border-t border-slate-100 bg-white rounded-b-2xl" },
-                React.createElement('button', { onClick: () => { onDeleteSale('sale', sale.id); onClose(); }, className: "w-full py-3 text-red-500 text-sm font-bold bg-red-50 hover:bg-red-100 rounded-xl transition-colors border border-red-100 flex items-center justify-center gap-2" }, React.createElement(Trash2, { size: 16 }), "Excluir Registro Permanente")
+            // Footer com botões de gestão da Venda
+            React.createElement('div', { className: "p-4 border-t border-slate-100 bg-white rounded-b-2xl shrink-0 flex flex-col gap-2" },
+                sale.status !== 'canceled' && React.createElement('button', { onClick: () => onCancelSale(sale.id), className: "w-full py-3 text-orange-600 text-sm font-bold bg-orange-50 hover:bg-orange-100 rounded-xl transition-colors border border-orange-100 flex items-center justify-center gap-2" }, React.createElement(PackageMinus, { size: 16 }), "Cancelar Venda e Voltar Estoque"),
+                React.createElement('button', { onClick: () => { onDeleteSale('sale', sale.id); onClose(); }, className: "w-full py-3 text-red-400 hover:text-red-600 text-sm font-bold bg-white hover:bg-red-50 rounded-xl transition-colors border border-transparent flex items-center justify-center gap-2" }, React.createElement(Trash2, { size: 16 }), "Excluir Registro Permanentemente")
             )
         )
     );
@@ -1288,22 +1508,20 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
 
     // MODALS
     const [isSaleModalOpen, setIsSaleModalOpen] = useState(false);
-    const [productViewModalData, setProductViewModalData] = useState({ open: false, data: null }); // Alterado
+    const [productViewModalData, setProductViewModalData] = useState({ open: false, data: null }); 
     const [customerModalData, setCustomerModalData] = useState({ open: false, data: null });
     const [profileModalOpen, setProfileModalOpen] = useState(false);
     
-    // Novo Estado para o Modal Detalhado
     const [selectedSaleDetail, setSelectedSaleDetail] = useState(null);
     const activeSaleDetails = selectedSaleDetail ? sales.find(s => s.id === selectedSaleDetail.id) : null;
 
     const [deleteModal, setDeleteModal] = useState({ open: false, type: null, id: null });
-    const [editInstallmentModal, setEditInstallmentModal] = useState({ open: false, saleId: null, installmentIndex: null, data: null });
+    const [cancelModal, setCancelModal] = useState({ open: false, saleId: null, reason: '' });
     
+    const [editInstallmentModal, setEditInstallmentModal] = useState({ open: false, saleId: null, installmentIndex: null, data: null });
     const [installmentListModal, setInstallmentListModal] = useState({ open: false, type: null, data: [] });
     const [paymentModal, setPaymentModal] = useState({ open: false, saleId: null, index: null, item: null, isLast: false });
     const [deletePaymentModal, setDeletePaymentModal] = useState({ open: false, saleId: null, instIndex: null, histIndex: null, historyItem: null });
-
-    // Estado do Seletor de WhatsApp
     const [waChooserModal, setWaChooserModal] = useState({ open: false, phone: '', message: '' });
 
     useEffect(() => {
@@ -1317,12 +1535,10 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         return () => { unsubC(); unsubP(); unsubS(); };
     }, [user.uid]);
 
-    // Auto-update dates when period changes
     useEffect(() => { if (dashPeriod === 'month') { setDashStartDate(getCurrentMonthStart()); setDashEndDate(getCurrentMonthEnd()); } }, [dashPeriod]);
     useEffect(() => { if (salesPeriod === 'month') { setSalesStart(getCurrentMonthStart()); setSalesEnd(getCurrentMonthEnd()); } }, [salesPeriod]);
     useEffect(() => { if (cashierPeriod === 'month') { setCashierStart(getCurrentMonthStart()); setCashierEnd(getCurrentMonthEnd()); } }, [cashierPeriod]);
 
-    // Reset pagination when searching/filtering
     useEffect(() => setSalesPage(1), [salesSearch, salesPeriod, salesStart, salesEnd]);
     useEffect(() => setCashierPage(1), [cashierSearch, cashierPeriod, cashierStart, cashierEnd]);
     useEffect(() => setProductsPage(1), [productSearch]);
@@ -1345,15 +1561,14 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         
         if (salesSearch) {
             const lower = salesSearch.toLowerCase();
-            // Ignora datas e busca tudo
             return baseSales.filter(s => 
                 s.customerName.toLowerCase().includes(lower) || 
                 (s.items && s.items.some(i => i.productName.toLowerCase().includes(lower)))
             ).sort((a, b) => b.saleDate.localeCompare(a.saleDate));
         }
         
-        let active = baseSales.filter(s => s.status !== 'completed');
-        let completed = baseSales.filter(s => s.status === 'completed' && s.saleDate >= salesStart && s.saleDate <= salesEnd);
+        let active = baseSales.filter(s => s.status !== 'completed' && s.status !== 'canceled');
+        let completedOrCanceled = baseSales.filter(s => (s.status === 'completed' || s.status === 'canceled') && s.saleDate >= salesStart && s.saleDate <= salesEnd);
         
         active.sort((a, b) => {
             const getNextDue = (sale) => {
@@ -1362,16 +1577,15 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
             };
             return getNextDue(a).localeCompare(getNextDue(b));
         });
-        completed.sort((a, b) => b.saleDate.localeCompare(a.saleDate));
+        completedOrCanceled.sort((a, b) => b.saleDate.localeCompare(a.saleDate));
         
-        return [...active, ...completed];
+        return [...active, ...completedOrCanceled];
     }, [sales, salesSearch, salesStart, salesEnd]);
 
     const directSales = useMemo(() => {
         let list = sales.filter(s => s.saleType === 'direct');
         if (cashierSearch) {
             const lower = cashierSearch.toLowerCase();
-            // Ignora datas e busca tudo
             return list.filter(s => 
                 s.customerName.toLowerCase().includes(lower) || 
                 (s.items && s.items.some(i => i.productName.toLowerCase().includes(lower)))
@@ -1383,56 +1597,48 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
     }, [sales, cashierSearch, cashierStart, cashierEnd]);
 
     const dashboardTotals = useMemo(() => {
-        const periodSales = sales.filter(s => s.saleDate >= dashStartDate && s.saleDate <= dashEndDate);
-        const totalReceivable = sales.filter(s => s.saleType === 'prazo' || !s.saleType).reduce((acc, s) => acc + (s.installments || []).filter(i => !i.paid).reduce((sum, i) => sum + i.amount, 0), 0);
-        let cashIn = 0;
-        periodSales.forEach(s => { if (s.saleType === 'direct') cashIn += s.totalPrice; if (s.saleType === 'prazo' && s.entryAmount) cashIn += s.entryAmount; });
+        const validSales = sales.filter(s => s.status !== 'canceled');
+        const periodSales = validSales.filter(s => s.saleDate >= dashStartDate && s.saleDate <= dashEndDate);
         
-        sales.forEach(s => {
-            if (s.installments) {
-                s.installments.forEach(i => {
-                    if (i.paid && i.paidAt && (!i.history || i.history.length === 0)) {
-                        const paidDate = i.paidAt.split('T')[0];
-                        if (paidDate >= dashStartDate && paidDate <= dashEndDate) {
-                            cashIn += i.amount;
-                        }
-                    }
-                    if (i.history) {
-                        i.history.forEach(h => {
-                            if (h.type !== 'abatement' && h.date >= dashStartDate && h.date <= dashEndDate) {
-                                cashIn += h.amount;
-                            }
-                        });
-                    }
-                });
-            }
+        const totalReceivable = validSales.filter(s => s.saleType === 'prazo' || !s.saleType).reduce((acc, s) => acc + (s.installments || []).filter(i => !i.paid).reduce((sum, i) => sum + i.amount, 0), 0);
+        
+        let cashIn = 0;
+
+        periodSales.forEach(s => { 
+            if (s.saleType === 'direct') {
+                let netDirect = s.totalPrice;
+                if (s.feeConfig) {
+                    // Independente de ser com_juros (onde totalPrice já cresceu) ou sem_juros (onde loja absorve a taxa),
+                    // o desconto de .value revela exatamente o que entrou líquido na conta.
+                    netDirect -= (s.feeConfig.value || 0);
+                }
+                cashIn += netDirect;
+            } 
+            if (s.saleType === 'prazo' && s.entryAmount) cashIn += s.entryAmount; 
         });
         
+        const overdueList = [];
+        const upcomingList = [];
         const today = getBrazilDateString();
         const nextWeek = addDays(today, 7);
 
-        const overdueList = [];
-        const upcomingList = [];
-
-        sales.forEach(s => {
-            if (s.saleType === 'prazo' && s.installments) {
+        validSales.forEach(s => {
+            if (s.installments) {
                 s.installments.forEach((i, idx) => {
-                    if (!i.paid) {
-                        const itemData = { 
-                            ...i, 
-                            sale: s,
-                            saleId: s.id, 
-                            customerName: s.customerName, 
-                            customerPhone: s.customerPhone,
-                            installmentIndex: idx,
-                            isOverdue: i.dueDate < today
-                        };
+                    if (i.paid && i.paidAt && (!i.history || i.history.length === 0)) {
+                        const paidDate = i.paidAt.split('T')[0];
+                        if (paidDate >= dashStartDate && paidDate <= dashEndDate) cashIn += i.amount;
+                    }
+                    if (i.history) {
+                        i.history.forEach(h => {
+                            if (h.type !== 'abatement' && h.date >= dashStartDate && h.date <= dashEndDate) cashIn += h.amount;
+                        });
+                    }
 
-                        if (i.dueDate < today) {
-                            overdueList.push(itemData);
-                        } else if (i.dueDate <= nextWeek) {
-                            upcomingList.push(itemData);
-                        }
+                    if (!i.paid) {
+                        const itemData = { ...i, sale: s, saleId: s.id, customerName: s.customerName, customerPhone: s.customerPhone, installmentIndex: idx, isOverdue: i.dueDate < today };
+                        if (i.dueDate < today) overdueList.push(itemData);
+                        else if (i.dueDate <= nextWeek) upcomingList.push(itemData);
                     }
                 });
             }
@@ -1441,9 +1647,16 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         const totalOverdue = overdueList.reduce((acc, i) => acc + i.amount, 0);
         const totalUpcoming = upcomingList.reduce((acc, i) => acc + i.amount, 0);
 
-        const estimatedProfit = periodSales.reduce((acc, s) => acc + (s.totalPrice - (s.totalCost || 0)), 0);
+        const estimatedProfit = periodSales.reduce((acc, s) => {
+            let profit = s.totalPrice - (s.totalCost || 0);
+            if (s.feeConfig) {
+                profit -= (s.feeConfig.value || 0); // deduz a taxa
+            }
+            return acc + profit;
+        }, 0);
+        
         const periodCost = periodSales.reduce((acc, s) => acc + (s.totalCost || 0), 0);
-        const realProfit = cashIn - periodCost;
+        const realProfit = cashIn - periodCost; // CashIn já está limpo de taxas
         
         return { 
             totalReceivable, totalReceived: cashIn, totalOverdue, totalUpcoming,
@@ -1457,12 +1670,8 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         setCustomerModalData({ open: false, data: null });
     };
     
-    // --- FUNÇÃO ATUALIZADA: ADICIONAR VENDA E DESCONTAR ESTOQUE ---
     const handleAddSale = async (data) => {
-        // 1. Salva a Venda
         await addDoc(collection(db, 'artifacts', APP_ID, 'users', user.uid, 'sales'), data);
-        
-        // 2. Itera sobre os itens comprados para descontar o estoque
         if (data.items && data.items.length > 0) {
             for (const item of data.items) {
                 if (item.productId) {
@@ -1472,17 +1681,47 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
                         if (prodSnap.exists()) {
                             const currentQty = parseInt(prodSnap.data().quantity) || 0;
                             const qtyDeducted = parseInt(item.quantity) || 0;
-                            // Salva a nova quantidade (pode ficar negativo se vender sem ter estoque real registrado)
                             await updateDoc(prodRef, { quantity: currentQty - qtyDeducted });
                         }
-                    } catch (e) {
-                        console.error("Erro ao descontar estoque do produto", item.productId, e);
-                    }
+                    } catch (e) { console.error(e); }
                 }
             }
         }
     };
     
+    // --- LÓGICA DE CANCELAMENTO ---
+    const handleCancelSaleLogic = async (saleId, reason) => {
+        const sale = sales.find(s => s.id === saleId);
+        if (!sale) return;
+        
+        await updateDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'sales', saleId), {
+            status: 'canceled',
+            cancelReason: reason,
+            canceledAt: serverTimestamp()
+        });
+
+        if (sale.items && sale.items.length > 0) {
+            for (const item of sale.items) {
+                if (item.productId) {
+                    const prodRef = doc(db, 'artifacts', APP_ID, 'users', user.uid, 'products', item.productId);
+                    try {
+                        const prodSnap = await getDoc(prodRef);
+                        if (prodSnap.exists()) {
+                            const currentQty = parseInt(prodSnap.data().quantity) || 0;
+                            await updateDoc(prodRef, { quantity: currentQty + parseInt(item.quantity) });
+                        }
+                    } catch (e) { console.error("Erro ao restaurar estoque:", e); }
+                }
+            }
+        }
+    };
+
+    const confirmCancelSale = async () => {
+        await handleCancelSaleLogic(cancelModal.saleId, cancelModal.reason);
+        setCancelModal({ open: false, saleId: null, reason: '' });
+        setSelectedSaleDetail(null);
+    };
+
     const requestDelete = (type, id) => setDeleteModal({ open: true, type, id });
     const confirmDelete = async () => {
         const { type, id } = deleteModal;
@@ -1497,7 +1736,6 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         setProfileModalOpen(false);
     };
 
-    // --- LÓGICA DE PAGAMENTO ---
     const handleClickPay = (sale, index) => {
         const item = sale.installments[index];
         if (item.paid) return; 
@@ -1514,7 +1752,6 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         const currentInstallment = updatedInstallments[index];
         const currentAmount = currentInstallment.amount;
 
-        // CORREÇÃO PONTO FLUTUANTE
         const amtPaidCents = Math.round(amountPaid * 100);
         const currAmtCents = Math.round(currentAmount * 100);
 
@@ -1559,7 +1796,6 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         setPaymentModal({ open: false, saleId: null, index: null, item: null, isLast: false });
     };
 
-    // --- LÓGICA DE EXCLUSÃO DE PAGAMENTO ---
     const handleDeletePayment = async () => {
         const { saleId, instIndex, histIndex, historyItem } = deletePaymentModal;
         const sale = sales.find(s => s.id === saleId);
@@ -1605,7 +1841,6 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         const newAmount = newData.amount;
         const diff = newAmount - oldAmount;
 
-        // Se ajustou o valor para <= 0 manualmente, marcar como paga pra evitar bug
         if (newAmount <= 0 && !updated[installmentIndex].paid) {
             newData.amount = 0;
             newData.paid = true;
@@ -1637,7 +1872,6 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
             if (sale.customerPhone) msg += `📱 *Telefone:* ${sale.customerPhone}\n`;
             msg += `\n`;
             
-            // ITENS DA VENDA
             msg += `🛍️ *ITENS DA COMPRA:*\n`;
             sale.items?.forEach(item => {
                 msg += `▪️ ${item.quantity}x ${item.productName} - ${formatCurrency(item.price)}\n`;
@@ -1660,7 +1894,6 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
                 const statusIcon = inst.paid ? '✅' : '⏳';
                 const statusText = inst.paid ? 'Pago' : 'Em Aberto';
                 const dateToShow = inst.paid && inst.paidAt ? formatDate(inst.paidAt) : formatDate(inst.dueDate);
-                // Busca o valor da parcela (caso tenha sido paga e o valor zerado, mostra o original)
                 const valorInst = formatCurrency(inst.originalAmount || inst.amount); 
                 msg += `${inst.number}️⃣ ${statusIcon} ${dateToShow} - ${valorInst} (${statusText})\n`;
             });
@@ -1674,7 +1907,6 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
             msg += `📅 *Data:* ${formatDate(sale.saleDate)}\n`;
             msg += `👤 *Cliente:* ${sale.customerName}\n\n`;
             
-            // ITENS DA VENDA
             msg += `🛍️ *ITENS DA VENDA:*\n`;
             sale.items?.forEach(item => {
                 msg += `▪️ ${item.quantity}x ${item.productName} - ${formatCurrency(item.price)}\n`;
@@ -1858,13 +2090,13 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
                         const pendingAmount = sale.installments ? sale.installments.filter(i => !i.paid).reduce((acc, i) => acc + i.amount, 0) : 0;
                         const paidInstallments = sale.installments ? sale.installments.filter(i => i.paid).length : 0;
                         const totalInst = sale.installmentsCount || 0;
-                        return React.createElement('div', { key: sale.id, className: `bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden transition-all hover:shadow-md cursor-pointer ${sale.status === 'completed' ? 'opacity-60 bg-slate-50' : ''}`, onClick: () => setSelectedSaleDetail(sale) },
+                        return React.createElement('div', { key: sale.id, className: `bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden transition-all hover:shadow-md cursor-pointer ${sale.status === 'completed' ? 'opacity-60 bg-slate-50' : sale.status === 'canceled' ? 'opacity-50 grayscale' : ''}`, onClick: () => setSelectedSaleDetail(sale) },
                             React.createElement('div', { className: "p-4" },
                                 React.createElement('div', { className: "flex justify-between items-start mb-2" },
-                                    React.createElement('div', null, React.createElement('p', { className: "text-xs font-bold text-slate-500 uppercase" }, sale.customerName), React.createElement('p', { className: "font-bold text-slate-800 text-lg" }, formatCurrency(sale.totalPrice)), React.createElement('p', { className: "text-xs text-slate-400 mt-0.5" }, formatDate(sale.saleDate))),
-                                    React.createElement('span', { className: `px-2 py-1 rounded text-xs font-bold ${sale.status === 'completed' ? 'bg-emerald-100 text-emerald-700' : 'bg-yellow-100 text-yellow-700'}` }, sale.status === 'completed' ? 'Quitado' : 'Aberto')
+                                    React.createElement('div', null, React.createElement('p', { className: "text-xs font-bold text-slate-500 uppercase" }, sale.customerName), React.createElement('p', { className: `font-bold text-lg ${sale.status === 'canceled' ? 'text-red-500 line-through' : 'text-slate-800'}` }, formatCurrency(sale.totalPrice)), React.createElement('p', { className: "text-xs text-slate-400 mt-0.5" }, formatDate(sale.saleDate))),
+                                    React.createElement('span', { className: `px-2 py-1 rounded text-xs font-bold ${sale.status === 'canceled' ? 'bg-red-100 text-red-700' : sale.status === 'completed' ? 'bg-emerald-100 text-emerald-700' : 'bg-yellow-100 text-yellow-700'}` }, sale.status === 'canceled' ? 'Cancelado' : sale.status === 'completed' ? 'Quitado' : 'Aberto')
                                 ),
-                                React.createElement('div', { className: "flex justify-between items-center text-xs text-slate-500 mt-2 pt-2 border-t border-slate-50" }, React.createElement('span', { className: "flex items-center gap-1" }, React.createElement(CheckCircle, { size: 12, className: paidInstallments === totalInst ? 'text-emerald-500' : 'text-slate-400' }), `Pagos: ${paidInstallments}/${totalInst}`), React.createElement('span', null, pendingAmount > 0 ? `Resta: ${formatCurrency(pendingAmount)}` : 'Concluído'))
+                                sale.status !== 'canceled' && React.createElement('div', { className: "flex justify-between items-center text-xs text-slate-500 mt-2 pt-2 border-t border-slate-50" }, React.createElement('span', { className: "flex items-center gap-1" }, React.createElement(CheckCircle, { size: 12, className: paidInstallments === totalInst ? 'text-emerald-500' : 'text-slate-400' }), `Pagos: ${paidInstallments}/${totalInst}`), React.createElement('span', null, pendingAmount > 0 ? `Resta: ${formatCurrency(pendingAmount)}` : 'Concluído'))
                             )
                         );
                     })
@@ -1880,12 +2112,13 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
                 // GRID CAIXA/VENDAS DIRETAS
                 React.createElement('div', { className: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" },
                     paginatedCashier.map(sale => {
-                        return React.createElement('div', { key: sale.id, className: "bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden transition-all hover:shadow-md cursor-pointer", onClick: () => setSelectedSaleDetail(sale) },
-                            React.createElement('div', { className: "p-4 flex flex-col gap-2" },
+                        return React.createElement('div', { key: sale.id, className: `bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden transition-all hover:shadow-md cursor-pointer ${sale.status === 'canceled' ? 'opacity-50 grayscale' : ''}`, onClick: () => setSelectedSaleDetail(sale) },
+                            React.createElement('div', { className: "p-4 flex flex-col gap-2 relative" },
+                                sale.status === 'canceled' && React.createElement('div', { className: "absolute top-2 right-2" }, React.createElement('span', { className: "bg-red-100 text-red-700 text-[10px] px-2 py-0.5 rounded font-bold" }, "Cancelado")),
                                 React.createElement('div', { className: "flex justify-between items-start" },
-                                    React.createElement('div', null, React.createElement('p', { className: "font-bold text-slate-800 text-lg" }, formatCurrency(sale.totalPrice)), React.createElement('p', { className: "text-sm text-slate-500" }, sale.customerName)),
+                                    React.createElement('div', null, React.createElement('p', { className: `font-bold text-lg ${sale.status === 'canceled' ? 'text-red-500 line-through' : 'text-slate-800'}` }, formatCurrency(sale.totalPrice)), React.createElement('p', { className: "text-sm text-slate-500" }, sale.customerName)),
                                     React.createElement('div', { className: "flex flex-col items-end" },
-                                        React.createElement('span', { className: "bg-emerald-100 text-emerald-700 text-xs font-bold px-2 py-1 rounded capitalize flex items-center gap-1" }, sale.paymentMethod === 'pix' && React.createElement(QrCode, { size: 12 }), sale.paymentMethod === 'money' && React.createElement(Banknote, { size: 12 }), (sale.paymentMethod === 'credit' || sale.paymentMethod === 'debit') && React.createElement(CreditCard, { size: 12 }), sale.paymentMethod === 'credit' ? `Crédito ${sale.cardInstallments}x` : sale.paymentMethod === 'money' ? 'Dinheiro' : sale.paymentMethod === 'debit' ? 'Débito' : 'PIX'),
+                                        React.createElement('span', { className: "bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-1 rounded capitalize flex items-center gap-1 mt-1" }, sale.paymentMethod === 'pix' && React.createElement(QrCode, { size: 10 }), sale.paymentMethod === 'money' && React.createElement(Banknote, { size: 10 }), (sale.paymentMethod === 'credit' || sale.paymentMethod === 'debit') && React.createElement(CreditCard, { size: 10 }), sale.paymentMethod === 'credit' ? `Crédito ${sale.cardInstallments}x` : sale.paymentMethod === 'money' ? 'Dinheiro' : sale.paymentMethod === 'debit' ? 'Débito' : 'PIX'),
                                         React.createElement('span', { className: "text-xs text-slate-400 mt-1" }, formatDate(sale.saleDate))
                                     )
                                 )
@@ -1961,6 +2194,7 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
             onPay: handleClickPay,
             onEdit: setEditInstallmentModal,
             onDeletePayment: confirmDeletePayment,
+            onCancelSale: (saleId) => setCancelModal({ open: true, saleId, reason: '' }), // NOVO
             onDeleteSale: requestDelete,
             onOpenWA: handleOpenWA
         }),
@@ -1975,32 +2209,24 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
             onOpenWA: handleOpenWA
         }),
         
-        // MODAL DE CONFIRMAÇÃO DE PAGAMENTO
-        React.createElement(PaymentConfirmationModal, {
-            isOpen: paymentModal.open,
-            onClose: () => setPaymentModal({ open: false, saleId: null, index: null, item: null, isLast: false }),
-            onConfirm: handleConfirmPayment,
-            installment: paymentModal.item,
-            isLast: paymentModal.isLast
-        }),
+        // MODAL DE CONFIRMAÇÃO DE PAGAMENTO E EXCLUSÃO
+        React.createElement(PaymentConfirmationModal, { isOpen: paymentModal.open, onClose: () => setPaymentModal({ open: false, saleId: null, index: null, item: null, isLast: false }), onConfirm: handleConfirmPayment, installment: paymentModal.item, isLast: paymentModal.isLast }),
+        React.createElement(ConfirmModal, { isOpen: deletePaymentModal.open, title: "Estornar Pagamento?", message: "O valor será devolvido para a parcela e ela ficará em aberto novamente.", onClose: () => setDeletePaymentModal({ open: false, saleId: null, instIndex: null, histIndex: null, historyItem: null }), onConfirm: handleDeletePayment }),
 
-        // MODAL DE EXCLUSÃO DE PAGAMENTO
-        React.createElement(ConfirmModal, {
-            isOpen: deletePaymentModal.open,
-            title: "Estornar Pagamento?",
-            message: "O valor será devolvido para a parcela e ela ficará em aberto novamente.",
-            onClose: () => setDeletePaymentModal({ open: false, saleId: null, instIndex: null, histIndex: null, historyItem: null }),
-            onConfirm: handleDeletePayment
+        // MODAIS DE CONFIRMAÇÃO DE CANCELAMENTO / EXCLUSÃO
+        React.createElement(ConfirmModal, { 
+            isOpen: cancelModal.open, 
+            title: "Cancelar Venda?", 
+            message: "Esta ação irá devolver os produtos ao estoque e invalidar os pagamentos.",
+            isCancel: true,
+            reasonValue: cancelModal.reason,
+            onReasonChange: (val) => setCancelModal(prev => ({...prev, reason: val})),
+            onClose: () => setCancelModal({ open: false, saleId: null, reason: '' }), 
+            onConfirm: confirmCancelSale 
         }),
-
-        // SELETOR DE WHATSAPP E CONFIRM DELETE
-        React.createElement(WhatsAppChooserModal, {
-            isOpen: waChooserModal.open,
-            phone: waChooserModal.phone,
-            message: waChooserModal.message,
-            onClose: () => setWaChooserModal({ open: false, phone: '', message: '' })
-        }),
-        React.createElement(ConfirmModal, { isOpen: deleteModal.open, title: "Tem certeza?", message: "O registro será apagado permanentemente.", onClose: () => { setDeleteModal({ open: false, id: null, type: null }); setSelectedSaleDetail(null); }, onConfirm: confirmDelete })
+        React.createElement(ConfirmModal, { isOpen: deleteModal.open, title: "Tem certeza?", message: "O registro será apagado permanentemente.", onClose: () => { setDeleteModal({ open: false, id: null, type: null }); setSelectedSaleDetail(null); }, onConfirm: confirmDelete }),
+        
+        React.createElement(WhatsAppChooserModal, { isOpen: waChooserModal.open, phone: waChooserModal.phone, message: waChooserModal.message, onClose: () => setWaChooserModal({ open: false, phone: '', message: '' }) })
     );
 };
 
