@@ -365,7 +365,12 @@ const PaymentConfirmationModal = ({ isOpen, onClose, onConfirm, installment, isL
             setError('Digite um valor válido.');
             return;
         }
-        if (isLast && val > installment.amount) {
+        
+        // CORREÇÃO PONTO FLUTUANTE
+        const valCents = Math.round(val * 100);
+        const instAmtCents = Math.round(installment.amount * 100);
+
+        if (isLast && valCents > instAmtCents) {
             setError('Na última parcela não é permitido pagar valor maior que o restante.');
             return;
         }
@@ -1290,26 +1295,39 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         const currentInstallment = updatedInstallments[index];
         const currentAmount = currentInstallment.amount;
 
+        // CORREÇÃO PONTO FLUTUANTE
+        const amtPaidCents = Math.round(amountPaid * 100);
+        const currAmtCents = Math.round(currentAmount * 100);
+
         let newHistory = currentInstallment.history || [];
         const timestamp = new Date().toISOString();
 
-        if (amountPaid < currentAmount) {
+        if (amtPaidCents < currAmtCents) {
             newHistory.push({ date: datePaid, amount: amountPaid, type: 'partial', timestamp: timestamp });
-            updatedInstallments[index] = { ...currentInstallment, amount: currentAmount - amountPaid, history: newHistory };
-        } else if (amountPaid === currentAmount) {
+            updatedInstallments[index] = { ...currentInstallment, amount: (currAmtCents - amtPaidCents) / 100, history: newHistory };
+        } else if (amtPaidCents === currAmtCents) {
             newHistory.push({ date: datePaid, amount: amountPaid, type: 'full', timestamp: timestamp });
             updatedInstallments[index] = { ...currentInstallment, paid: true, paidAt: datePaid, history: newHistory, amount: 0, originalAmount: currentInstallment.originalAmount || currentInstallment.amount };
         } else {
-            const surplus = amountPaid - currentAmount;
+            const surplus = (amtPaidCents - currAmtCents) / 100;
             newHistory.push({ date: datePaid, amount: currentAmount, surplus: surplus, type: 'full_surplus', timestamp: timestamp });
             updatedInstallments[index] = { ...currentInstallment, paid: true, paidAt: datePaid, amount: 0, history: newHistory, originalAmount: currentInstallment.originalAmount || currentInstallment.amount };
 
             if (index + 1 < updatedInstallments.length) {
                 const next = updatedInstallments[index + 1];
-                const newNextAmount = next.amount - surplus;
+                const nextAmtCents = Math.round(next.amount * 100);
+                const newNextAmountCents = nextAmtCents - Math.round(surplus * 100);
                 let nextHistory = next.history || [];
                 nextHistory.push({ date: datePaid, amount: surplus, type: 'abatement', fromInstallment: index, sourceTimestamp: timestamp, timestamp: new Date().toISOString() });
-                updatedInstallments[index + 1] = { ...next, amount: newNextAmount > 0 ? newNextAmount : 0, paid: newNextAmount <= 0, paidAt: newNextAmount <= 0 ? datePaid : null, history: nextHistory, originalAmount: next.originalAmount || next.amount };
+                
+                updatedInstallments[index + 1] = { 
+                    ...next, 
+                    amount: newNextAmountCents > 0 ? newNextAmountCents / 100 : 0, 
+                    paid: newNextAmountCents <= 0, 
+                    paidAt: newNextAmountCents <= 0 ? datePaid : null, 
+                    history: nextHistory, 
+                    originalAmount: next.originalAmount || next.amount 
+                };
             }
         }
 
@@ -1367,6 +1385,13 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         const oldAmount = updated[installmentIndex].amount;
         const newAmount = newData.amount;
         const diff = newAmount - oldAmount;
+
+        // Se ajustou o valor para <= 0 manualmente, marcar como paga pra evitar bug
+        if (newAmount <= 0 && !updated[installmentIndex].paid) {
+            newData.amount = 0;
+            newData.paid = true;
+            newData.paidAt = getBrazilDateString();
+        }
 
         updated[installmentIndex] = newData;
         const allPaid = updated.every(i => i.paid);
