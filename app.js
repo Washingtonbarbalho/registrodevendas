@@ -785,7 +785,7 @@ const NewSaleModal = ({ isOpen, onClose, customers, products, onSave }) => {
     const [cart, setCart] = useState([]);
     const [selectedProductId, setSelectedProductId] = useState('');
     const [currentQty, setCurrentQty] = useState(1);
-    const [currentCost, setCurrentCost] = useState('');
+    const [currentCost, setCurrentCost] = useState(''); // Mantido na lógica de trás para o lucro
     const [currentPrice, setCurrentPrice] = useState('');
     const [saleDate, setSaleDate] = useState(getBrazilDateString()); 
     const [saleType, setSaleType] = useState('prazo');
@@ -812,11 +812,9 @@ const NewSaleModal = ({ isOpen, onClose, customers, products, onSave }) => {
         setProductSearch(`#${p.code} - ${p.name}`); 
         setShowProductList(false);
         
-        // Puxa custos e preços automaticamente do produto
         const cost = p.costPrice || 0;
         let price = p.salePrice || 0;
         
-        // Verifica promoção ativa
         const today = getBrazilDateString();
         if(p.isPromo && p.promoStart && p.promoEnd && today >= p.promoStart && today <= p.promoEnd) {
             price = p.promoPrice || 0;
@@ -957,9 +955,8 @@ const NewSaleModal = ({ isOpen, onClose, customers, products, onSave }) => {
                             )
                         ),
                         React.createElement('div', { className: "flex gap-2" },
-                            React.createElement('div', { className: "w-20" }, React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1" }, "Qtd"), React.createElement('input', { type: "number", min: "1", className: "w-full p-3 border border-slate-200 rounded-lg text-center font-bold focus:outline-none focus:ring-2 focus:ring-yellow-500", value: currentQty, onChange: e => setCurrentQty(e.target.value) })),
-                            React.createElement('div', { className: "flex-1" }, React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1" }, "Custo"), React.createElement(MoneyInput, { disabled: true, placeholder: "0,00", value: currentCost, onChange: setCurrentCost, className: "w-full p-3 pl-10 border border-slate-200 rounded-lg bg-slate-100 text-slate-500" })),
-                            React.createElement('div', { className: "flex-1" }, React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1" }, "Venda"), React.createElement(MoneyInput, { placeholder: "0,00", value: currentPrice, onChange: setCurrentPrice, className: "w-full p-3 pl-10 border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-yellow-500" }))
+                            React.createElement('div', { className: "w-24" }, React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1" }, "Qtd"), React.createElement('input', { type: "number", min: "1", className: "w-full p-3 border border-slate-200 rounded-lg text-center font-bold focus:outline-none focus:ring-2 focus:ring-yellow-500", value: currentQty, onChange: e => setCurrentQty(e.target.value) })),
+                            React.createElement('div', { className: "flex-1" }, React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1" }, "Venda Unit."), React.createElement(MoneyInput, { placeholder: "0,00", value: currentPrice, onChange: setCurrentPrice, className: "w-full p-3 pl-10 border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-yellow-500" }))
                         ),
                         React.createElement('button', { onClick: handleAddItem, disabled: !selectedProductId || !currentPrice || currentQty < 1, className: "w-full py-3 bg-slate-800 text-white rounded-lg font-bold text-sm disabled:opacity-50 hover:bg-slate-700 transition-colors" }, "+ Adicionar Item")
                     ),
@@ -1342,7 +1339,31 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         setCustomerModalData({ open: false, data: null });
     };
     
-    const handleAddSale = async (data) => await addDoc(collection(db, 'artifacts', APP_ID, 'users', user.uid, 'sales'), data);
+    // --- FUNÇÃO ATUALIZADA: ADICIONAR VENDA E DESCONTAR ESTOQUE ---
+    const handleAddSale = async (data) => {
+        // 1. Salva a Venda
+        await addDoc(collection(db, 'artifacts', APP_ID, 'users', user.uid, 'sales'), data);
+        
+        // 2. Itera sobre os itens comprados para descontar o estoque
+        if (data.items && data.items.length > 0) {
+            for (const item of data.items) {
+                if (item.productId) {
+                    const prodRef = doc(db, 'artifacts', APP_ID, 'users', user.uid, 'products', item.productId);
+                    try {
+                        const prodSnap = await getDoc(prodRef);
+                        if (prodSnap.exists()) {
+                            const currentQty = parseInt(prodSnap.data().quantity) || 0;
+                            const qtyDeducted = parseInt(item.quantity) || 0;
+                            // Salva a nova quantidade (pode ficar negativo se vender sem ter estoque real registrado)
+                            await updateDoc(prodRef, { quantity: currentQty - qtyDeducted });
+                        }
+                    } catch (e) {
+                        console.error("Erro ao descontar estoque do produto", item.productId, e);
+                    }
+                }
+            }
+        }
+    };
     
     const requestDelete = (type, id) => setDeleteModal({ open: true, type, id });
     const confirmDelete = async () => {
