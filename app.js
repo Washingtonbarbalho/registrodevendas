@@ -32,6 +32,13 @@ const auth = getAuth(app);
 const APP_ID = 'vendas-aura-main';
 const ADMIN_EMAIL = "washington.wn8@gmail.com";
 
+// TAXAS DEFAULT CASO NÃO TENHAM SIDO SALVAS NA NUVEM
+const DEFAULT_RATES = {
+    presencial_visa_master: { debit: 1.37, credit: { 1: 3.15, 2: 5.39, 3: 6.12, 4: 6.85, 5: 7.57, 6: 8.28, 7: 8.99, 8: 9.69, 9: 10.38, 10: 11.06, 11: 11.74, 12: 12.40 } },
+    presencial_outras: { debit: 2.58, credit: { 1: 4.91, 2: 6.47, 3: 7.20, 4: 7.92, 5: 8.63, 6: 9.33, 7: 10.03, 8: 10.72, 9: 11.41, 10: 12.08, 11: 12.75, 12: 13.41 } },
+    link: { debit: 2.58, credit: { 1: 4.20, 2: 6.09, 3: 7.01, 4: 7.91, 5: 8.80, 6: 9.67, 7: 12.59, 8: 13.42, 9: 14.25, 10: 15.06, 11: 15.87, 12: 16.66 } }
+};
+
 // --- HELPERS GERAIS ---
 const formatCurrency = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0);
 
@@ -42,7 +49,6 @@ const parseMoney = (valStr) => {
     return parseFloat(clean) || 0;
 };
 
-// Usado especificamente para converter o input da taxa (ex: 5,39 ou 5.39 -> 5.39 real)
 const parsePercent = (valStr) => {
     if (!valStr) return 0;
     if (typeof valStr === 'number') return valStr;
@@ -121,27 +127,6 @@ const getCurrentMonthEnd = () => {
     const d = new Date();
     return new Date(d.getFullYear(), d.getMonth() + 1, 0).toLocaleDateString('pt-BR', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'America/Sao_Paulo' }).split('/').reverse().join('-');
 };
-
-// --- FUNÇÃO DO MOTOR DE TAXAS ---
-const getCardRate = (method, mode, brand, installments) => {
-    const inst = parseInt(installments) || 1;
-    if (mode === 'link') {
-        if (method === 'debit') return 2.58; 
-        const linkRates = { 1: 4.20, 2: 6.09, 3: 7.01, 4: 7.91, 5: 8.80, 6: 9.67, 7: 12.59, 8: 13.42, 9: 14.25, 10: 15.06, 11: 15.87, 12: 16.66 };
-        return linkRates[inst] || 4.20;
-    } else {
-        if (brand === 'visa_master') {
-            if (method === 'debit') return 1.37;
-            const vmRates = { 1: 3.15, 2: 5.39, 3: 6.12, 4: 6.85, 5: 7.57, 6: 8.28, 7: 8.99, 8: 9.69, 9: 10.38, 10: 11.06, 11: 11.74, 12: 12.40 };
-            return vmRates[inst] || 3.15;
-        } else { // Outras (Elo, Amex...)
-            if (method === 'debit') return 2.58;
-            const outRates = { 1: 4.91, 2: 6.47, 3: 7.20, 4: 7.92, 5: 8.63, 6: 9.33, 7: 10.03, 8: 10.72, 9: 11.41, 10: 12.08, 11: 12.75, 12: 13.41 };
-            return outRates[inst] || 4.91;
-        }
-    }
-};
-
 
 // --- COMPONENTES DE UI ---
 
@@ -951,7 +936,7 @@ const CustomerFormModal = ({ isOpen, onClose, onSave, initialData }) => {
     );
 };
 
-const NewSaleModal = ({ isOpen, onClose, customers, products, onSave }) => {
+const NewSaleModal = ({ isOpen, onClose, customers, products, ratesConfig, onSave }) => {
     const [step, setStep] = useState(1);
     
     // Step 1: Cliente
@@ -964,11 +949,11 @@ const NewSaleModal = ({ isOpen, onClose, customers, products, onSave }) => {
     const [showProductList, setShowProductList] = useState(false);
     const [cart, setCart] = useState([]);
     const [selectedProductId, setSelectedProductId] = useState('');
-    const [baseUnitPrice, setBaseUnitPrice] = useState(0); // Preço original do produto
+    const [baseUnitPrice, setBaseUnitPrice] = useState(0); 
     const [currentQty, setCurrentQty] = useState(1);
-    const [currentCost, setCurrentCost] = useState(0); // Mantido oculto na logica
-    const [currentPrice, setCurrentPrice] = useState(''); // Preço cobrado na venda
-    const [currentDiscount, setCurrentDiscount] = useState(''); // Desconto unitário manual
+    const [currentCost, setCurrentCost] = useState(0); 
+    const [currentPrice, setCurrentPrice] = useState(''); 
+    const [currentDiscount, setCurrentDiscount] = useState(''); 
     
     // Step 3: Pagamento e Taxas
     const [saleDate, setSaleDate] = useState(getBrazilDateString()); 
@@ -983,10 +968,10 @@ const NewSaleModal = ({ isOpen, onClose, customers, products, onSave }) => {
     // Caixa/Cartão (Direto)
     const [directMethod, setDirectMethod] = useState('pix');
     const [cardInstallments, setCardInstallments] = useState(1);
-    const [cardMode, setCardMode] = useState('presencial'); // 'presencial', 'link'
-    const [cardBrand, setCardBrand] = useState('visa_master'); // 'visa_master', 'outras'
-    const [feeType, setFeeType] = useState('sem_juros'); // 'sem_juros', 'com_juros'
-    const [feePercent, setFeePercent] = useState('0,00');
+    const [cardMode, setCardMode] = useState('presencial'); 
+    const [cardBrand, setCardBrand] = useState('visa_master'); 
+    const [feeType, setFeeType] = useState('sem_juros'); 
+    const [feePercent, setFeePercent] = useState(0);
 
     useEffect(() => { 
         if (isOpen) { 
@@ -996,27 +981,58 @@ const NewSaleModal = ({ isOpen, onClose, customers, products, onSave }) => {
             setCustomerSearch(''); setProductSearch(''); setCurrentQty(1); 
             setCurrentCost(0); setCurrentPrice(''); setBaseUnitPrice(0); setCurrentDiscount(''); 
             setShowCustomerList(false); setShowProductList(false);
-            setDirectMethod('pix'); setCardInstallments(1); setCardMode('presencial'); setCardBrand('visa_master'); setFeeType('sem_juros'); setFeePercent('0,00');
+            setDirectMethod('pix'); setCardInstallments(1); setCardMode('presencial'); setCardBrand('visa_master'); setFeeType('sem_juros'); setFeePercent(0);
         } 
     }, [isOpen]);
 
     useEffect(() => { let daysToAdd = 30; if (frequency === 'weekly') daysToAdd = 7; else if (frequency === 'biweekly') daysToAdd = 15; setFirstDueDate(addDays(saleDate, daysToAdd)); }, [frequency, saleDate]);
 
-    // Calcula taxa de cartão padrão automaticamente se não for editada pelo usuário
+    // Busca taxa da nuvem (ou default) e trava no state
     useEffect(() => {
-        if(saleType !== 'direct' || (directMethod !== 'credit' && directMethod !== 'debit')) return;
-        const rate = getCardRate(directMethod, cardMode, cardBrand, cardInstallments);
-        setFeePercent(rate.toFixed(2).replace('.', ','));
-    }, [directMethod, cardMode, cardBrand, cardInstallments, saleType]);
+        if(saleType !== 'direct' || (directMethod !== 'credit' && directMethod !== 'debit')) {
+            setFeePercent(0);
+            return;
+        }
+        
+        const rates = ratesConfig || DEFAULT_RATES;
+        let percent = 0;
+        const inst = parseInt(cardInstallments) || 1;
+
+        if (cardMode === 'link') {
+            if (directMethod === 'debit') percent = rates.link.debit;
+            else percent = rates.link.credit[inst] || 0;
+        } else {
+            if (cardBrand === 'visa_master') {
+                if (directMethod === 'debit') percent = rates.presencial_visa_master.debit;
+                else percent = rates.presencial_visa_master.credit[inst] || 0;
+            } else {
+                if (directMethod === 'debit') percent = rates.presencial_outras.debit;
+                else percent = rates.presencial_outras.credit[inst] || 0;
+            }
+        }
+        setFeePercent(percent);
+    }, [directMethod, cardMode, cardBrand, cardInstallments, saleType, ratesConfig]);
 
     const filteredCustomers = customers.filter(c => c.name.toLowerCase().includes(customerSearch.toLowerCase()));
     const filteredProducts = products.filter(p => p.name.toLowerCase().includes(productSearch.toLowerCase()) || p.code.includes(productSearch));
     
-    const totalCartValue = cart.reduce((acc, item) => acc + item.price, 0);
+    // Matemática do Resumo
+    const grossSubtotal = cart.reduce((acc, item) => acc + (item.baseUnitPrice * item.quantity), 0);
+    const totalDiscount = cart.reduce((acc, item) => acc + (item.unitDiscount * item.quantity), 0);
+    const totalCartValue = cart.reduce((acc, item) => acc + item.price, 0); // Preço já com desconto unitário
     const entryValue = parseMoney(entryAmount) || 0;
-    const totalRemaining = Math.max(0, totalCartValue - entryValue);
+    const baseRemaining = Math.max(0, totalCartValue - entryValue);
 
-    // --- Lógica de Descontos Automáticos ---
+    // Cálculos Ativos em Tempo Real (Para o Resumo na Tela 3)
+    const activeFeeValue = (feeType === 'com_juros' && feePercent > 0 && saleType === 'direct') 
+        ? (baseRemaining / (1 - (feePercent / 100))) - baseRemaining 
+        : (feeType === 'sem_juros' && feePercent > 0 && saleType === 'direct') 
+            ? baseRemaining * (feePercent / 100) 
+            : 0;
+
+    const activeTotalFinal = saleType === 'direct' && feeType === 'com_juros' ? totalCartValue + activeFeeValue : totalCartValue;
+    const activeFinalRemaining = Math.max(0, activeTotalFinal - entryValue);
+
     const handleSelectProduct = (p) => {
         setSelectedProductId(p.id); 
         setProductSearch(`#${p.code} - ${p.name}`); 
@@ -1026,9 +1042,7 @@ const NewSaleModal = ({ isOpen, onClose, customers, products, onSave }) => {
         let price = p.salePrice || 0;
         
         const today = getBrazilDateString();
-        if(p.isPromo && p.promoStart && p.promoEnd && today >= p.promoStart && today <= p.promoEnd) {
-            price = p.promoPrice || 0;
-        }
+        if(p.isPromo && p.promoStart && p.promoEnd && today >= p.promoStart && today <= p.promoEnd) price = p.promoPrice || 0;
 
         setCurrentCost(cost);
         setBaseUnitPrice(price);
@@ -1069,7 +1083,8 @@ const NewSaleModal = ({ isOpen, onClose, customers, products, onSave }) => {
             quantity: qty, 
             cost: totalLineCost, 
             price: totalLinePrice, 
-            unitPrice: unitPrice, 
+            unitPrice: unitPrice,
+            baseUnitPrice: baseUnitPrice, 
             unitCost: currentCost,
             unitDiscount: unitDiscount 
         };
@@ -1081,10 +1096,9 @@ const NewSaleModal = ({ isOpen, onClose, customers, products, onSave }) => {
     const handleRemoveItem = (id) => setCart(cart.filter(i => i.tempId !== id));
 
     const calculateInstallments = () => {
-        const total = totalRemaining;
         const count = parseInt(installmentsCount) || 1;
-        if (total <= 0) return [];
-        const amountPerInstallment = total / count;
+        if (activeFinalRemaining <= 0) return [];
+        const amountPerInstallment = activeFinalRemaining / count;
         const installments = [];
         let currentDateStr = firstDueDate; 
         for (let i = 0; i < count; i++) {
@@ -1099,8 +1113,6 @@ const NewSaleModal = ({ isOpen, onClose, customers, products, onSave }) => {
     const handleFinish = () => {
         if (!customerId || cart.length === 0) return;
         const customer = customers.find(c => c.id === customerId);
-        
-        const sumDiscount = cart.reduce((acc, i) => acc + (i.unitDiscount * i.quantity), 0);
 
         let saleData = { 
             customerId: customerId, 
@@ -1108,8 +1120,8 @@ const NewSaleModal = ({ isOpen, onClose, customers, products, onSave }) => {
             customerPhone: customer.phone, 
             items: cart, 
             totalCost: cart.reduce((acc, i) => acc + i.cost, 0), 
-            totalPrice: totalCartValue, 
-            totalDiscount: sumDiscount,
+            totalPrice: activeTotalFinal, 
+            totalDiscount: totalDiscount,
             saleDate: saleDate, 
             saleType: saleType,
             status: 'active'
@@ -1117,62 +1129,57 @@ const NewSaleModal = ({ isOpen, onClose, customers, products, onSave }) => {
 
         if (saleType === 'prazo') {
             const finalInstallments = calculateInstallments();
+            const instValue = finalInstallments.length > 0 ? finalInstallments[0].amount : 0;
+            const instText = finalInstallments.length > 0 ? `${finalInstallments.length}x de ${formatCurrency(instValue)}` : 'À Vista';
+
             saleData = { 
                 ...saleData, 
                 entryAmount: entryValue, 
                 frequency, 
                 installmentsCount: finalInstallments.length, 
                 installments: finalInstallments, 
-                status: finalInstallments.length === 0 && entryValue >= totalCartValue ? 'completed' : 'active' 
+                status: finalInstallments.length === 0 && entryValue >= totalCartValue ? 'completed' : 'active',
+                summaryText: instText
             };
         } else {
-            // CAIXA E CARTÃO - LOGICA DE TAXAS
-            let finalSalePrice = totalCartValue;
             let feeObj = null;
-
             if (directMethod === 'credit' || directMethod === 'debit') {
-                const feeP = parsePercent(feePercent) / 100;
-                const baseValue = totalRemaining;
-                let feeVal = 0;
-
-                if (feeType === 'com_juros') {
-                    const chargedToClient = feeP < 1 ? baseValue / (1 - feeP) : baseValue;
-                    feeVal = chargedToClient - baseValue;
-                    finalSalePrice += feeVal; // Aumenta o valor final da venda
-                } else {
-                    feeVal = baseValue * feeP;
-                }
-
                 feeObj = {
-                    applied: feeP > 0,
-                    percent: parsePercent(feePercent),
-                    value: feeVal,
-                    type: feeType, // 'sem_juros' ou 'com_juros'
+                    applied: feePercent > 0,
+                    percent: feePercent,
+                    value: activeFeeValue,
+                    type: feeType,
                     mode: cardMode,
                     brand: cardBrand
                 };
             }
 
+            const cInst = parseInt(cardInstallments) || 1;
+            const instValue = cInst > 0 ? activeFinalRemaining / cInst : 0;
+            const instText = directMethod === 'credit' ? `${cInst}x de ${formatCurrency(instValue)}${feeType==='com_juros' ? ' (Com Juros)' : ' (Sem Juros)'}` : (directMethod === 'debit' ? 'Débito' : directMethod === 'pix' ? 'PIX' : 'Dinheiro');
+
             saleData = { 
                 ...saleData, 
                 paymentMethod: directMethod, 
                 entryAmount: entryValue, 
-                cardAmount: finalSalePrice - entryValue, // O que vai ser cobrado do cartão
-                cardInstallments: directMethod === 'credit' ? parseInt(cardInstallments) : 1, 
+                cardAmount: activeFinalRemaining, 
+                cardInstallments: directMethod === 'credit' ? cInst : 1, 
                 installments: [], 
                 status: 'completed',
-                totalPrice: finalSalePrice, // Preço final ajustado
-                feeConfig: feeObj
+                feeConfig: feeObj,
+                summaryText: instText
             };
         }
         onSave(saleData); onClose();
     };
 
     if (!isOpen) return null;
-    return React.createElement('div', { className: "fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" },
-        React.createElement('div', { className: "bg-white rounded-2xl w-full max-w-md p-6 animate-fade-in shadow-2xl flex flex-col max-h-[90vh]" },
-            React.createElement('div', { className: "flex items-center justify-between mb-4 shrink-0" }, React.createElement('h2', { className: "text-xl font-bold text-slate-800 flex items-center gap-2" }, React.createElement(ShoppingBag, { className: "text-yellow-600" }), "Nova Venda"), React.createElement('div', { className: "flex gap-1" }, [1,2,3].map(i => React.createElement('div', { key: i, className: `h-2 w-8 rounded-full ${step >= i ? 'bg-yellow-500' : 'bg-slate-200'}` })))),
-            React.createElement('div', { className: "flex-1 overflow-y-auto pr-1 no-scrollbar space-y-4" },
+    return React.createElement('div', { className: "fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 overflow-y-auto" },
+        React.createElement('div', { className: "bg-white rounded-2xl w-full max-w-lg p-6 animate-fade-in shadow-2xl flex flex-col my-8" },
+            React.createElement('div', { className: "flex items-center justify-between mb-4 shrink-0" }, React.createElement('h2', { className: "text-xl font-bold text-slate-800 flex items-center gap-2" }, React.createElement(ShoppingBag, { className: "text-yellow-600" }), "Nova Venda"), React.createElement('div', { className: "flex gap-1" }, [1,2,3].map(i => React.createElement('div', { key: i, className: `h-2 w-8 rounded-full transition-colors ${step >= i ? 'bg-yellow-500' : 'bg-slate-200'}` })))),
+            React.createElement('div', { className: "flex-1 space-y-4" },
+                
+                // STEP 1
                 step === 1 && React.createElement('div', { className: "space-y-4 animate-fade-in" },
                     React.createElement('div', { className: "bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3" },
                         React.createElement('label', { className: "text-xs font-bold text-slate-400 uppercase" }, "Buscar Cliente"),
@@ -1204,6 +1211,8 @@ const NewSaleModal = ({ isOpen, onClose, customers, products, onSave }) => {
                         )
                     )
                 ),
+
+                // STEP 2
                 step === 2 && React.createElement('div', { className: "space-y-4 animate-fade-in" },
                     React.createElement('div', { className: "bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3" },
                         React.createElement('label', { className: "text-xs font-bold text-slate-400 uppercase" }, "Adicionar Produto"),
@@ -1254,15 +1263,18 @@ const NewSaleModal = ({ isOpen, onClose, customers, products, onSave }) => {
                         cart.length > 0 && React.createElement('div', { className: "text-right font-bold text-xl text-slate-800 pt-3 border-t border-slate-100 mt-2" }, `Total: ${formatCurrency(totalCartValue)}`)
                     )
                 ),
+
+                // STEP 3
                 step === 3 && React.createElement('div', { className: "space-y-4 animate-fade-in" },
                     React.createElement('div', null, React.createElement('label', { className: "block text-xs font-bold text-slate-500 uppercase mb-1 flex items-center gap-1" }, React.createElement(Calendar, { size: 12 }), " Data da Venda"), React.createElement('input', { type: "date", className: "w-full p-3 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500", value: saleDate, onChange: e => setSaleDate(e.target.value) })),
                     React.createElement('div', { className: "flex bg-slate-100 p-1 rounded-xl mb-2" },
                         React.createElement('button', { onClick: () => setSaleType('prazo'), className: `flex-1 py-2 text-sm font-bold rounded-lg transition-all ${saleType === 'prazo' ? 'bg-white shadow text-slate-800' : 'text-slate-400'}` }, "A Prazo (Fiado)"),
                         React.createElement('button', { onClick: () => setSaleType('direct'), className: `flex-1 py-2 text-sm font-bold rounded-lg transition-all ${saleType === 'direct' ? 'bg-emerald-500 shadow text-white' : 'text-slate-400'}` }, "Caixa / Cartão")
                     ),
+                    
                     saleType === 'prazo' && React.createElement('div', { className: "animate-fade-in space-y-4" },
                         React.createElement('div', null, React.createElement('label', { className: "block text-xs font-bold text-slate-500 uppercase mb-1" }, "Entrada (Opcional)"), React.createElement(MoneyInput, { value: entryAmount, onChange: setEntryAmount })),
-                        totalRemaining > 0 && React.createElement(React.Fragment, null,
+                        baseRemaining > 0 && React.createElement(React.Fragment, null,
                             React.createElement('div', null, React.createElement('label', { className: "block text-xs font-bold text-slate-500 uppercase mb-1" }, "Frequência"), React.createElement('select', { className: "w-full p-3 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-yellow-500", value: frequency, onChange: e => setFrequency(e.target.value) }, React.createElement('option', { value: "weekly" }, "Semanal"), React.createElement('option', { value: "biweekly" }, "Quinzenal"), React.createElement('option', { value: "monthly" }, "Mensal"))),
                             React.createElement('div', { className: "grid grid-cols-2 gap-4" },
                                 React.createElement('div', null, React.createElement('label', { className: "block text-xs font-bold text-slate-500 uppercase mb-1" }, "Parcelas"), React.createElement('select', { className: "w-full p-3 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-yellow-500", value: installmentsCount, onChange: e => setInstallmentsCount(e.target.value) }, Array.from({length: 12}, (_, i) => i + 1).map(n => React.createElement('option', { key: n, value: n }, `${n}x`)))),
@@ -1270,6 +1282,7 @@ const NewSaleModal = ({ isOpen, onClose, customers, products, onSave }) => {
                             )
                         )
                     ),
+
                     saleType === 'direct' && React.createElement('div', { className: "animate-fade-in space-y-4" },
                         React.createElement('div', { className: "grid grid-cols-2 gap-3" },
                             ['pix','money','debit','credit'].map(m => React.createElement('button', { key: m, onClick: () => setDirectMethod(m), className: `p-4 rounded-xl border flex flex-col items-center gap-2 ${directMethod === m ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-200 text-slate-500 hover:bg-slate-50'}` }, React.createElement(m === 'pix' ? QrCode : m === 'money' ? Banknote : CreditCard, { size: 24 }), React.createElement('span', { className: "text-xs font-bold uppercase" }, m === 'money' ? 'Dinheiro' : m === 'debit' ? 'Débito' : m === 'credit' ? 'Crédito' : 'PIX')))
@@ -1278,7 +1291,6 @@ const NewSaleModal = ({ isOpen, onClose, customers, products, onSave }) => {
                             React.createElement('div', null, React.createElement('label', { className: "block text-xs font-bold text-slate-500 uppercase mb-1" }, "Entrada (Dinheiro/Pix) - Opcional"), React.createElement(MoneyInput, { value: entryAmount, onChange: setEntryAmount })),
                             directMethod === 'credit' && React.createElement('div', null, React.createElement('label', { className: "block text-xs font-bold text-slate-500 uppercase mb-1" }, "Parcelas no Cartão"), React.createElement('select', { className: "w-full p-3 border border-slate-200 rounded-lg outline-none", value: cardInstallments, onChange: e => setCardInstallments(e.target.value) }, React.createElement('option', { value: "1" }, "1x (À Vista)"), Array.from({length: 11}, (_, i) => i + 2).map(n => React.createElement('option', { key: n, value: n }, `${n}x`)))),
                             
-                            // NOVO: BLOCO DE TAXAS DE CARTÃO
                             React.createElement('div', { className: "bg-orange-50 p-4 rounded-xl border border-orange-100 space-y-3" },
                                 React.createElement('p', { className: "text-xs font-bold text-orange-700 uppercase flex items-center gap-1" }, React.createElement(BadgePercent, { size: 14 }), "Configuração de Taxas"),
                                 React.createElement('div', { className: "grid grid-cols-2 gap-3" },
@@ -1287,26 +1299,29 @@ const NewSaleModal = ({ isOpen, onClose, customers, products, onSave }) => {
                                 ),
                                 React.createElement('div', { className: "grid grid-cols-2 gap-3" },
                                     React.createElement('div', null, React.createElement('label', { className: "block text-[10px] font-bold text-orange-600 uppercase mb-1" }, "Repasse"), React.createElement('select', { className: "w-full p-2 border border-orange-200 rounded text-sm outline-none text-slate-700 font-bold", value: feeType, onChange: e => setFeeType(e.target.value) }, React.createElement('option', { value: "sem_juros" }, "Sem Juros (Loja Paga)"), React.createElement('option', { value: "com_juros" }, "Com Juros (Cliente Paga)"))),
-                                    React.createElement('div', null, React.createElement('label', { className: "block text-[10px] font-bold text-orange-600 uppercase mb-1" }, "Taxa Cobrada (%)"), React.createElement('div', { className: "relative" }, React.createElement('input', { type: "text", className: "w-full p-2 pr-6 border border-orange-200 rounded text-sm outline-none font-bold text-slate-700", value: feePercent, onChange: e => setFeePercent(e.target.value.replace(/[^0-9.,]/g, '')) }), React.createElement('span', { className: "absolute right-2 top-2 text-slate-400 text-sm" }, "%")))
-                                ),
-                                React.createElement('div', { className: "text-[10px] bg-orange-100 p-2 rounded text-orange-800 leading-tight" }, 
-                                    (() => {
-                                        const fP = parsePercent(feePercent) / 100;
-                                        if(feeType === 'sem_juros') {
-                                            const fV = totalRemaining * fP;
-                                            return React.createElement(React.Fragment, null, 
-                                                `Valor da transação: ${formatCurrency(totalRemaining)}`, React.createElement('br'),
-                                                React.createElement('strong', null, `A loja pagará ${formatCurrency(fV)} de taxa. Líquido a receber: ${formatCurrency(totalRemaining - fV)}`)
-                                            );
-                                        } else {
-                                            const charged = fP < 1 ? totalRemaining / (1 - fP) : totalRemaining;
-                                            const fV = charged - totalRemaining;
-                                            return React.createElement(React.Fragment, null, 
-                                                `Valor base: ${formatCurrency(totalRemaining)}`, React.createElement('br'),
-                                                React.createElement('strong', null, `O cliente pagará ${formatCurrency(charged)} (Taxa de ${formatCurrency(fV)} embutida).`)
-                                            );
-                                        }
-                                    })()
+                                    React.createElement('div', null, React.createElement('label', { className: "block text-[10px] font-bold text-orange-600 uppercase mb-1" }, "Taxa Padrão (%)"), React.createElement('div', { className: "bg-white border border-orange-200 p-2 rounded text-sm text-slate-500 font-bold flex justify-between" }, React.createElement('span', null, feePercent.toFixed(2).replace('.', ',')), React.createElement('span', null, "%")))
+                                )
+                            )
+                        )
+                    ),
+
+                    // NOVO BLOCO: RESUMO FINANCEIRO
+                    React.createElement('div', { className: "mt-6 bg-slate-800 text-white rounded-xl p-5 shadow-lg border border-slate-700" },
+                        React.createElement('p', { className: "text-xs font-bold text-slate-400 uppercase flex items-center gap-2 mb-4 pb-2 border-b border-slate-700" }, React.createElement(Receipt, { size: 14 }), "Resumo Financeiro"),
+                        React.createElement('div', { className: "space-y-2 text-sm" },
+                            React.createElement('div', { className: "flex justify-between" }, React.createElement('span', { className: "text-slate-300" }, "Subtotal:"), React.createElement('span', null, formatCurrency(grossSubtotal))),
+                            totalDiscount > 0 && React.createElement('div', { className: "flex justify-between text-emerald-400" }, React.createElement('span', null, "Descontos:"), React.createElement('span', null, `- ${formatCurrency(totalDiscount)}`)),
+                            activeFeeValue > 0 && React.createElement('div', { className: `flex justify-between ${feeType === 'sem_juros' ? 'text-red-400' : 'text-orange-400'}` }, React.createElement('span', null, feeType === 'sem_juros' ? "Taxa Maquininha (Loja Paga):" : "Taxa Maquininha (Cliente Paga):"), React.createElement('span', null, `${feeType === 'sem_juros' ? '-' : '+'} ${formatCurrency(activeFeeValue)}`)),
+                            React.createElement('div', { className: "flex justify-between font-bold text-lg pt-2 border-t border-slate-700 mt-2" }, React.createElement('span', null, "Total Venda:"), React.createElement('span', { className: "text-yellow-400" }, formatCurrency(activeTotalFinal))),
+                            
+                            entryValue > 0 && React.createElement('div', { className: "flex justify-between text-slate-300 pt-2" }, React.createElement('span', null, "Entrada Paga:"), React.createElement('span', null, formatCurrency(entryValue))),
+                            
+                            activeFinalRemaining > 0 && React.createElement('div', { className: "flex justify-between font-bold text-emerald-400 pt-2" },
+                                React.createElement('span', null, "Parcelamento:"),
+                                React.createElement('span', null, 
+                                    saleType === 'prazo' 
+                                        ? `${parseInt(installmentsCount)||1}x de ${formatCurrency(activeFinalRemaining / (parseInt(installmentsCount)||1))}`
+                                        : `${parseInt(cardInstallments)||1}x de ${formatCurrency(activeFinalRemaining / (parseInt(cardInstallments)||1))} ${feeType === 'sem_juros' ? '(Sem Juros)' : '(Com Juros)'}`
                                 )
                             )
                         )
@@ -1316,7 +1331,7 @@ const NewSaleModal = ({ isOpen, onClose, customers, products, onSave }) => {
             React.createElement('div', { className: "flex gap-3 mt-4 pt-4 border-t border-slate-100 shrink-0" },
                 step === 1 && React.createElement(React.Fragment, null, React.createElement('button', { onClick: onClose, className: "flex-1 p-3 text-slate-500 font-bold hover:bg-slate-100 rounded-xl" }, "Cancelar"), React.createElement('button', { onClick: () => setStep(2), disabled: !customerId, className: "flex-1 p-3 bg-slate-900 text-white font-bold rounded-xl disabled:opacity-50" }, "Próximo")),
                 step === 2 && React.createElement(React.Fragment, null, React.createElement('button', { onClick: () => setStep(1), className: "flex-1 p-3 text-slate-500 font-bold hover:bg-slate-100 rounded-xl" }, "Voltar"), React.createElement('button', { onClick: () => setStep(3), disabled: cart.length === 0, className: "flex-1 p-3 bg-slate-900 text-white font-bold rounded-xl disabled:opacity-50" }, "Pagamento")),
-                step === 3 && React.createElement(React.Fragment, null, React.createElement('button', { onClick: () => setStep(2), className: "flex-1 p-3 text-slate-500 font-bold hover:bg-slate-100 rounded-xl" }, "Voltar"), React.createElement('button', { onClick: handleFinish, className: "flex-1 p-3 bg-yellow-500 text-white font-bold rounded-xl shadow-lg shadow-yellow-200 hover:bg-yellow-600" }, "Finalizar Venda"))
+                step === 3 && React.createElement(React.Fragment, null, React.createElement('button', { onClick: () => setStep(2), className: "flex-1 p-3 text-slate-500 font-bold hover:bg-slate-100 rounded-xl" }, "Voltar"), React.createElement('button', { onClick: handleFinish, className: "flex-1 p-3 bg-yellow-500 text-slate-900 font-bold rounded-xl shadow-lg shadow-yellow-200 hover:bg-yellow-400" }, "Finalizar Venda"))
             )
         )
     );
@@ -1339,6 +1354,9 @@ const SaleDetailsModal = ({ isOpen, onClose, sale, onPay, onEdit, onDeletePaymen
 
     const waType = sale.saleType === 'direct' ? 'comprovante' : (sale.status === 'completed' ? 'quitacao' : 'registro');
     const waTitle = sale.saleType === 'direct' ? 'Enviar Comprovante' : (sale.status === 'completed' ? 'Enviar Quitação' : 'Enviar Resumo da Venda');
+
+    // Reconstrução visual do Gross Subtotal (Valor antes dos descontos)
+    const grossSubtotalVisual = (sale.totalPrice || 0) + (sale.totalDiscount || 0) - (sale.feeConfig?.type === 'com_juros' ? sale.feeConfig.value : 0);
 
     return React.createElement('div', { className: "fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-[55] backdrop-blur-sm" },
         React.createElement('div', { className: "bg-white rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col shadow-2xl animate-fade-in" },
@@ -1392,34 +1410,23 @@ const SaleDetailsModal = ({ isOpen, onClose, sale, onPay, onEdit, onDeletePaymen
                     ))
                 ),
 
-                // Financeiro
-                React.createElement('div', { className: "bg-white p-4 rounded-xl border border-slate-200 space-y-3 relative z-10" },
-                    React.createElement('p', { className: "text-xs font-bold text-slate-400 uppercase mb-2 flex items-center gap-2" }, React.createElement(PieChart, { size: 14 }), "Resumo Financeiro"),
-                    React.createElement('div', { className: "flex justify-between text-sm" }, React.createElement('span', { className: "text-slate-500" }, "Valor dos Produtos:"), React.createElement('span', { className: "text-slate-800 font-bold" }, formatCurrency((sale.totalPrice + (sale.totalDiscount||0)) - (sale.feeConfig?.type === 'com_juros' ? sale.feeConfig.value : 0)))),
-                    sale.totalDiscount > 0 && React.createElement('div', { className: "flex justify-between text-sm text-emerald-600" }, React.createElement('span', null, "Descontos Aplicados:"), React.createElement('span', { className: "font-bold" }, `- ${formatCurrency(sale.totalDiscount)}`)),
-                    sale.feeConfig && React.createElement('div', { className: "flex justify-between text-sm text-orange-600" }, React.createElement('span', null, sale.feeConfig.type === 'sem_juros' ? "Taxa Maquininha (Loja Paga):" : "Taxa Repassada (Cliente Paga):"), React.createElement('span', { className: "font-bold" }, `${sale.feeConfig.type === 'sem_juros' ? '-' : '+'} ${formatCurrency(sale.feeConfig.value)}`)),
-                    React.createElement('div', { className: "flex justify-between text-sm" }, React.createElement('span', { className: "text-slate-500" }, "Custo Total:"), React.createElement('span', { className: "text-slate-800" }, formatCurrency(sale.totalCost || 0))),
-                    React.createElement('div', { className: "flex justify-between text-sm pt-3 border-t border-slate-100" }, React.createElement('span', { className: "font-bold text-emerald-600 flex items-center gap-1" }, React.createElement(Wallet, { size: 14 }), "Lucro Estimado Líquido:"), React.createElement('span', { className: `font-bold ${profit >= 0 ? 'text-emerald-600' : 'text-red-500'}` }, formatCurrency(profit)))
+                // Financeiro Detalhado Estilo Cupom
+                React.createElement('div', { className: "bg-slate-900 text-white p-4 rounded-xl shadow-lg border border-slate-700 space-y-2 relative z-10 text-sm" },
+                    React.createElement('p', { className: "text-xs font-bold text-slate-400 uppercase mb-3 flex items-center gap-2 border-b border-slate-700 pb-2" }, React.createElement(Receipt, { size: 14 }), "Resumo Financeiro"),
+                    React.createElement('div', { className: "flex justify-between" }, React.createElement('span', { className: "text-slate-300" }, "Subtotal dos Produtos:"), React.createElement('span', { className: "font-bold" }, formatCurrency(grossSubtotalVisual))),
+                    sale.totalDiscount > 0 && React.createElement('div', { className: "flex justify-between text-emerald-400" }, React.createElement('span', null, "Descontos Aplicados:"), React.createElement('span', { className: "font-bold" }, `- ${formatCurrency(sale.totalDiscount)}`)),
+                    sale.feeConfig && React.createElement('div', { className: `flex justify-between ${sale.feeConfig.type === 'sem_juros' ? 'text-red-400' : 'text-orange-400'}` }, React.createElement('span', null, sale.feeConfig.type === 'sem_juros' ? `Taxa Maquininha (-${sale.feeConfig.percent}%)` : `Juros Repassado (+${sale.feeConfig.percent}%)`), React.createElement('span', { className: "font-bold" }, `${sale.feeConfig.type === 'sem_juros' ? '-' : '+'} ${formatCurrency(sale.feeConfig.value)}`)),
+                    React.createElement('div', { className: "flex justify-between pt-2 border-t border-slate-700 text-lg font-bold" }, React.createElement('span', null, "Total Venda:"), React.createElement('span', { className: "text-yellow-400" }, formatCurrency(sale.totalPrice))),
+                    
+                    sale.entryAmount > 0 && React.createElement('div', { className: "flex justify-between text-slate-300 pt-2" }, React.createElement('span', null, "Entrada Paga:"), React.createElement('span', { className: "font-bold" }, formatCurrency(sale.entryAmount))),
+                    sale.summaryText && React.createElement('div', { className: "flex justify-between text-emerald-400 pt-1" }, React.createElement('span', null, "Parcelamento:"), React.createElement('span', { className: "font-bold" }, sale.summaryText)),
+
+                    React.createElement('div', { className: "flex justify-between pt-3 border-t border-slate-700 text-xs" }, React.createElement('span', { className: "text-slate-400" }, "Lucro Estimado Líquido:"), React.createElement('span', { className: `font-bold ${profit >= 0 ? 'text-emerald-400' : 'text-red-400'}` }, formatCurrency(profit)))
                 ),
 
-                // Info Especifica de Venda Direta
-                sale.saleType === 'direct' && React.createElement(React.Fragment, null,
-                    (sale.paymentMethod === 'credit' || sale.paymentMethod === 'debit') && React.createElement('div', { className: "bg-emerald-50 p-4 rounded-xl border border-emerald-100 space-y-3 relative z-10" },
-                        sale.entryAmount > 0 && React.createElement('div', { className: "flex justify-between items-center text-sm" }, React.createElement('span', { className: "text-emerald-800" }, "Entrada (Dinheiro/Pix):"), React.createElement('span', { className: "font-bold text-emerald-800" }, formatCurrency(sale.entryAmount))),
-                        React.createElement('div', { className: "flex justify-between items-center text-sm" }, React.createElement('span', { className: "text-emerald-800 flex items-center gap-1" }, React.createElement(Receipt, { size: 14 }), `Passado no Cartão (${sale.cardInstallments}x):`), React.createElement('span', { className: "font-bold text-emerald-800" }, formatCurrency(sale.cardAmount || sale.totalPrice))),
-                        sale.feeConfig && React.createElement('div', { className: "text-[10px] text-emerald-700 bg-emerald-100 p-2 rounded" }, `${sale.feeConfig.mode === 'link' ? 'Link Web' : 'Presencial'} - ${sale.feeConfig.brand === 'visa_master' ? 'Visa/Master' : 'Outras Bandeiras'} (${sale.feeConfig.percent}%)`)
-                    )
-                ),
-
-                // Entrada a Prazo
-                (sale.saleType === 'prazo' || !sale.saleType) && sale.entryAmount > 0 && React.createElement('div', { className: "bg-emerald-50 p-4 rounded-xl border border-emerald-100 flex justify-between items-center relative z-10" },
-                    React.createElement('div', { className: "flex items-center gap-2" }, React.createElement(Wallet, { size: 18, className: "text-emerald-600" }), React.createElement('span', { className: "text-sm font-bold text-emerald-800" }, "Valor de Entrada")),
-                    React.createElement('span', { className: "font-bold text-emerald-800 text-lg" }, formatCurrency(sale.entryAmount))
-                ),
-
-                // Parcelas a Prazo
+                // Parcelas a Prazo Interativas
                 (sale.saleType === 'prazo' || !sale.saleType) && React.createElement('div', { className: "space-y-3 relative z-10" },
-                    React.createElement('p', { className: "text-xs font-bold text-slate-400 uppercase flex items-center gap-2" }, React.createElement(Calendar, { size: 14 }), "Parcelamento"),
+                    React.createElement('p', { className: "text-xs font-bold text-slate-400 uppercase flex items-center gap-2" }, React.createElement(Calendar, { size: 14 }), "Extrato de Parcelas"),
                     sale.installments && sale.installments.map((inst, idx) => {
                         const isOverdue = !inst.paid && inst.dueDate < getBrazilDateString();
                         let paidDisplayDate = '';
@@ -1476,6 +1483,9 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
     const [customers, setCustomers] = useState([]);
     const [products, setProducts] = useState([]);
     const [sales, setSales] = useState([]);
+    
+    // Novo State para gerenciar e armazenar as taxas sincronizadas
+    const [ratesConfig, setRatesConfig] = useState(DEFAULT_RATES);
     const [loadingData, setLoadingData] = useState(true);
 
     // Dashboard Date Filter
@@ -1528,11 +1538,18 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         const customersRef = collection(db, 'artifacts', APP_ID, 'users', user.uid, 'customers');
         const productsRef = collection(db, 'artifacts', APP_ID, 'users', user.uid, 'products');
         const salesRef = collection(db, 'artifacts', APP_ID, 'users', user.uid, 'sales');
+        const ratesRef = doc(db, 'artifacts', APP_ID, 'users', user.uid, 'config', 'rates'); // Busca Taxas
         
         const unsubC = onSnapshot(query(customersRef), s => setCustomers(s.docs.map(d => ({id:d.id, ...d.data()}))));
         const unsubP = onSnapshot(query(productsRef), s => setProducts(s.docs.map(d => ({id:d.id, ...d.data()}))));
         const unsubS = onSnapshot(query(salesRef), s => { setSales(s.docs.map(d => ({id:d.id, ...d.data()}))); setLoadingData(false); });
-        return () => { unsubC(); unsubP(); unsubS(); };
+        
+        const unsubR = onSnapshot(ratesRef, s => {
+            if (s.exists()) setRatesConfig(s.data());
+            else setRatesConfig(DEFAULT_RATES);
+        });
+
+        return () => { unsubC(); unsubP(); unsubS(); unsubR(); };
     }, [user.uid]);
 
     useEffect(() => { if (dashPeriod === 'month') { setDashStartDate(getCurrentMonthStart()); setDashEndDate(getCurrentMonthEnd()); } }, [dashPeriod]);
@@ -1607,10 +1624,8 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         periodSales.forEach(s => { 
             if (s.saleType === 'direct') {
                 let netDirect = s.totalPrice;
-                if (s.feeConfig) {
-                    // Independente de ser com_juros (onde totalPrice já cresceu) ou sem_juros (onde loja absorve a taxa),
-                    // o desconto de .value revela exatamente o que entrou líquido na conta.
-                    netDirect -= (s.feeConfig.value || 0);
+                if (s.feeConfig && s.feeConfig.type === 'sem_juros') {
+                    netDirect -= (s.feeConfig.value || 0); // Loja paga a taxa, reduz o cash In
                 }
                 cashIn += netDirect;
             } 
@@ -1649,14 +1664,12 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
 
         const estimatedProfit = periodSales.reduce((acc, s) => {
             let profit = s.totalPrice - (s.totalCost || 0);
-            if (s.feeConfig) {
-                profit -= (s.feeConfig.value || 0); // deduz a taxa
-            }
+            if (s.feeConfig && s.feeConfig.type === 'sem_juros') profit -= (s.feeConfig.value || 0);
             return acc + profit;
         }, 0);
         
         const periodCost = periodSales.reduce((acc, s) => acc + (s.totalCost || 0), 0);
-        const realProfit = cashIn - periodCost; // CashIn já está limpo de taxas
+        const realProfit = cashIn - periodCost; 
         
         return { 
             totalReceivable, totalReceived: cashIn, totalOverdue, totalUpcoming,
@@ -1689,7 +1702,6 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         }
     };
     
-    // --- LÓGICA DE CANCELAMENTO ---
     const handleCancelSaleLogic = async (saleId, reason) => {
         const sale = sales.find(s => s.id === saleId);
         if (!sale) return;
@@ -1854,12 +1866,11 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         await updateDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'sales', saleId), { installments: updated, totalPrice: newTotal, status: allPaid ? 'completed' : 'active' });
     };
 
-    // --- GERADOR DE MENSAGENS E ACIONADOR DE WHATSAPP ---
     const handleOpenWA = (type, sale, installment, historyItem) => {
         if (!sale || !sale.customerPhone) return;
 
         const store = userProfile?.storeName || "Nossa Loja";
-        const contractId = sale.id ? `VP-${sale.id.slice(-5).toUpperCase()}` : '00000'; // Alterado para VP-
+        const contractId = sale.id ? `VP-${sale.id.slice(-5).toUpperCase()}` : '00000'; 
         let msg = "";
 
         if (type === 'registro' || type === 'quitacao') {
@@ -2036,7 +2047,7 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
             view === 'dashboard' && React.createElement('div', { className: "space-y-4 animate-fade-in" },
                 React.createElement(DateRangeFilter, { period: dashPeriod, startDate: dashStartDate, endDate: dashEndDate, onPeriodChange: setDashPeriod, onStartChange: setDashStartDate, onEndChange: setDashEndDate }),
                 
-                // GRID DASHBOARD (1 coluna mobile, 2 tablet, 4 desktop)
+                // GRID DASHBOARD
                 React.createElement('div', { className: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4" },
                     React.createElement('div', { className: "bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex justify-between items-center" }, React.createElement('div', null, React.createElement('p', { className: "text-xs font-bold text-slate-400 uppercase tracking-wider" }, "A Receber (Total)"), React.createElement('h3', { className: "text-2xl lg:text-3xl font-bold text-slate-800" }, formatCurrency(dashboardTotals.totalReceivable))), React.createElement('div', { className: "bg-blue-50 p-3 rounded-full" }, React.createElement(TrendingUp, { className: "text-blue-500" }))),
                     
@@ -2183,7 +2194,7 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         React.createElement(UserProfileModal, { isOpen: profileModalOpen, onClose: () => setProfileModalOpen(false), userProfile: userProfile, onSave: handleUpdateProfile }),
         React.createElement(CustomerFormModal, { isOpen: customerModalData.open, onClose: () => setCustomerModalData({open:false, data:null}), initialData: customerModalData.data, onSave: handleSaveCustomer }),
         React.createElement(ProductDetailsModal, { isOpen: productViewModalData.open, onClose: () => setProductViewModalData({open:false, data:null}), product: productViewModalData.data }),
-        React.createElement(NewSaleModal, { isOpen: isSaleModalOpen, onClose: () => setIsSaleModalOpen(false), customers: customers, products: products, onSave: handleAddSale }),
+        React.createElement(NewSaleModal, { isOpen: isSaleModalOpen, onClose: () => setIsSaleModalOpen(false), customers: customers, products: products, ratesConfig: ratesConfig, onSave: handleAddSale }),
         React.createElement(EditInstallmentModal, { isOpen: editInstallmentModal.open, onClose: () => setEditInstallmentModal({ open: false, saleId: null, data: null }), installment: editInstallmentModal.data, onSave: saveEditedInstallment }),
         
         // MODAL DE DETALHES COMPLETOS DA VENDA
