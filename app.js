@@ -7,7 +7,7 @@ import {
     PieChart, BarChart3, ArrowUpRight, ArrowDownRight, PackageMinus,
     LogOut, Lock, Mail, Phone, Store, UserCog, UserCheck, UserX, Shield,
     ChevronLeft, ChevronRight, MoreHorizontal, LayoutGrid, AlertCircle, RefreshCw,
-    Clock, Bell, History, FileText, XCircle, User, Smartphone, Copy, Tag, Info
+    Clock, Bell, History, FileText, XCircle, User, Smartphone, Copy, Tag, Info, MapPin
 } from 'https://esm.sh/lucide-react@0.292.0';
 
 // --- FIREBASE IMPORTS ---
@@ -73,6 +73,12 @@ const maskCpfCnpj = (v) => {
     return v;
 };
 
+const maskCep = (v) => {
+    v = v.replace(/\D/g, "");
+    v = v.replace(/^(\d{5})(\d)/, "$1-$2");
+    return v.slice(0, 9);
+};
+
 const applyPixMask = (val, type) => {
     if (!val) return '';
     if (type === 'cpf_cnpj') return maskCpfCnpj(val);
@@ -127,16 +133,6 @@ const MoneyInput = ({ value, onChange, placeholder, className, autoFocus, disabl
         React.createElement('span', { className: `absolute left-3 top-3 font-bold ${disabled ? 'text-slate-300' : 'text-slate-400'}` }, "R$"),
         React.createElement('input', { autoFocus: autoFocus, disabled: disabled, type: "text", inputMode: "numeric", className: className, placeholder: placeholder || "0,00", value: display, onChange: handleChange })
     );
-};
-
-const UpperInput = ({ value, onChange, placeholder, className, autoFocus }) => {
-    const handleChange = (e) => { onChange(e.target.value.toUpperCase()); };
-    return React.createElement('input', { autoFocus: autoFocus, className: className, placeholder: placeholder, value: value, onChange: handleChange });
-};
-
-const PhoneInput = ({ value, onChange, placeholder, className }) => {
-    const handleChange = (e) => { onChange(maskPhone(e.target.value)); };
-    return React.createElement('input', { type: "tel", className: className, placeholder: placeholder, value: value, maxLength: 15, onChange: handleChange });
 };
 
 const Pagination = ({ totalItems, itemsPerPage, currentPage, onPageChange }) => {
@@ -750,7 +746,7 @@ const ProductDetailsModal = ({ isOpen, onClose, product }) => {
 
                 React.createElement('div', { className: "bg-blue-50 p-3 rounded-xl border border-blue-100 flex items-start gap-3 mt-4" },
                     React.createElement(Info, { size: 18, className: "text-blue-500 shrink-0 mt-0.5" }),
-                    React.createElement('p', { className: "text-xs text-blue-700" }, "Para editar preços, descrições ou estoque, acesse o sistema Gestor de Catálogo independente.")
+                    React.createElement('p', { className: "text-xs text-blue-700" }, "Para editar preços, descrições ou estoque, acesse o sistema Gestor Integrado de Cadastros independente.")
                 )
             ),
 
@@ -761,18 +757,140 @@ const ProductDetailsModal = ({ isOpen, onClose, product }) => {
     );
 };
 
+// --- NOVO FORMULÁRIO DE CLIENTE COMPLETO ---
 const CustomerFormModal = ({ isOpen, onClose, onSave, initialData }) => {
     const [name, setName] = useState('');
     const [phone, setPhone] = useState('');
-    useEffect(() => { if (initialData) { setName(initialData.name); setPhone(initialData.phone); } else { setName(''); setPhone(''); } }, [initialData, isOpen]);
-    const handleSubmit = () => { if (!name) return; onSave({ name, phone }); if(!initialData) { setName(''); setPhone(''); } onClose(); };
+    const [documentData, setDocumentData] = useState('');
+    const [birthDate, setBirthDate] = useState('');
+    const [cep, setCep] = useState('');
+    const [street, setStreet] = useState('');
+    const [number, setNumber] = useState('');
+    const [complement, setComplement] = useState('');
+    const [reference, setReference] = useState('');
+    const [neighborhood, setNeighborhood] = useState('');
+    const [cityState, setCityState] = useState('');
+    const [loadingCep, setLoadingCep] = useState(false);
+
+    useEffect(() => {
+        if (initialData && isOpen) {
+            setName(initialData.name || ''); setPhone(initialData.phone || ''); setDocumentData(initialData.document || ''); setBirthDate(initialData.birthDate || '');
+            setCep(initialData.cep || ''); setStreet(initialData.street || ''); setNumber(initialData.number || ''); setComplement(initialData.complement || '');
+            setReference(initialData.reference || ''); setNeighborhood(initialData.neighborhood || ''); setCityState(initialData.cityState || '');
+        } else if (isOpen) {
+            setName(''); setPhone(''); setDocumentData(''); setBirthDate(''); setCep(''); setStreet(''); setNumber(''); setComplement(''); setReference(''); setNeighborhood(''); setCityState('');
+        }
+    }, [initialData, isOpen]);
+
+    const handleCepBlur = async () => {
+        const cleanCep = cep.replace(/\D/g, '');
+        if (cleanCep.length === 8) {
+            setLoadingCep(true);
+            try {
+                const res = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
+                const data = await res.json();
+                if (!data.erro) {
+                    setStreet(data.logradouro || '');
+                    setNeighborhood(data.bairro || '');
+                    setCityState(`${data.localidade || ''}/${data.uf || ''}`);
+                }
+            } catch (e) { console.error(e); }
+            setLoadingCep(false);
+        }
+    };
+
+    const handleSubmit = () => {
+        if (!name) return alert("O Nome Completo é obrigatório.");
+        onSave({ 
+            name: name.toUpperCase(), 
+            phone, 
+            document: documentData, 
+            birthDate, 
+            cep, 
+            street: street.toUpperCase(), 
+            number, 
+            complement, 
+            reference, 
+            neighborhood: neighborhood.toUpperCase(), 
+            cityState: cityState.toUpperCase() 
+        });
+    };
+
     if (!isOpen) return null;
-    return React.createElement('div', { className: "fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" },
-        React.createElement('div', { className: "bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl animate-fade-in" },
-            React.createElement('h3', { className: "text-lg font-bold mb-4" }, initialData ? 'Editar Cliente' : 'Novo Cliente'),
-            React.createElement(UpperInput, { placeholder: "Nome Completo", value: name, onChange: setName, className: "w-full p-3 border border-slate-200 rounded-lg mb-3" }),
-            React.createElement(PhoneInput, { placeholder: "WhatsApp (11) 99999-9999", value: phone, onChange: setPhone, className: "w-full p-3 border border-slate-200 rounded-lg mb-6" }),
-            React.createElement('div', { className: "flex gap-2" }, React.createElement('button', { onClick: onClose, className: "flex-1 p-3 text-slate-500 font-bold" }, "Cancelar"), React.createElement('button', { onClick: handleSubmit, className: "flex-1 p-3 bg-slate-900 text-white font-bold rounded-lg" }, "Salvar"))
+
+    return React.createElement('div', { className: "fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50" },
+        React.createElement('div', { className: "bg-white rounded-2xl w-full max-w-lg shadow-2xl animate-fade-in flex flex-col max-h-[95vh]" },
+            React.createElement('div', { className: "p-6 border-b border-slate-100 flex justify-between items-center shrink-0" },
+                React.createElement('h3', { className: "text-xl font-bold text-slate-800 flex items-center gap-2" }, React.createElement(User, { className: "text-yellow-500" }), initialData ? 'Editar Cliente' : 'Novo Cliente'),
+                React.createElement('button', { onClick: onClose, className: "p-2 bg-slate-100 rounded-full hover:bg-slate-200" }, React.createElement(X, { size: 20 }))
+            ),
+            React.createElement('div', { className: "p-6 overflow-y-auto flex-1 space-y-4 no-scrollbar" },
+                // Dados Pessoais
+                React.createElement('div', { className: "bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3" },
+                    React.createElement('p', { className: "text-xs font-bold text-slate-400 uppercase" }, "Dados Pessoais"),
+                    React.createElement('div', null,
+                        React.createElement('label', { className: "block text-[10px] font-bold text-slate-500 uppercase mb-1" }, "Nome Completo *"),
+                        React.createElement('input', { autoFocus: true, className: "w-full p-3 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-yellow-500 uppercase", value: name, onChange: e => setName(e.target.value.toUpperCase()) })
+                    ),
+                    React.createElement('div', { className: "grid grid-cols-2 gap-3" },
+                        React.createElement('div', null,
+                            React.createElement('label', { className: "block text-[10px] font-bold text-slate-500 uppercase mb-1" }, "WhatsApp"),
+                            React.createElement('input', { type: "tel", className: "w-full p-3 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-yellow-500", value: phone, onChange: e => setPhone(maskPhone(e.target.value)), placeholder: "(00) 00000-0000" })
+                        ),
+                        React.createElement('div', null,
+                            React.createElement('label', { className: "block text-[10px] font-bold text-slate-500 uppercase mb-1" }, "CPF / CNPJ"),
+                            React.createElement('input', { type: "text", className: "w-full p-3 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-yellow-500", value: documentData, onChange: e => setDocumentData(maskCpfCnpj(e.target.value)), placeholder: "000.000.000-00" })
+                        )
+                    ),
+                    React.createElement('div', null,
+                        React.createElement('label', { className: "block text-[10px] font-bold text-slate-500 uppercase mb-1" }, "Data de Nascimento"),
+                        React.createElement('input', { type: "date", className: "w-full p-3 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-yellow-500 text-sm", value: birthDate, onChange: e => setBirthDate(e.target.value) })
+                    )
+                ),
+                // Endereço
+                React.createElement('div', { className: "bg-white p-4 rounded-xl border border-slate-200 space-y-3 shadow-sm" },
+                    React.createElement('p', { className: "text-xs font-bold text-slate-400 uppercase" }, "Endereço"),
+                    React.createElement('div', { className: "grid grid-cols-2 gap-3 items-end" },
+                        React.createElement('div', null,
+                            React.createElement('label', { className: "block text-[10px] font-bold text-slate-500 uppercase mb-1" }, "CEP"),
+                            React.createElement('input', { type: "text", className: "w-full p-3 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-yellow-500", value: cep, onChange: e => setCep(maskCep(e.target.value)), onBlur: handleCepBlur, placeholder: "00000-000" })
+                        ),
+                        React.createElement('div', { className: "pb-3" }, loadingCep && React.createElement('span', { className: "text-xs text-yellow-600 font-bold animate-pulse" }, "Buscando..."))
+                    ),
+                    React.createElement('div', { className: "grid grid-cols-4 gap-3" },
+                        React.createElement('div', { className: "col-span-3" },
+                            React.createElement('label', { className: "block text-[10px] font-bold text-slate-500 uppercase mb-1" }, "Rua / Logradouro"),
+                            React.createElement('input', { type: "text", className: "w-full p-3 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-yellow-500 uppercase", value: street, onChange: e => setStreet(e.target.value.toUpperCase()) })
+                        ),
+                        React.createElement('div', { className: "col-span-1" },
+                            React.createElement('label', { className: "block text-[10px] font-bold text-slate-500 uppercase mb-1" }, "Nº"),
+                            React.createElement('input', { type: "text", className: "w-full p-3 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-yellow-500 uppercase", value: number, onChange: e => setNumber(e.target.value) })
+                        )
+                    ),
+                    React.createElement('div', { className: "grid grid-cols-2 gap-3" },
+                        React.createElement('div', null,
+                            React.createElement('label', { className: "block text-[10px] font-bold text-slate-500 uppercase mb-1" }, "Bairro"),
+                            React.createElement('input', { type: "text", className: "w-full p-3 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-yellow-500 uppercase", value: neighborhood, onChange: e => setNeighborhood(e.target.value.toUpperCase()) })
+                        ),
+                        React.createElement('div', null,
+                            React.createElement('label', { className: "block text-[10px] font-bold text-slate-500 uppercase mb-1" }, "Cidade/UF"),
+                            React.createElement('input', { type: "text", className: "w-full p-3 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-yellow-500 uppercase", value: cityState, onChange: e => setCityState(e.target.value.toUpperCase()) })
+                        )
+                    ),
+                    React.createElement('div', null,
+                        React.createElement('label', { className: "block text-[10px] font-bold text-slate-500 uppercase mb-1" }, "Complemento"),
+                        React.createElement('input', { type: "text", className: "w-full p-3 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-yellow-500", value: complement, onChange: e => setComplement(e.target.value) })
+                    ),
+                    React.createElement('div', null,
+                        React.createElement('label', { className: "block text-[10px] font-bold text-slate-500 uppercase mb-1" }, "Ponto de Referência"),
+                        React.createElement('input', { type: "text", className: "w-full p-3 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-yellow-500", value: reference, onChange: e => setReference(e.target.value) })
+                    )
+                )
+            ),
+            React.createElement('div', { className: "p-6 border-t border-slate-100 flex gap-3 shrink-0 bg-white rounded-b-2xl" },
+                React.createElement('button', { onClick: onClose, className: "flex-1 p-3 text-slate-500 font-bold bg-slate-100 rounded-xl hover:bg-slate-200" }, "Cancelar"),
+                React.createElement('button', { onClick: handleSubmit, className: "flex-1 p-3 bg-slate-900 text-yellow-400 font-bold rounded-xl hover:bg-slate-800 shadow-lg" }, "Salvar Cliente")
+            )
         )
     );
 };
@@ -1219,7 +1337,7 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
     const sortedCustomers = useMemo(() => {
         const list = [...customers].sort((a, b) => a.name.localeCompare(b.name));
         if (!customerSearch) return list;
-        return list.filter(c => c.name.toLowerCase().includes(customerSearch.toLowerCase()));
+        return list.filter(c => c.name.toLowerCase().includes(customerSearch.toLowerCase()) || (c.document && c.document.includes(customerSearch)));
     }, [customers, customerSearch]);
 
     const displayedSales = useMemo(() => {
@@ -1808,11 +1926,21 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
             ),
             
             view === 'customers' && React.createElement('div', { className: "space-y-4 animate-fade-in" },
-                React.createElement('div', { className: "flex gap-2 mb-2" }, React.createElement('div', { className: "relative flex-1" }, React.createElement(Search, { className: "absolute left-3 top-3 text-slate-400", size: 18 }), React.createElement('input', { className: "w-full p-3 pl-10 border border-slate-200 rounded-xl focus:ring-2 focus:ring-yellow-500 outline-none", placeholder: "Buscar cliente...", value: customerSearch, onChange: e => setCustomerSearch(e.target.value.toUpperCase()) })), React.createElement('button', { onClick: () => setCustomerModalData({open:true, data:null}), className: "bg-yellow-500 text-white p-3 rounded-xl font-bold shadow-lg shadow-yellow-200" }, "+")),
+                React.createElement('div', { className: "flex gap-2 mb-2" }, React.createElement('div', { className: "relative flex-1" }, React.createElement(Search, { className: "absolute left-3 top-3 text-slate-400", size: 18 }), React.createElement('input', { className: "w-full p-3 pl-10 border border-slate-200 rounded-xl focus:ring-2 focus:ring-yellow-500 outline-none", placeholder: "Buscar cliente ou documento...", value: customerSearch, onChange: e => setCustomerSearch(e.target.value.toUpperCase()) })), React.createElement('button', { onClick: () => setCustomerModalData({open:true, data:null}), className: "bg-yellow-500 text-white p-3 rounded-xl font-bold shadow-lg shadow-yellow-200" }, "+")),
                 
                 // GRID CLIENTES
                 React.createElement('div', { className: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" },
-                    paginatedCustomers.map(c => React.createElement('div', { key: c.id, className: "bg-white p-4 rounded-xl border border-slate-100 flex justify-between items-center shadow-sm" }, React.createElement('div', null, React.createElement('p', { className: "font-bold text-slate-800" }, c.name), React.createElement('p', { className: "text-xs text-slate-500" }, c.phone || 'Sem contato')), React.createElement('div', { className: "flex gap-2" }, React.createElement('button', { onClick: () => setCustomerModalData({open: true, data: c}), className: "text-slate-300 hover:text-yellow-600 p-2" }, React.createElement(Edit2, { size: 18 })), React.createElement('button', { onClick: () => requestDelete('customer', c.id), className: "text-slate-300 hover:text-red-500 p-2" }, React.createElement(Trash2, { size: 18 })))))
+                    paginatedCustomers.map(c => React.createElement('div', { key: c.id, className: "bg-white p-4 rounded-xl border border-slate-100 flex flex-col shadow-sm" }, 
+                        React.createElement('div', { className: "flex-1" }, 
+                            React.createElement('h3', { className: "font-bold text-slate-800 mb-1" }, c.name), 
+                            React.createElement('div', { className: "space-y-1 mt-2 text-sm text-slate-600" }, 
+                                c.phone && React.createElement('p', { className: "flex items-center gap-2" }, React.createElement(Phone, { size: 14, className: "text-slate-400"}), c.phone), 
+                                c.document && React.createElement('p', { className: "flex items-center gap-2" }, React.createElement(FileText, { size: 14, className: "text-slate-400"}), c.document), 
+                                c.cityState && React.createElement('p', { className: "flex items-center gap-2" }, React.createElement(MapPin, { size: 14, className: "text-slate-400"}), c.cityState)
+                            )
+                        ), 
+                        React.createElement('div', { className: "flex gap-2 mt-4 pt-3 border-t border-slate-100" }, React.createElement('button', { onClick: () => setCustomerModalData({open: true, data: c}), className: "flex-1 text-slate-400 hover:text-yellow-600 p-2 flex justify-center items-center rounded-lg hover:bg-slate-50 transition-colors" }, React.createElement(Edit2, { size: 18 })), React.createElement('button', { onClick: () => requestDelete('customer', c.id), className: "flex-1 text-slate-400 hover:text-red-500 p-2 flex justify-center items-center rounded-lg hover:bg-red-50 transition-colors" }, React.createElement(Trash2, { size: 18 })))
+                    ))
                 ),
                 React.createElement(Pagination, { totalItems: sortedCustomers.length, itemsPerPage: ITEMS_PER_PAGE, currentPage: customersPage, onPageChange: setCustomersPage })
             )
