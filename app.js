@@ -747,8 +747,10 @@ const NewSaleModal = ({ isOpen, onClose, customers, products, onSave }) => {
     const [entryAmount, setEntryAmount] = useState('');
     const [directMethod, setDirectMethod] = useState('pix');
     const [cardInstallments, setCardInstallments] = useState(1);
+    const [showCustomerList, setShowCustomerList] = useState(false);
+    const [showProductList, setShowProductList] = useState(false);
 
-    useEffect(() => { if (isOpen) { const today = getBrazilDateString(); setSaleDate(today); setFirstDueDate(addDays(today, 30)); setStep(1); setCart([]); setCustomerId(''); setEntryAmount(''); setSaleType('prazo'); setCustomerSearch(''); setProductSearch(''); setCurrentQty(1); setCurrentCost(''); setCurrentPrice(''); } }, [isOpen]);
+    useEffect(() => { if (isOpen) { const today = getBrazilDateString(); setSaleDate(today); setFirstDueDate(addDays(today, 30)); setStep(1); setCart([]); setCustomerId(''); setEntryAmount(''); setSaleType('prazo'); setCustomerSearch(''); setProductSearch(''); setCurrentQty(1); setCurrentCost(''); setCurrentPrice(''); setShowCustomerList(false); setShowProductList(false); } }, [isOpen]);
     useEffect(() => { let daysToAdd = 30; if (frequency === 'weekly') daysToAdd = 7; else if (frequency === 'biweekly') daysToAdd = 15; setFirstDueDate(addDays(saleDate, daysToAdd)); }, [frequency, saleDate]);
 
     const filteredCustomers = customers.filter(c => c.name.toLowerCase().includes(customerSearch.toLowerCase()));
@@ -808,25 +810,74 @@ const NewSaleModal = ({ isOpen, onClose, customers, products, onSave }) => {
                 step === 1 && React.createElement('div', { className: "space-y-4" },
                     React.createElement('div', { className: "bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3" },
                         React.createElement('label', { className: "text-xs font-bold text-slate-400 uppercase" }, "Buscar Cliente"),
-                        React.createElement('div', { className: "relative" }, React.createElement(Search, { className: "absolute left-3 top-3 text-slate-400", size: 16 }), React.createElement('input', { className: "w-full p-2 pl-9 border border-slate-200 rounded-lg text-sm bg-white", placeholder: "Filtrar por nome...", value: customerSearch, onChange: e => setCustomerSearch(e.target.value) })),
-                        React.createElement('select', { className: "w-full p-3 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500", value: customerId, onChange: e => setCustomerId(e.target.value) }, React.createElement('option', { value: "" }, "Selecione..."), filteredCustomers.map(c => React.createElement('option', { key: c.id, value: c.id }, c.name)))
+                        React.createElement('div', { className: "relative" },
+                            React.createElement('div', { className: "relative" },
+                                React.createElement(Search, { className: "absolute left-3 top-3.5 text-slate-400", size: 16 }),
+                                React.createElement('input', {
+                                    className: "w-full p-3 pl-9 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-yellow-500",
+                                    placeholder: "Digite o nome para buscar...",
+                                    value: customerSearch,
+                                    onChange: e => { setCustomerSearch(e.target.value); setCustomerId(''); setShowCustomerList(true); },
+                                    onFocus: () => setShowCustomerList(true),
+                                    onBlur: () => setTimeout(() => setShowCustomerList(false), 200)
+                                }),
+                                customerId && React.createElement(CheckCircle, { className: "absolute right-3 top-3 text-green-500", size: 20 })
+                            ),
+                            showCustomerList && !customerId && React.createElement('div', { className: "absolute z-20 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-xl max-h-48 overflow-y-auto" },
+                                filteredCustomers.length > 0 ? filteredCustomers.map(c => 
+                                    React.createElement('div', { 
+                                        key: c.id, 
+                                        className: "p-3 border-b border-slate-100 hover:bg-slate-50 cursor-pointer",
+                                        onClick: () => { setCustomerId(c.id); setCustomerSearch(c.name); setShowCustomerList(false); }
+                                    }, 
+                                        React.createElement('p', { className: "font-bold text-slate-800 text-sm" }, c.name),
+                                        c.phone && React.createElement('p', { className: "text-xs text-slate-500" }, c.phone)
+                                    )
+                                ) : React.createElement('div', { className: "p-3 text-slate-500 text-sm text-center" }, "Nenhum cliente encontrado.")
+                            )
+                        )
                     )
                 ),
                 step === 2 && React.createElement('div', { className: "space-y-4" },
                     React.createElement('div', { className: "bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3" },
-                        React.createElement('div', { className: "relative" }, React.createElement(Search, { className: "absolute left-3 top-3 text-slate-400", size: 16 }), React.createElement('input', { className: "w-full p-2 pl-9 border border-slate-200 rounded-lg text-sm bg-white", placeholder: "Filtrar produtos...", value: productSearch, onChange: e => setProductSearch(e.target.value) })),
-                        React.createElement('select', { className: "w-full p-3 bg-white border border-slate-200 rounded-lg", value: selectedProductId, onChange: e => setSelectedProductId(e.target.value) }, React.createElement('option', { value: "" }, "Escolha na lista..."), filteredProducts.map(p => React.createElement('option', { key: p.id, value: p.id }, `#${p.code} - ${p.name}`))),
+                        React.createElement('label', { className: "text-xs font-bold text-slate-400 uppercase" }, "Buscar Produto"),
+                        React.createElement('div', { className: "relative" },
+                            React.createElement('div', { className: "relative" },
+                                React.createElement(Search, { className: "absolute left-3 top-3.5 text-slate-400", size: 16 }),
+                                React.createElement('input', {
+                                    className: "w-full p-3 pl-9 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-yellow-500",
+                                    placeholder: "Buscar por nome ou código...",
+                                    value: productSearch,
+                                    onChange: e => { setProductSearch(e.target.value); setSelectedProductId(''); setShowProductList(true); },
+                                    onFocus: () => setShowProductList(true),
+                                    onBlur: () => setTimeout(() => setShowProductList(false), 200)
+                                }),
+                                selectedProductId && React.createElement(CheckCircle, { className: "absolute right-3 top-3 text-green-500", size: 20 })
+                            ),
+                            showProductList && !selectedProductId && React.createElement('div', { className: "absolute z-20 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-xl max-h-48 overflow-y-auto" },
+                                filteredProducts.length > 0 ? filteredProducts.map(p => 
+                                    React.createElement('div', { 
+                                        key: p.id, 
+                                        className: "p-3 border-b border-slate-100 hover:bg-slate-50 cursor-pointer flex justify-between items-center",
+                                        onClick: () => { setSelectedProductId(p.id); setProductSearch(`#${p.code} - ${p.name}`); setShowProductList(false); }
+                                    }, 
+                                        React.createElement('p', { className: "font-bold text-slate-800 text-sm" }, p.name),
+                                        React.createElement('span', { className: "text-xs font-mono bg-slate-100 text-slate-500 px-2 py-1 rounded" }, `#${p.code}`)
+                                    )
+                                ) : React.createElement('div', { className: "p-3 text-slate-500 text-sm text-center" }, "Nenhum produto encontrado.")
+                            )
+                        ),
                         React.createElement('div', { className: "flex gap-2" },
                             React.createElement('div', { className: "w-20" }, React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1" }, "Qtd"), React.createElement('input', { type: "number", min: "1", className: "w-full p-3 border border-slate-200 rounded-lg text-center font-bold focus:outline-none focus:ring-2 focus:ring-yellow-500", value: currentQty, onChange: e => setCurrentQty(e.target.value) })),
-                            React.createElement('div', { className: "flex-1" }, React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1" }, "Custo Unit."), React.createElement(MoneyInput, { placeholder: "0,00", value: currentCost, onChange: setCurrentCost, className: "w-full p-3 pl-10 border border-slate-200 rounded-lg bg-white" })),
-                            React.createElement('div', { className: "flex-1" }, React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1" }, "Venda Unit."), React.createElement(MoneyInput, { placeholder: "0,00", value: currentPrice, onChange: setCurrentPrice, className: "w-full p-3 pl-10 border border-slate-200 rounded-lg bg-white" }))
+                            React.createElement('div', { className: "flex-1" }, React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1" }, "Custo Unit."), React.createElement(MoneyInput, { placeholder: "0,00", value: currentCost, onChange: setCurrentCost, className: "w-full p-3 pl-10 border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-yellow-500" })),
+                            React.createElement('div', { className: "flex-1" }, React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1" }, "Venda Unit."), React.createElement(MoneyInput, { placeholder: "0,00", value: currentPrice, onChange: setCurrentPrice, className: "w-full p-3 pl-10 border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-yellow-500" }))
                         ),
-                        React.createElement('button', { onClick: handleAddItem, disabled: !selectedProductId || !currentCost || !currentPrice || currentQty < 1, className: "w-full py-2 bg-slate-800 text-white rounded-lg font-bold text-sm disabled:opacity-50" }, "+ Adicionar Item")
+                        React.createElement('button', { onClick: handleAddItem, disabled: !selectedProductId || !currentCost || !currentPrice || currentQty < 1, className: "w-full py-3 bg-slate-800 text-white rounded-lg font-bold text-sm disabled:opacity-50 hover:bg-slate-700 transition-colors" }, "+ Adicionar Item")
                     ),
                     React.createElement('div', { className: "space-y-2" },
                         React.createElement('label', { className: "text-xs font-bold text-slate-400 uppercase" }, `Carrinho (${cart.reduce((a,b)=>a+(parseInt(b.quantity)||1),0)} itens)`),
-                        cart.length === 0 ? React.createElement('p', { className: "text-center text-slate-400 text-sm py-4 italic" }, "Vazio") : cart.map(item => React.createElement('div', { key: item.tempId, className: "flex justify-between items-center bg-yellow-50 p-3 rounded-lg border border-yellow-100" }, React.createElement('div', null, React.createElement('p', { className: "font-bold text-sm text-slate-800" }, `${item.quantity}x ${item.productName}`), React.createElement('p', { className: "text-xs text-slate-500" }, `Total: ${formatCurrency(item.price)}`)), React.createElement('button', { onClick: () => handleRemoveItem(item.tempId), className: "text-red-400 hover:text-red-600" }, React.createElement(Trash2, { size: 16 })))),
-                        cart.length > 0 && React.createElement('div', { className: "text-right font-bold text-lg text-slate-800 pt-2 border-t" }, `Total: ${formatCurrency(totalCartValue)}`)
+                        cart.length === 0 ? React.createElement('p', { className: "text-center text-slate-400 text-sm py-4 italic" }, "Vazio") : cart.map(item => React.createElement('div', { key: item.tempId, className: "flex justify-between items-center bg-yellow-50 p-3 rounded-lg border border-yellow-100" }, React.createElement('div', null, React.createElement('p', { className: "font-bold text-sm text-slate-800" }, `${item.quantity}x ${item.productName}`), React.createElement('p', { className: "text-xs text-slate-500" }, `Total: ${formatCurrency(item.price)}`)), React.createElement('button', { onClick: () => handleRemoveItem(item.tempId), className: "text-red-400 hover:text-red-600 p-2" }, React.createElement(Trash2, { size: 18 })))),
+                        cart.length > 0 && React.createElement('div', { className: "text-right font-bold text-lg text-slate-800 pt-2 border-t border-slate-100 mt-2" }, `Total: ${formatCurrency(totalCartValue)}`)
                     )
                 ),
                 step === 3 && React.createElement('div', { className: "space-y-4" },
