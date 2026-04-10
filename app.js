@@ -32,13 +32,6 @@ const auth = getAuth(app);
 const APP_ID = 'vendas-aura-main';
 const ADMIN_EMAIL = "washington.wn8@gmail.com";
 
-// TAXAS PADRÃO COMO FALLBACK CASO AINDA NÃO TENHA SIDO SALVO NO GESTOR
-const defaultRatesConfig = {
-    presencial_visa_master: { debit: 1.37, 1: 3.15, 2: 5.39, 3: 6.12, 4: 6.85, 5: 7.57, 6: 8.28, 7: 8.99, 8: 9.69, 9: 10.38, 10: 11.06, 11: 11.74, 12: 12.40 },
-    presencial_outras: { debit: 2.58, 1: 4.91, 2: 6.47, 3: 7.20, 4: 7.92, 5: 8.63, 6: 9.33, 7: 10.03, 8: 10.72, 9: 11.41, 10: 12.08, 11: 12.75, 12: 13.41 },
-    link: { debit: 2.58, 1: 4.20, 2: 6.09, 3: 7.01, 4: 7.91, 5: 8.80, 6: 9.67, 7: 12.59, 8: 13.42, 9: 14.25, 10: 15.06, 11: 15.87, 12: 16.66 }
-};
-
 // --- HELPERS GERAIS ---
 const formatCurrency = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0);
 
@@ -46,13 +39,6 @@ const parseMoney = (valStr) => {
     if (!valStr) return 0;
     if (typeof valStr === 'number') return valStr;
     const clean = valStr.replace(/\./g, '').replace(',', '.');
-    return parseFloat(clean) || 0;
-};
-
-const parsePercent = (valStr) => {
-    if (!valStr) return 0;
-    if (typeof valStr === 'number') return valStr;
-    const clean = valStr.toString().replace(',', '.');
     return parseFloat(clean) || 0;
 };
 
@@ -128,24 +114,6 @@ const getCurrentMonthEnd = () => {
     return new Date(d.getFullYear(), d.getMonth() + 1, 0).toLocaleDateString('pt-BR', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'America/Sao_Paulo' }).split('/').reverse().join('-');
 };
 
-// --- MOTOR DE BUSCA DE TAXAS ---
-const getCardRate = (method, mode, brand, installments, customRates) => {
-    const inst = parseInt(installments) || 1;
-    const rates = customRates || defaultRatesConfig;
-
-    if (mode === 'link') {
-        if (method === 'debit') return rates.link.debit; 
-        return rates.link[inst] || rates.link[1];
-    } else {
-        if (brand === 'visa_master') {
-            if (method === 'debit') return rates.presencial_visa_master.debit;
-            return rates.presencial_visa_master[inst] || rates.presencial_visa_master[1];
-        } else {
-            if (method === 'debit') return rates.presencial_outras.debit;
-            return rates.presencial_outras[inst] || rates.presencial_outras[1];
-        }
-    }
-};
 
 // --- COMPONENTES DE UI ---
 
@@ -165,16 +133,6 @@ const MoneyInput = ({ value, onChange, placeholder, className, autoFocus, disabl
         React.createElement('span', { className: `absolute left-3 top-3 font-bold ${disabled ? 'text-slate-300' : 'text-slate-400'}` }, "R$"),
         React.createElement('input', { autoFocus: autoFocus, disabled: disabled, type: "text", inputMode: "numeric", className: className, placeholder: placeholder || "0,00", value: display, onChange: handleChange })
     );
-};
-
-const UpperInput = ({ value, onChange, placeholder, className, autoFocus }) => {
-    const handleChange = (e) => { onChange(e.target.value.toUpperCase()); };
-    return React.createElement('input', { autoFocus: autoFocus, className: className, placeholder: placeholder, value: value, onChange: handleChange });
-};
-
-const PhoneInput = ({ value, onChange, placeholder, className }) => {
-    const handleChange = (e) => { onChange(maskPhone(e.target.value)); };
-    return React.createElement('input', { type: "tel", className: className, placeholder: placeholder, value: value, maxLength: 15, onChange: handleChange });
 };
 
 const Pagination = ({ totalItems, itemsPerPage, currentPage, onPageChange }) => {
@@ -955,7 +913,7 @@ const CustomerFormModal = ({ isOpen, onClose, onSave, initialData }) => {
     );
 };
 
-const NewSaleModal = ({ isOpen, onClose, customers, products, onSave, customRates }) => {
+const NewSaleModal = ({ isOpen, onClose, customers, products, onSave }) => {
     const [step, setStep] = useState(1);
     
     // Step 1: Cliente
@@ -968,11 +926,11 @@ const NewSaleModal = ({ isOpen, onClose, customers, products, onSave, customRate
     const [showProductList, setShowProductList] = useState(false);
     const [cart, setCart] = useState([]);
     const [selectedProductId, setSelectedProductId] = useState('');
-    const [baseUnitPrice, setBaseUnitPrice] = useState(0); 
+    const [baseUnitPrice, setBaseUnitPrice] = useState(0); // Preço original do produto
     const [currentQty, setCurrentQty] = useState(1);
-    const [currentCost, setCurrentCost] = useState(0); 
-    const [currentPrice, setCurrentPrice] = useState(''); 
-    const [currentDiscount, setCurrentDiscount] = useState(''); 
+    const [currentCost, setCurrentCost] = useState(0); // Mantido oculto na logica
+    const [currentPrice, setCurrentPrice] = useState(''); // Preço cobrado na venda
+    const [currentDiscount, setCurrentDiscount] = useState(''); // Desconto unitário manual
     
     // Step 3: Pagamento e Taxas
     const [saleDate, setSaleDate] = useState(getBrazilDateString()); 
@@ -1006,12 +964,28 @@ const NewSaleModal = ({ isOpen, onClose, customers, products, onSave, customRate
 
     useEffect(() => { let daysToAdd = 30; if (frequency === 'weekly') daysToAdd = 7; else if (frequency === 'biweekly') daysToAdd = 15; setFirstDueDate(addDays(saleDate, daysToAdd)); }, [frequency, saleDate]);
 
-    // --- NOVA INTEGRAÇÃO: Busca taxa salva no gestor e trava a edição ---
+    // Calcula taxa de cartão padrão automaticamente se não for editada pelo usuário
     useEffect(() => {
         if(saleType !== 'direct' || (directMethod !== 'credit' && directMethod !== 'debit')) return;
-        const rate = getCardRate(directMethod, cardMode, cardBrand, cardInstallments, customRates);
-        setFeePercent(rate.toFixed(2).replace('.', ','));
-    }, [directMethod, cardMode, cardBrand, cardInstallments, saleType, customRates]);
+        
+        let percent = 0;
+        if(cardMode === 'presencial') {
+            if(directMethod === 'debit') {
+                percent = cardBrand === 'visa_master' ? 1.99 : 2.99;
+            } else {
+                const inst = parseInt(cardInstallments) || 1;
+                if(inst === 1) percent = cardBrand === 'visa_master' ? 4.99 : 5.99;
+                else percent = (cardBrand === 'visa_master' ? 5.49 : 6.49) + (inst - 1) * 1.5;
+            }
+        } else { // link
+            if(directMethod === 'debit') percent = 2.99;
+            else {
+                const inst = parseInt(cardInstallments) || 1;
+                percent = inst === 1 ? 4.99 : 4.99 + (inst - 1) * 1.5;
+            }
+        }
+        setFeePercent(percent.toFixed(2).replace('.', ','));
+    }, [directMethod, cardMode, cardBrand, cardInstallments, saleType]);
 
     const filteredCustomers = customers.filter(c => c.name.toLowerCase().includes(customerSearch.toLowerCase()));
     const filteredProducts = products.filter(p => p.name.toLowerCase().includes(productSearch.toLowerCase()) || p.code.includes(productSearch));
@@ -1135,26 +1109,21 @@ const NewSaleModal = ({ isOpen, onClose, customers, products, onSave, customRate
             let feeObj = null;
 
             if (directMethod === 'credit' || directMethod === 'debit') {
-                const feeP = parsePercent(feePercent) / 100;
-                const baseValue = totalRemaining;
-                let feeVal = 0;
-
-                if (feeType === 'com_juros') {
-                    const chargedToClient = feeP < 1 ? baseValue / (1 - feeP) : baseValue;
-                    feeVal = chargedToClient - baseValue;
-                    finalSalePrice += feeVal; // Aumenta o valor final da venda
-                } else {
-                    feeVal = baseValue * feeP;
-                }
+                const feeP = parseMoney(feePercent);
+                const feeVal = totalRemaining * (feeP / 100);
 
                 feeObj = {
                     applied: feeP > 0,
-                    percent: parsePercent(feePercent),
+                    percent: feeP,
                     value: feeVal,
                     type: feeType, // 'sem_juros' ou 'com_juros'
                     mode: cardMode,
                     brand: cardBrand
                 };
+
+                if (feeType === 'com_juros') {
+                    finalSalePrice += feeVal; // Adiciona a taxa no valor total da venda repassada pro cliente
+                }
             }
 
             saleData = { 
@@ -1282,35 +1251,20 @@ const NewSaleModal = ({ isOpen, onClose, customers, products, onSave, customRate
                             React.createElement('div', null, React.createElement('label', { className: "block text-xs font-bold text-slate-500 uppercase mb-1" }, "Entrada (Dinheiro/Pix) - Opcional"), React.createElement(MoneyInput, { value: entryAmount, onChange: setEntryAmount })),
                             directMethod === 'credit' && React.createElement('div', null, React.createElement('label', { className: "block text-xs font-bold text-slate-500 uppercase mb-1" }, "Parcelas no Cartão"), React.createElement('select', { className: "w-full p-3 border border-slate-200 rounded-lg outline-none", value: cardInstallments, onChange: e => setCardInstallments(e.target.value) }, React.createElement('option', { value: "1" }, "1x (À Vista)"), Array.from({length: 11}, (_, i) => i + 2).map(n => React.createElement('option', { key: n, value: n }, `${n}x`)))),
                             
-                            // NOVO: BLOCO DE TAXAS DE CARTÃO TRAVADO PARA EDIÇÃO
+                            // NOVO: BLOCO DE TAXAS DE CARTÃO
                             React.createElement('div', { className: "bg-orange-50 p-4 rounded-xl border border-orange-100 space-y-3" },
                                 React.createElement('p', { className: "text-xs font-bold text-orange-700 uppercase flex items-center gap-1" }, React.createElement(BadgePercent, { size: 14 }), "Configuração de Taxas"),
                                 React.createElement('div', { className: "grid grid-cols-2 gap-3" },
-                                    React.createElement('div', null, React.createElement('label', { className: "block text-[10px] font-bold text-orange-600 uppercase mb-1" }, "Modalidade"), React.createElement('select', { className: "w-full p-2 border border-orange-200 rounded text-sm outline-none text-slate-700 bg-white", value: cardMode, onChange: e => setCardMode(e.target.value) }, React.createElement('option', { value: "presencial" }, "Presencial (Maquininha)"), React.createElement('option', { value: "link" }, "Link de Pagamento"))),
-                                    cardMode === 'presencial' ? React.createElement('div', null, React.createElement('label', { className: "block text-[10px] font-bold text-orange-600 uppercase mb-1" }, "Bandeira"), React.createElement('select', { className: "w-full p-2 border border-orange-200 rounded text-sm outline-none text-slate-700 bg-white", value: cardBrand, onChange: e => setCardBrand(e.target.value) }, React.createElement('option', { value: "visa_master" }, "Visa / Master"), React.createElement('option', { value: "outras" }, "Outras (Elo/Amex)")) ) : React.createElement('div', null)
+                                    React.createElement('div', null, React.createElement('label', { className: "block text-[10px] font-bold text-orange-600 uppercase mb-1" }, "Modalidade"), React.createElement('select', { className: "w-full p-2 border border-orange-200 rounded text-sm outline-none text-slate-700", value: cardMode, onChange: e => setCardMode(e.target.value) }, React.createElement('option', { value: "presencial" }, "Presencial"), React.createElement('option', { value: "link" }, "Link Web"))),
+                                    cardMode === 'presencial' ? React.createElement('div', null, React.createElement('label', { className: "block text-[10px] font-bold text-orange-600 uppercase mb-1" }, "Bandeira"), React.createElement('select', { className: "w-full p-2 border border-orange-200 rounded text-sm outline-none text-slate-700", value: cardBrand, onChange: e => setCardBrand(e.target.value) }, React.createElement('option', { value: "visa_master" }, "Visa/Mastercard"), React.createElement('option', { value: "outras" }, "Outras (Elo/Amex...)"))) : React.createElement('div', null)
                                 ),
                                 React.createElement('div', { className: "grid grid-cols-2 gap-3" },
-                                    React.createElement('div', null, React.createElement('label', { className: "block text-[10px] font-bold text-orange-600 uppercase mb-1" }, "Repasse"), React.createElement('select', { className: "w-full p-2 border border-orange-200 rounded text-sm outline-none text-slate-700 font-bold bg-white", value: feeType, onChange: e => setFeeType(e.target.value) }, React.createElement('option', { value: "sem_juros" }, "Sem Juros (Loja Paga)"), React.createElement('option', { value: "com_juros" }, "Com Juros (Cliente Paga)"))),
-                                    React.createElement('div', null, React.createElement('label', { className: "block text-[10px] font-bold text-orange-600 uppercase mb-1 flex items-center gap-1" }, "Taxa Pré-Definida", React.createElement(Lock, { size: 10 })), React.createElement('div', { className: "relative" }, React.createElement('input', { type: "text", readOnly: true, className: "w-full p-2 pr-6 border border-orange-200 rounded text-sm outline-none font-bold text-slate-500 bg-orange-100 cursor-not-allowed", value: feePercent }), React.createElement('span', { className: "absolute right-2 top-2 text-slate-400 text-sm" }, "%")))
+                                    React.createElement('div', null, React.createElement('label', { className: "block text-[10px] font-bold text-orange-600 uppercase mb-1" }, "Repasse"), React.createElement('select', { className: "w-full p-2 border border-orange-200 rounded text-sm outline-none text-slate-700 font-bold", value: feeType, onChange: e => setFeeType(e.target.value) }, React.createElement('option', { value: "sem_juros" }, "Sem Juros (Você Paga)"), React.createElement('option', { value: "com_juros" }, "Com Juros (Cliente Paga)"))),
+                                    React.createElement('div', null, React.createElement('label', { className: "block text-[10px] font-bold text-orange-600 uppercase mb-1" }, "Taxa Aplicada (%)"), React.createElement('div', { className: "relative" }, React.createElement('input', { type: "text", className: "w-full p-2 pr-6 border border-orange-200 rounded text-sm outline-none font-bold text-slate-700", value: feePercent, onChange: e => setFeePercent(e.target.value) }), React.createElement('span', { className: "absolute right-2 top-2 text-slate-400 text-sm" }, "%")))
                                 ),
                                 React.createElement('div', { className: "text-[10px] bg-orange-100 p-2 rounded text-orange-800 leading-tight" }, 
-                                    (() => {
-                                        const fP = parsePercent(feePercent) / 100;
-                                        if(feeType === 'sem_juros') {
-                                            const fV = totalRemaining * fP;
-                                            return React.createElement(React.Fragment, null, 
-                                                `Valor da transação: ${formatCurrency(totalRemaining)}`, React.createElement('br'),
-                                                React.createElement('strong', null, `A loja pagará ${formatCurrency(fV)} de taxa. Líquido a receber: ${formatCurrency(totalRemaining - fV)}`)
-                                            );
-                                        } else {
-                                            const charged = fP < 1 ? totalRemaining / (1 - fP) : totalRemaining;
-                                            const fV = charged - totalRemaining;
-                                            return React.createElement(React.Fragment, null, 
-                                                `Valor base: ${formatCurrency(totalRemaining)}`, React.createElement('br'),
-                                                React.createElement('strong', null, `O cliente pagará ${formatCurrency(charged)} (Taxa de ${formatCurrency(fV)} embutida).`)
-                                            );
-                                        }
-                                    })()
+                                    `Valor da transação: ${formatCurrency(totalRemaining)}`, React.createElement('br'),
+                                    feeType === 'sem_juros' ? React.createElement('strong', null, `A loja pagará ${formatCurrency(totalRemaining * (parseMoney(feePercent)/100))} de taxa.`) : React.createElement('strong', null, `O cliente pagará ${formatCurrency(totalRemaining * (parseMoney(feePercent)/100))} a mais na venda.`)
                                 )
                             )
                         )
@@ -1480,7 +1434,6 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
     const [customers, setCustomers] = useState([]);
     const [products, setProducts] = useState([]);
     const [sales, setSales] = useState([]);
-    const [rates, setRates] = useState(null); // ESTADO PARA AS TAXAS
     const [loadingData, setLoadingData] = useState(true);
 
     // Dashboard Date Filter
@@ -1529,23 +1482,15 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
     const [deletePaymentModal, setDeletePaymentModal] = useState({ open: false, saleId: null, instIndex: null, histIndex: null, historyItem: null });
     const [waChooserModal, setWaChooserModal] = useState({ open: false, phone: '', message: '' });
 
-    // EFFECT PRINCIPAL DE DADOS
     useEffect(() => {
         const customersRef = collection(db, 'artifacts', APP_ID, 'users', user.uid, 'customers');
         const productsRef = collection(db, 'artifacts', APP_ID, 'users', user.uid, 'products');
         const salesRef = collection(db, 'artifacts', APP_ID, 'users', user.uid, 'sales');
-        const ratesRef = doc(db, 'artifacts', APP_ID, 'users', user.uid, 'settings', 'rates');
         
         const unsubC = onSnapshot(query(customersRef), s => setCustomers(s.docs.map(d => ({id:d.id, ...d.data()}))));
         const unsubP = onSnapshot(query(productsRef), s => setProducts(s.docs.map(d => ({id:d.id, ...d.data()}))));
         const unsubS = onSnapshot(query(salesRef), s => { setSales(s.docs.map(d => ({id:d.id, ...d.data()}))); setLoadingData(false); });
-        
-        const unsubR = onSnapshot(ratesRef, s => {
-            if(s.exists()) setRates(s.data());
-            else setRates(defaultRatesConfig);
-        });
-
-        return () => { unsubC(); unsubP(); unsubS(); unsubR(); };
+        return () => { unsubC(); unsubP(); unsubS(); };
     }, [user.uid]);
 
     useEffect(() => { if (dashPeriod === 'month') { setDashStartDate(getCurrentMonthStart()); setDashEndDate(getCurrentMonthEnd()); } }, [dashPeriod]);
@@ -1616,14 +1561,16 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         const totalReceivable = validSales.filter(s => s.saleType === 'prazo' || !s.saleType).reduce((acc, s) => acc + (s.installments || []).filter(i => !i.paid).reduce((sum, i) => sum + i.amount, 0), 0);
         
         let cashIn = 0;
+        let totalFeesPaidByStore = 0;
 
         periodSales.forEach(s => { 
             if (s.saleType === 'direct') {
                 let netDirect = s.totalPrice;
-                if (s.feeConfig) {
-                    // Independente de ser com_juros (onde totalPrice já cresceu) ou sem_juros (onde loja absorve a taxa),
-                    // o desconto de .value revela exatamente o que entrou líquido na conta.
-                    netDirect -= (s.feeConfig.value || 0);
+                if (s.feeConfig && s.feeConfig.type === 'sem_juros') {
+                    netDirect -= (s.feeConfig.value || 0); // A loja assume a taxa, o dinheiro q cai é menor
+                    totalFeesPaidByStore += (s.feeConfig.value || 0);
+                } else if (s.feeConfig && s.feeConfig.type === 'com_juros') {
+                    netDirect -= (s.feeConfig.value || 0); // O valor da venda subiu pro cliente cobrir a taxa, o repasse p/ conta é o netDirect original
                 }
                 cashIn += netDirect;
             } 
@@ -1662,9 +1609,7 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
 
         const estimatedProfit = periodSales.reduce((acc, s) => {
             let profit = s.totalPrice - (s.totalCost || 0);
-            if (s.feeConfig) {
-                profit -= (s.feeConfig.value || 0); // deduz a taxa
-            }
+            if (s.feeConfig && s.feeConfig.type === 'sem_juros') profit -= (s.feeConfig.value || 0);
             return acc + profit;
         }, 0);
         
@@ -1707,12 +1652,14 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         const sale = sales.find(s => s.id === saleId);
         if (!sale) return;
         
+        // 1. Atualiza Status
         await updateDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'sales', saleId), {
             status: 'canceled',
             cancelReason: reason,
             canceledAt: serverTimestamp()
         });
 
+        // 2. Retorna Itens pro Estoque
         if (sale.items && sale.items.length > 0) {
             for (const item of sale.items) {
                 if (item.productId) {
@@ -1866,6 +1813,158 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
 
         await updateDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'sales', saleId), { installments: updated, totalPrice: newTotal, status: allPaid ? 'completed' : 'active' });
     };
+
+    // --- GERADOR DE MENSAGENS E ACIONADOR DE WHATSAPP ---
+    const handleOpenWA = (type, sale, installment, historyItem) => {
+        if (!sale || !sale.customerPhone) return;
+
+        const store = userProfile?.storeName || "Nossa Loja";
+        const contractId = sale.id ? `VP-${sale.id.slice(-5).toUpperCase()}` : '00000'; // Alterado para VP-
+        let msg = "";
+
+        if (type === 'registro' || type === 'quitacao') {
+            const isQuitacao = type === 'quitacao';
+            msg = isQuitacao ? `🌟 *CONTRATO QUITADO*\n` : `📄 *CONTRATO REGISTRADO*\n`;
+            msg += `━━━━━━━━━━━━━━━━━━━\n\n`;
+            msg += `📋 *Contrato:* ${contractId}\n`;
+            msg += `📅 *Data:* ${formatDate(sale.saleDate)}\n\n`;
+            msg += `👤 *Cliente:* ${sale.customerName}\n`;
+            if (sale.customerPhone) msg += `📱 *Telefone:* ${sale.customerPhone}\n`;
+            msg += `\n`;
+            
+            msg += `🛍️ *ITENS DA COMPRA:*\n`;
+            sale.items?.forEach(item => {
+                msg += `▪️ ${item.quantity}x ${item.productName} - ${formatCurrency(item.price)}\n`;
+            });
+            msg += `\n`;
+
+            msg += `💵 *Valor da Compra:* ${formatCurrency(sale.totalPrice)}\n`;
+            if (sale.entryAmount) msg += `💰 *Valor de Entrada:* ${formatCurrency(sale.entryAmount)}\n`;
+            
+            if (!isQuitacao && sale.installments?.length > 0) {
+                msg += `📆 *1º Vencimento:* ${formatDate(sale.installments[0].dueDate)}\n`;
+            }
+
+            if (isQuitacao) {
+                msg += `\n🎉 Parabéns! Informamos que o seu contrato no valor total de *${formatCurrency(sale.totalPrice)}* foi totalmente quitado.\n`;
+            }
+
+            msg += `\n📊 *STATUS DAS PARCELAS:*\n`;
+            sale.installments?.forEach(inst => {
+                const statusIcon = inst.paid ? '✅' : '⏳';
+                const statusText = inst.paid ? 'Pago' : 'Em Aberto';
+                const dateToShow = inst.paid && inst.paidAt ? formatDate(inst.paidAt) : formatDate(inst.dueDate);
+                const valorInst = formatCurrency(inst.originalAmount || inst.amount); 
+                msg += `${inst.number}️⃣ ${statusIcon} ${dateToShow} - ${valorInst} (${statusText})\n`;
+            });
+
+            msg += `\n━━━━━━━━━━━━━━━━━━━\n`;
+            msg += isQuitacao ? `Muito obrigado pela confiança!\n*${store}*` : `Qualquer dúvida, estamos à disposição!\n*${store}*`;
+        } 
+        else if (type === 'comprovante') {
+            msg = `🧾 *COMPROVANTE DE VENDA*\n`;
+            msg += `━━━━━━━━━━━━━━━━━━━\n\n`;
+            msg += `📅 *Data:* ${formatDate(sale.saleDate)}\n`;
+            msg += `👤 *Cliente:* ${sale.customerName}\n\n`;
+            
+            msg += `🛍️ *ITENS DA VENDA:*\n`;
+            sale.items?.forEach(item => {
+                msg += `▪️ ${item.quantity}x ${item.productName} - ${formatCurrency(item.price)}\n`;
+            });
+
+            msg += `\n💵 *Total Pago:* ${formatCurrency(sale.totalPrice)}\n`;
+            
+            let paymentForm = 'Não informada';
+            if (sale.paymentMethod === 'pix') paymentForm = 'PIX';
+            else if (sale.paymentMethod === 'money') paymentForm = 'Dinheiro';
+            else if (sale.paymentMethod === 'debit') paymentForm = 'Débito';
+            else if (sale.paymentMethod === 'credit') paymentForm = `Crédito (${sale.cardInstallments}x)`;
+            
+            msg += `💳 *Forma de Pagto:* ${paymentForm}\n`;
+            
+            msg += `\n━━━━━━━━━━━━━━━━━━━\n`;
+            msg += `Muito obrigado pela preferência!\n*${store}*`;
+        }
+        else if (type === 'cobranca' && installment) {
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            const [y,m,d] = installment.dueDate.split('T')[0].split('-');
+            const target = new Date(y, m-1, d);
+            const diffTime = target - today;
+            const daysDiff = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            
+            let statusHeader = "📋 *LEMBRETE DE PAGAMENTO*";
+            let daysText = `(em ${daysDiff} dia${daysDiff>1?'s':''})`;
+            let instStatus = "⏳ Em Aberto";
+
+            if (daysDiff === 0) {
+                statusHeader = "🔔 *VENCIMENTO HOJE*";
+                daysText = "(HOJE)";
+            } else if (daysDiff < 0) {
+                statusHeader = "⚠️ *AVISO DE ATRASO*";
+                daysText = `(Vencido há ${Math.abs(daysDiff)} dias)`;
+                instStatus = "⚠️ Atrasada";
+            }
+
+            msg = `Olá *${sale.customerName}*!\n`;
+            msg += `━━━━━━━━━━━━━━━━━━━\n\n`;
+            msg += `${statusHeader}\n\n`;
+            msg += `💵 *Valor:* ${formatCurrency(installment.amount)}\n`;
+            msg += `📊 *Parcela:* ${installment.number}/${sale.installmentsCount || sale.installments?.length}\n`;
+            msg += `📆 *Vencimento:* ${formatDate(installment.dueDate)} ${daysText}\n\n`;
+            msg += `📊 *STATUS DA PARCELA:*\n`;
+            msg += `${installment.number}️⃣ ${instStatus}\n`;
+
+            if (userProfile?.pixKey && userProfile?.pixBank && userProfile?.pixName) {
+                msg += `\n💳 *DADOS PARA PAGAMENTO (PIX):*\n`;
+                msg += `🏦 *Banco:* ${userProfile.pixBank}\n`;
+                msg += `👤 *Titular:* ${userProfile.pixName}\n`;
+                msg += `🔑 *Chave PIX:* ${applyPixMask(userProfile.pixKey, userProfile.pixType)}\n`;
+            }
+
+            msg += `\nQualquer dúvida, estou à disposição!\n`;
+            msg += `━━━━━━━━━━━━━━━━━━━`;
+        }
+        else if (type === 'recibo' && installment) {
+            const paidValue = historyItem ? historyItem.amount : installment.originalAmount || installment.amount;
+            const paidDate = historyItem ? historyItem.date : installment.paidAt;
+            const totalInst = sale.installmentsCount || sale.installments?.length || 1;
+            
+            msg = `✅ *PAGAMENTO REGISTRADO*\n`;
+            msg += `━━━━━━━━━━━━━━━━━━━\n\n`;
+            msg += `📋 *Contrato:* ${contractId}\n`;
+            msg += `👤 *Cliente:* ${sale.customerName}\n`;
+            if (sale.customerPhone) msg += `📱 *Telefone:* ${sale.customerPhone}\n`;
+            msg += `\n`;
+            msg += `💵 *Valor Pago:* ${formatCurrency(paidValue)}\n`;
+            msg += `📊 *Parcela:* ${installment.number}/${totalInst}\n`;
+            msg += `📆 *Data:* ${formatDate(paidDate)}\n\n`;
+            
+            const nextOpen = sale.installments?.find(i => !i.paid);
+            if (nextOpen) {
+                msg += `📊 *PRÓXIMA PARCELA:*\n`;
+                msg += `${nextOpen.number}️⃣ ⏳ ${formatDate(nextOpen.dueDate)} - Em Aberto\n`;
+            } else {
+                msg += `🎉 *STATUS: COMPRA QUITADA!*\n`;
+            }
+            msg += `\n━━━━━━━━━━━━━━━━━━━\n`;
+            msg += `Muito obrigado!`;
+        }
+
+        setWaChooserModal({ open: true, phone: sale.customerPhone, message: msg });
+    };
+
+    if (showAdminPanel) return React.createElement(AdminUsersPanel, { onClose: () => setShowAdminPanel(false) });
+
+    const getPaginatedData = (data, page) => {
+        const start = (page - 1) * ITEMS_PER_PAGE;
+        return data.slice(start, start + ITEMS_PER_PAGE);
+    };
+
+    const paginatedSales = getPaginatedData(displayedSales, salesPage);
+    const paginatedCashier = getPaginatedData(directSales, cashierPage);
+    const paginatedProducts = getPaginatedData(sortedProducts, productsPage);
+    const paginatedCustomers = getPaginatedData(sortedCustomers, customersPage);
 
     return React.createElement('div', { className: "min-h-screen bg-slate-50 pb-24 font-sans text-slate-800" },
         // --- HEADER RESPONSIVO ---
@@ -2044,10 +2143,7 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         React.createElement(UserProfileModal, { isOpen: profileModalOpen, onClose: () => setProfileModalOpen(false), userProfile: userProfile, onSave: handleUpdateProfile }),
         React.createElement(CustomerFormModal, { isOpen: customerModalData.open, onClose: () => setCustomerModalData({open:false, data:null}), initialData: customerModalData.data, onSave: handleSaveCustomer }),
         React.createElement(ProductDetailsModal, { isOpen: productViewModalData.open, onClose: () => setProductViewModalData({open:false, data:null}), product: productViewModalData.data }),
-        
-        // --- PASSANDO AS TAXAS PARA O MODAL DE VENDAS ---
-        React.createElement(NewSaleModal, { isOpen: isSaleModalOpen, onClose: () => setIsSaleModalOpen(false), customers: customers, products: products, onSave: handleAddSale, customRates: rates }),
-        
+        React.createElement(NewSaleModal, { isOpen: isSaleModalOpen, onClose: () => setIsSaleModalOpen(false), customers: customers, products: products, onSave: handleAddSale }),
         React.createElement(EditInstallmentModal, { isOpen: editInstallmentModal.open, onClose: () => setEditInstallmentModal({ open: false, saleId: null, data: null }), installment: editInstallmentModal.data, onSave: saveEditedInstallment }),
         
         // MODAL DE DETALHES COMPLETOS DA VENDA
@@ -2058,7 +2154,7 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
             onPay: handleClickPay,
             onEdit: setEditInstallmentModal,
             onDeletePayment: confirmDeletePayment,
-            onCancelSale: (saleId) => setCancelModal({ open: true, saleId, reason: '' }),
+            onCancelSale: (saleId) => setCancelModal({ open: true, saleId, reason: '' }), // NOVO
             onDeleteSale: requestDelete,
             onOpenWA: handleOpenWA
         }),
