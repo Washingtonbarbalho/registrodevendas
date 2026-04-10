@@ -7,7 +7,7 @@ import {
     PieChart, BarChart3, ArrowUpRight, ArrowDownRight, PackageMinus,
     LogOut, Lock, Mail, Phone, Store, UserCog, UserCheck, UserX, Shield,
     ChevronLeft, ChevronRight, MoreHorizontal, LayoutGrid, AlertCircle, RefreshCw,
-    Clock, Bell, History, FileText, XCircle, User, Smartphone, Copy
+    Clock, Bell, History, FileText, XCircle, User, Smartphone, Copy, Tag, Info
 } from 'https://esm.sh/lucide-react@0.292.0';
 
 // --- FIREBASE IMPORTS ---
@@ -33,7 +33,7 @@ const APP_ID = 'vendas-aura-main';
 const ADMIN_EMAIL = "washington.wn8@gmail.com";
 
 // --- HELPERS GERAIS ---
-const formatCurrency = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+const formatCurrency = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0);
 
 const parseMoney = (valStr) => {
     if (!valStr) return 0;
@@ -43,7 +43,8 @@ const parseMoney = (valStr) => {
 };
 
 const maskMoney = (value) => {
-    let v = value.replace(/\D/g, "");
+    if(value === undefined || value === null) return "0,00";
+    let v = String(value).replace(/\D/g, "");
     v = (v / 100).toFixed(2) + "";
     v = v.replace(".", ",");
     v = v.replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1.");
@@ -110,12 +111,12 @@ const getCurrentMonthEnd = () => {
 
 // --- COMPONENTES DE UI ---
 
-const MoneyInput = ({ value, onChange, placeholder, className, autoFocus }) => {
-    const [display, setDisplay] = useState(typeof value === 'number' ? maskMoney(value.toFixed(2)) : value);
+const MoneyInput = ({ value, onChange, placeholder, className, autoFocus, disabled }) => {
+    const [display, setDisplay] = useState(typeof value === 'number' ? maskMoney((value * 100).toFixed(0)) : value);
     
     useEffect(() => { 
         if (typeof value === 'number') {
-            setDisplay(maskMoney(value.toFixed(2))); 
+            setDisplay(maskMoney((value * 100).toFixed(0))); 
         } else if (typeof value === 'string') {
             setDisplay(value);
         }
@@ -123,8 +124,8 @@ const MoneyInput = ({ value, onChange, placeholder, className, autoFocus }) => {
 
     const handleChange = (e) => { const m = maskMoney(e.target.value); setDisplay(m); onChange(m); };
     return React.createElement('div', { className: "relative w-full" },
-        React.createElement('span', { className: "absolute left-3 top-3 text-slate-400 font-bold" }, "R$"),
-        React.createElement('input', { autoFocus: autoFocus, type: "text", inputMode: "numeric", className: className, placeholder: placeholder || "0,00", value: display, onChange: handleChange })
+        React.createElement('span', { className: `absolute left-3 top-3 font-bold ${disabled ? 'text-slate-300' : 'text-slate-400'}` }, "R$"),
+        React.createElement('input', { autoFocus: autoFocus, disabled: disabled, type: "text", inputMode: "numeric", className: className, placeholder: placeholder || "0,00", value: display, onChange: handleChange })
     );
 };
 
@@ -353,7 +354,7 @@ const PaymentConfirmationModal = ({ isOpen, onClose, onConfirm, installment, isL
 
     useEffect(() => {
         if (isOpen && installment) {
-            setAmount(maskMoney(installment.amount.toFixed(2)));
+            setAmount(maskMoney((installment.amount * 100).toFixed(0)));
             setDate(getBrazilDateString());
             setError('');
         }
@@ -366,7 +367,6 @@ const PaymentConfirmationModal = ({ isOpen, onClose, onConfirm, installment, isL
             return;
         }
         
-        // CORREÇÃO PONTO FLUTUANTE
         const valCents = Math.round(val * 100);
         const instAmtCents = Math.round(installment.amount * 100);
 
@@ -687,7 +687,7 @@ const AdminUsersPanel = ({ onClose }) => {
 const EditInstallmentModal = ({ isOpen, onClose, installment, onSave }) => {
     const [amount, setAmount] = useState('');
     const [dueDate, setDueDate] = useState('');
-    useEffect(() => { if (installment) { setAmount(maskMoney(installment.amount.toFixed(2))); setDueDate(installment.dueDate); } }, [installment]);
+    useEffect(() => { if (installment) { setAmount(maskMoney((installment.amount * 100).toFixed(0))); setDueDate(installment.dueDate); } }, [installment]);
     const handleSave = () => { onSave({ ...installment, amount: parseMoney(amount), dueDate }); onClose(); };
     if (!isOpen || !installment) return null;
     return React.createElement('div', { className: "fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-[60]" },
@@ -702,18 +702,61 @@ const EditInstallmentModal = ({ isOpen, onClose, installment, onSave }) => {
     );
 };
 
-const ProductFormModal = ({ isOpen, onClose, onSave, lastCode, initialData }) => {
-    const [name, setName] = useState('');
-    useEffect(() => { if (initialData) setName(initialData.name); else setName(''); }, [initialData, isOpen]);
-    const nextCode = useMemo(() => { if (initialData) return initialData.code; if (!lastCode) return '000001'; const num = parseInt(lastCode, 10) + 1; return String(num).padStart(6, '0'); }, [lastCode, initialData]);
-    const handleSubmit = () => { if (!name) return; onSave({ name, code: nextCode }); setName(''); onClose(); };
-    if (!isOpen) return null;
-    return React.createElement('div', { className: "fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" },
-        React.createElement('div', { className: "bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl animate-fade-in" },
-            React.createElement('h3', { className: "text-lg font-bold mb-1 flex items-center gap-2" }, React.createElement(Package, { className: "text-yellow-600" }), initialData ? 'Editar Produto' : 'Novo Produto'),
-            React.createElement('p', { className: "text-sm text-slate-400 mb-4" }, `Código: #${nextCode}`),
-            React.createElement(UpperInput, { autoFocus: true, placeholder: "Nome do Produto", value: name, onChange: setName, className: "w-full p-3 border border-slate-200 rounded-lg bg-slate-50 outline-none focus:ring-2 focus:ring-yellow-500 mb-6" }),
-            React.createElement('div', { className: "flex gap-2" }, React.createElement('button', { onClick: onClose, className: "flex-1 p-3 text-slate-500 hover:bg-slate-100 rounded-lg" }, "Cancelar"), React.createElement('button', { onClick: handleSubmit, disabled: !name, className: "flex-1 p-3 bg-yellow-500 text-white font-bold rounded-lg hover:bg-yellow-600 disabled:opacity-50" }, "Salvar"))
+// --- MODAL DE VISUALIZAÇÃO DO PRODUTO (Somente Leitura) ---
+const ProductDetailsModal = ({ isOpen, onClose, product }) => {
+    if (!isOpen || !product) return null;
+
+    const today = getBrazilDateString();
+    const isPromoActive = product.isPromo && today >= product.promoStart && today <= product.promoEnd;
+
+    return React.createElement('div', { className: "fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 overflow-y-auto" },
+        React.createElement('div', { className: "bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl animate-fade-in" },
+            React.createElement('div', { className: "flex justify-between items-center mb-6 border-b border-slate-100 pb-4" },
+                React.createElement('h3', { className: "text-lg font-bold flex items-center gap-2 text-slate-800" }, React.createElement(Package, { className: "text-yellow-500" }), "Detalhes do Produto"),
+                React.createElement('button', { onClick: onClose, className: "p-2 hover:bg-slate-100 rounded-full text-slate-400" }, React.createElement(X, { size: 20 }))
+            ),
+            
+            React.createElement('div', { className: "space-y-4" },
+                React.createElement('div', null,
+                    React.createElement('span', { className: "text-xs font-mono bg-slate-100 text-slate-500 px-2 py-1 rounded" }, `#${product.code}`),
+                    React.createElement('h2', { className: "text-xl font-bold text-slate-800 mt-2 leading-tight" }, product.name),
+                    product.description && React.createElement('p', { className: "text-sm text-slate-500 mt-1" }, product.description)
+                ),
+
+                React.createElement('div', { className: "grid grid-cols-2 gap-4" },
+                    React.createElement('div', { className: "bg-slate-50 p-3 rounded-xl border border-slate-100" },
+                        React.createElement('p', { className: "text-[10px] uppercase font-bold text-slate-400 mb-1" }, "Preço Base"),
+                        React.createElement('p', { className: "font-bold text-slate-800 text-lg" }, formatCurrency(product.salePrice))
+                    ),
+                    React.createElement('div', { className: "bg-slate-50 p-3 rounded-xl border border-slate-100" },
+                        React.createElement('p', { className: "text-[10px] uppercase font-bold text-slate-400 mb-1" }, "Estoque Atual"),
+                        React.createElement('p', { className: `font-bold text-lg ${product.quantity <= 0 ? 'text-red-500' : 'text-slate-800'}` }, `${product.quantity} un.`)
+                    )
+                ),
+
+                isPromoActive && React.createElement('div', { className: "bg-purple-50 p-4 rounded-xl border border-purple-200" },
+                    React.createElement('p', { className: "text-xs font-bold text-purple-700 uppercase flex items-center gap-1 mb-2" }, React.createElement(Tag, { size: 14 }), "Promoção Ativa"),
+                    React.createElement('div', { className: "flex justify-between items-end" },
+                        React.createElement('div', null,
+                            React.createElement('p', { className: "text-[10px] text-purple-500 font-bold uppercase" }, "Valor Especial"),
+                            React.createElement('p', { className: "font-bold text-purple-700 text-2xl" }, formatCurrency(product.promoPrice))
+                        ),
+                        React.createElement('div', { className: "text-right" },
+                            React.createElement('p', { className: "text-[10px] text-purple-500 font-bold uppercase" }, "Válido até"),
+                            React.createElement('p', { className: "font-bold text-purple-600 text-sm" }, formatDate(product.promoEnd))
+                        )
+                    )
+                ),
+
+                React.createElement('div', { className: "bg-blue-50 p-3 rounded-xl border border-blue-100 flex items-start gap-3 mt-4" },
+                    React.createElement(Info, { size: 18, className: "text-blue-500 shrink-0 mt-0.5" }),
+                    React.createElement('p', { className: "text-xs text-blue-700" }, "Para editar preços, descrições ou estoque, acesse o sistema Gestor de Catálogo independente.")
+                )
+            ),
+
+            React.createElement('div', { className: "mt-6" },
+                React.createElement('button', { onClick: onClose, className: "w-full p-3 bg-slate-900 text-white font-bold rounded-xl shadow-lg" }, "Fechar")
+            )
         )
     );
 };
@@ -764,18 +807,51 @@ const NewSaleModal = ({ isOpen, onClose, customers, products, onSave }) => {
     const entryValue = parseMoney(entryAmount) || 0;
     const totalRemaining = Math.max(0, totalCartValue - entryValue);
 
+    const handleSelectProduct = (p) => {
+        setSelectedProductId(p.id); 
+        setProductSearch(`#${p.code} - ${p.name}`); 
+        setShowProductList(false);
+        
+        // Puxa custos e preços automaticamente do produto
+        const cost = p.costPrice || 0;
+        let price = p.salePrice || 0;
+        
+        // Verifica promoção ativa
+        const today = getBrazilDateString();
+        if(p.isPromo && p.promoStart && p.promoEnd && today >= p.promoStart && today <= p.promoEnd) {
+            price = p.promoPrice || 0;
+        }
+
+        setCurrentCost(maskMoney((cost * 100).toFixed(0)));
+        setCurrentPrice(maskMoney((price * 100).toFixed(0)));
+    };
+
     const handleAddItem = () => {
         const qty = parseInt(currentQty) || 1;
         const unitCost = parseMoney(currentCost);
         const unitPrice = parseMoney(currentPrice);
-        if(!selectedProductId || unitCost <= 0 || unitPrice <= 0 || qty <= 0) return;
+        if(!selectedProductId || unitPrice <= 0 || qty <= 0) return;
+        
         const prod = products.find(p => p.id === selectedProductId);
         const totalLineCost = unitCost * qty;
         const totalLinePrice = unitPrice * qty;
-        const newItem = { tempId: Date.now(), productId: prod.id, productName: prod.name, productCode: prod.code, quantity: qty, cost: totalLineCost, price: totalLinePrice, unitPrice: unitPrice, unitCost: unitCost };
+        
+        const newItem = { 
+            tempId: Date.now(), 
+            productId: prod.id, 
+            productName: prod.name, 
+            productCode: prod.code, 
+            quantity: qty, 
+            cost: totalLineCost, 
+            price: totalLinePrice, 
+            unitPrice: unitPrice, 
+            unitCost: unitCost 
+        };
+        
         setCart([...cart, newItem]);
         setSelectedProductId(''); setCurrentQty(1); setCurrentCost(''); setCurrentPrice(''); setProductSearch('');
     };
+    
     const handleRemoveItem = (id) => setCart(cart.filter(i => i.tempId !== id));
 
     const calculateInstallments = () => {
@@ -860,24 +936,32 @@ const NewSaleModal = ({ isOpen, onClose, customers, products, onSave }) => {
                                 selectedProductId && React.createElement(CheckCircle, { className: "absolute right-3 top-3 text-green-500", size: 20 })
                             ),
                             showProductList && !selectedProductId && React.createElement('div', { className: "absolute z-20 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-xl max-h-48 overflow-y-auto" },
-                                filteredProducts.length > 0 ? filteredProducts.map(p => 
-                                    React.createElement('div', { 
+                                filteredProducts.length > 0 ? filteredProducts.map(p => {
+                                    const today = getBrazilDateString();
+                                    const activePromo = p.isPromo && today >= p.promoStart && today <= p.promoEnd;
+                                    return React.createElement('div', { 
                                         key: p.id, 
                                         className: "p-3 border-b border-slate-100 hover:bg-slate-50 cursor-pointer flex justify-between items-center",
-                                        onClick: () => { setSelectedProductId(p.id); setProductSearch(`#${p.code} - ${p.name}`); setShowProductList(false); }
+                                        onClick: () => handleSelectProduct(p)
                                     }, 
-                                        React.createElement('p', { className: "font-bold text-slate-800 text-sm" }, p.name),
-                                        React.createElement('span', { className: "text-xs font-mono bg-slate-100 text-slate-500 px-2 py-1 rounded" }, `#${p.code}`)
-                                    )
-                                ) : React.createElement('div', { className: "p-3 text-slate-500 text-sm text-center" }, "Nenhum produto encontrado.")
+                                        React.createElement('div', null,
+                                            React.createElement('p', { className: "font-bold text-slate-800 text-sm flex items-center gap-2" }, p.name, activePromo && React.createElement(Tag, { size: 12, className: "text-purple-500" })),
+                                            React.createElement('span', { className: "text-xs font-mono bg-slate-100 text-slate-500 px-2 py-0.5 rounded mt-1 inline-block" }, `#${p.code}`)
+                                        ),
+                                        React.createElement('div', { className: "text-right" },
+                                            activePromo ? React.createElement('p', { className: "text-xs font-bold text-purple-600" }, formatCurrency(p.promoPrice)) : React.createElement('p', { className: "text-xs font-bold text-slate-800" }, formatCurrency(p.salePrice)),
+                                            React.createElement('p', { className: "text-[10px] text-slate-400" }, `Est: ${p.quantity}`)
+                                        )
+                                    );
+                                }) : React.createElement('div', { className: "p-3 text-slate-500 text-sm text-center" }, "Nenhum produto encontrado.")
                             )
                         ),
                         React.createElement('div', { className: "flex gap-2" },
                             React.createElement('div', { className: "w-20" }, React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1" }, "Qtd"), React.createElement('input', { type: "number", min: "1", className: "w-full p-3 border border-slate-200 rounded-lg text-center font-bold focus:outline-none focus:ring-2 focus:ring-yellow-500", value: currentQty, onChange: e => setCurrentQty(e.target.value) })),
-                            React.createElement('div', { className: "flex-1" }, React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1" }, "Custo Unit."), React.createElement(MoneyInput, { placeholder: "0,00", value: currentCost, onChange: setCurrentCost, className: "w-full p-3 pl-10 border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-yellow-500" })),
-                            React.createElement('div', { className: "flex-1" }, React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1" }, "Venda Unit."), React.createElement(MoneyInput, { placeholder: "0,00", value: currentPrice, onChange: setCurrentPrice, className: "w-full p-3 pl-10 border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-yellow-500" }))
+                            React.createElement('div', { className: "flex-1" }, React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1" }, "Custo"), React.createElement(MoneyInput, { disabled: true, placeholder: "0,00", value: currentCost, onChange: setCurrentCost, className: "w-full p-3 pl-10 border border-slate-200 rounded-lg bg-slate-100 text-slate-500" })),
+                            React.createElement('div', { className: "flex-1" }, React.createElement('label', { className: "block text-[10px] font-bold text-slate-400 uppercase mb-1" }, "Venda"), React.createElement(MoneyInput, { placeholder: "0,00", value: currentPrice, onChange: setCurrentPrice, className: "w-full p-3 pl-10 border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-yellow-500" }))
                         ),
-                        React.createElement('button', { onClick: handleAddItem, disabled: !selectedProductId || !currentCost || !currentPrice || currentQty < 1, className: "w-full py-3 bg-slate-800 text-white rounded-lg font-bold text-sm disabled:opacity-50 hover:bg-slate-700 transition-colors" }, "+ Adicionar Item")
+                        React.createElement('button', { onClick: handleAddItem, disabled: !selectedProductId || !currentPrice || currentQty < 1, className: "w-full py-3 bg-slate-800 text-white rounded-lg font-bold text-sm disabled:opacity-50 hover:bg-slate-700 transition-colors" }, "+ Adicionar Item")
                     ),
                     React.createElement('div', { className: "space-y-2" },
                         React.createElement('label', { className: "text-xs font-bold text-slate-400 uppercase" }, `Carrinho (${cart.reduce((a,b)=>a+(parseInt(b.quantity)||1),0)} itens)`),
@@ -1089,7 +1173,7 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
 
     // MODALS
     const [isSaleModalOpen, setIsSaleModalOpen] = useState(false);
-    const [productModalData, setProductModalData] = useState({ open: false, data: null });
+    const [productViewModalData, setProductViewModalData] = useState({ open: false, data: null }); // Alterado
     const [customerModalData, setCustomerModalData] = useState({ open: false, data: null });
     const [profileModalOpen, setProfileModalOpen] = useState(false);
     
@@ -1257,11 +1341,7 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         else await addDoc(collection(db, 'artifacts', APP_ID, 'users', user.uid, 'customers'), { ...data, createdAt: serverTimestamp() });
         setCustomerModalData({ open: false, data: null });
     };
-    const handleSaveProduct = async (data) => {
-        if (productModalData.data) await updateDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'products', productModalData.data.id), data);
-        else await addDoc(collection(db, 'artifacts', APP_ID, 'users', user.uid, 'products'), { ...data, createdAt: serverTimestamp() });
-        setProductModalData({ open: false, data: null });
-    };
+    
     const handleAddSale = async (data) => await addDoc(collection(db, 'artifacts', APP_ID, 'users', user.uid, 'sales'), data);
     
     const requestDelete = (type, id) => setDeleteModal({ open: true, type, id });
@@ -1678,11 +1758,30 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
             ),
             
             view === 'products' && React.createElement('div', { className: "space-y-4 animate-fade-in" },
-                React.createElement('div', { className: "flex gap-2 mb-2" }, React.createElement('div', { className: "relative flex-1" }, React.createElement(Search, { className: "absolute left-3 top-3 text-slate-400", size: 18 }), React.createElement('input', { className: "w-full p-3 pl-10 border border-slate-200 rounded-xl focus:ring-2 focus:ring-yellow-500 outline-none", placeholder: "Buscar produto...", value: productSearch, onChange: e => setProductSearch(e.target.value.toUpperCase()) })), React.createElement('button', { onClick: () => setProductModalData({open:true, data:null}), className: "bg-yellow-500 text-white p-3 rounded-xl font-bold shadow-lg shadow-yellow-200" }, "+")),
+                React.createElement('div', { className: "flex gap-2 mb-2" }, 
+                    React.createElement('div', { className: "relative flex-1" }, 
+                        React.createElement(Search, { className: "absolute left-3 top-3 text-slate-400", size: 18 }), 
+                        React.createElement('input', { className: "w-full p-3 pl-10 border border-slate-200 rounded-xl focus:ring-2 focus:ring-yellow-500 outline-none shadow-sm", placeholder: "Buscar produto...", value: productSearch, onChange: e => setProductSearch(e.target.value.toUpperCase()) })
+                    )
+                ),
                 
-                // GRID PRODUTOS
+                // GRID PRODUTOS (SOMENTE LEITURA)
                 React.createElement('div', { className: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" },
-                    paginatedProducts.map(p => React.createElement('div', { key: p.id, className: "bg-white p-4 rounded-xl border border-slate-100 flex justify-between items-center shadow-sm" }, React.createElement('div', { className: "flex items-center gap-3" }, React.createElement('span', { className: "text-xs font-mono bg-slate-100 text-slate-500 px-2 py-1 rounded" }, `#${p.code}`), React.createElement('span', { className: "font-bold text-slate-800" }, p.name)), React.createElement('div', { className: "flex gap-2" }, React.createElement('button', { onClick: () => setProductModalData({open: true, data: p}), className: "text-slate-300 hover:text-yellow-600 p-2" }, React.createElement(Edit2, { size: 18 })), React.createElement('button', { onClick: () => requestDelete('product', p.id), className: "text-slate-300 hover:text-red-500 p-2" }, React.createElement(Trash2, { size: 18 })))))
+                    paginatedProducts.map(p => {
+                        const today = getBrazilDateString();
+                        const isPromo = p.isPromo && today >= p.promoStart && today <= p.promoEnd;
+                        
+                        return React.createElement('div', { key: p.id, onClick: () => setProductViewModalData({open: true, data: p}), className: "bg-white p-4 rounded-xl border border-slate-100 flex justify-between items-center shadow-sm cursor-pointer hover:border-yellow-300 transition-colors" }, 
+                            React.createElement('div', { className: "flex flex-col gap-1" }, 
+                                React.createElement('span', { className: "text-xs font-mono bg-slate-100 text-slate-500 px-2 py-0.5 rounded self-start" }, `#${p.code}`), 
+                                React.createElement('span', { className: "font-bold text-slate-800 text-sm leading-tight flex items-center gap-1" }, p.name, isPromo && React.createElement(Tag, { size: 12, className: "text-purple-500" }))
+                            ), 
+                            React.createElement('div', { className: "flex flex-col items-end gap-1" }, 
+                                isPromo ? React.createElement('span', { className: "font-bold text-purple-600 text-sm" }, formatCurrency(p.promoPrice)) : React.createElement('span', { className: "font-bold text-slate-800 text-sm" }, formatCurrency(p.salePrice)),
+                                React.createElement('span', { className: `text-[10px] font-bold ${p.quantity <= 0 ? 'text-red-500' : 'text-slate-400'}` }, `${p.quantity} un.`)
+                            )
+                        )
+                    })
                 ),
                 React.createElement(Pagination, { totalItems: sortedProducts.length, itemsPerPage: ITEMS_PER_PAGE, currentPage: productsPage, onPageChange: setProductsPage })
             ),
@@ -1701,7 +1800,7 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         // MODAIS GERAIS
         React.createElement(UserProfileModal, { isOpen: profileModalOpen, onClose: () => setProfileModalOpen(false), userProfile: userProfile, onSave: handleUpdateProfile }),
         React.createElement(CustomerFormModal, { isOpen: customerModalData.open, onClose: () => setCustomerModalData({open:false, data:null}), initialData: customerModalData.data, onSave: handleSaveCustomer }),
-        React.createElement(ProductFormModal, { isOpen: productModalData.open, onClose: () => setProductModalData({open:false, data:null}), initialData: productModalData.data, onSave: handleSaveProduct, lastCode: products.length > 0 ? String(products.reduce((max, p) => Math.max(max, parseInt(p.code || '0', 10) || 0), 0)).padStart(6, '0') : null }),
+        React.createElement(ProductDetailsModal, { isOpen: productViewModalData.open, onClose: () => setProductViewModalData({open:false, data:null}), product: productViewModalData.data }),
         React.createElement(NewSaleModal, { isOpen: isSaleModalOpen, onClose: () => setIsSaleModalOpen(false), customers: customers, products: products, onSave: handleAddSale }),
         React.createElement(EditInstallmentModal, { isOpen: editInstallmentModal.open, onClose: () => setEditInstallmentModal({ open: false, saleId: null, data: null }), installment: editInstallmentModal.data, onSave: saveEditedInstallment }),
         
