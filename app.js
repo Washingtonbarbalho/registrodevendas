@@ -32,6 +32,36 @@ const auth = getAuth(app);
 const APP_ID = 'vendas-aura-main';
 const ADMIN_EMAIL = "washington.wn8@gmail.com";
 
+const INTEGRATED_SYSTEMS = [
+    { id: 'main', label: 'Sistema Principal', description: 'Cadastros, vendas, cobranças e catálogo.' },
+    { id: 'crm', label: 'CRM Aura', description: 'Pós-venda, fidelidade e relacionamento.', src: './crmaura.html' },
+    { id: 'admin', label: 'ADM Aura', description: 'Painel administrativo e gestão operacional.', src: './admaura.html' }
+];
+
+const getInitialSystemView = () => {
+    if (typeof window === 'undefined') return 'main';
+    const hash = (window.location.hash || '').replace('#', '').toLowerCase();
+    return INTEGRATED_SYSTEMS.some(system => system.id === hash) ? hash : 'main';
+};
+
+const getSystemAccentClasses = (systemId, active) => {
+    if (systemId === 'crm') return active
+        ? 'bg-blue-500 text-white border-blue-400 shadow-lg shadow-blue-900/20'
+        : 'bg-slate-800/80 text-slate-100 border-slate-700 hover:border-blue-400 hover:text-white';
+    if (systemId === 'admin') return active
+        ? 'bg-emerald-500 text-white border-emerald-400 shadow-lg shadow-emerald-900/20'
+        : 'bg-slate-800/80 text-slate-100 border-slate-700 hover:border-emerald-400 hover:text-white';
+    return active
+        ? 'bg-yellow-400 text-slate-900 border-yellow-300 shadow-lg shadow-yellow-900/20'
+        : 'bg-slate-800/80 text-slate-100 border-slate-700 hover:border-yellow-300 hover:text-white';
+};
+
+const getSystemIcon = (systemId) => {
+    if (systemId === 'crm') return Smartphone;
+    if (systemId === 'admin') return Shield;
+    return Package;
+};
+
 // --- HELPERS GERAIS ---
 const formatCurrency = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0);
 
@@ -484,6 +514,38 @@ const InstallmentListModal = ({ isOpen, onClose, title, items, onPay, onOpenWA }
 };
 
 // --- TELA DE LOGIN / REGISTRO ---
+const IntegratedSystemFrame = ({ system, frameVersion, onBackToMain, userProfile }) => {
+    const SystemIcon = getSystemIcon(system.id);
+    return React.createElement('div', { className: "space-y-4 animate-fade-in" },
+        React.createElement('div', { className: "bg-white rounded-2xl border border-slate-100 shadow-sm p-4 lg:p-5 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4" },
+            React.createElement('div', { className: "flex items-start gap-3" },
+                React.createElement('div', { className: `w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${system.id === 'crm' ? 'bg-blue-50 text-blue-500' : 'bg-emerald-50 text-emerald-500'}` },
+                    React.createElement(SystemIcon, { size: 22 })
+                ),
+                React.createElement('div', null,
+                    React.createElement('p', { className: "text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400 mb-1" }, "Módulo integrado"),
+                    React.createElement('h2', { className: "text-xl font-bold text-slate-800" }, system.label),
+                    React.createElement('p', { className: "text-sm text-slate-500 mt-1 max-w-2xl" }, `${system.description} Este módulo continua preservado no próprio arquivo, reduzindo risco de quebra nos fluxos já validados.`),
+                    React.createElement('p', { className: "text-xs text-slate-400 mt-2" }, `Loja ativa: ${userProfile?.storeName || 'Minha Hinode'}`)
+                )
+            ),
+            React.createElement('div', { className: "flex flex-wrap gap-2" },
+                React.createElement('button', { onClick: onBackToMain, className: "px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 font-bold hover:bg-slate-50" }, "Voltar ao principal"),
+                React.createElement('button', { onClick: () => window.open(system.src, '_blank', 'noopener,noreferrer'), className: "px-4 py-2 rounded-xl bg-slate-900 text-white font-bold hover:bg-slate-800" }, "Abrir em aba separada")
+            )
+        ),
+        React.createElement('div', { className: "bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden" },
+            React.createElement('iframe', {
+                key: `${system.id}-${frameVersion}`,
+                src: system.src,
+                title: system.label,
+                className: "w-full integrated-system-frame",
+                loading: "eager"
+            })
+        )
+    );
+};
+
 const AuthScreen = () => {
     const [step, setStep] = useState('email'); 
     const [email, setEmail] = useState('');
@@ -1451,6 +1513,8 @@ const SaleDetailsModal = ({ isOpen, onClose, sale, onPay, onEdit, onDeletePaymen
 const Dashboard = ({ user, userProfile, onLogout }) => {
     const [view, setView] = useState('dashboard');
     const [showAdminPanel, setShowAdminPanel] = useState(false);
+    const [systemView, setSystemView] = useState(getInitialSystemView);
+    const [externalFrameVersion, setExternalFrameVersion] = useState(0);
     const [customers, setCustomers] = useState([]);
     const [products, setProducts] = useState([]);
     const [sales, setSales] = useState([]);
@@ -1512,6 +1576,15 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         const unsubS = onSnapshot(query(salesRef), s => { setSales(s.docs.map(d => ({id:d.id, ...d.data()}))); setLoadingData(false); });
         return () => { unsubC(); unsubP(); unsubS(); };
     }, [user.uid]);
+
+    useEffect(() => {
+        const syncSystemView = () => {
+            const nextView = getInitialSystemView();
+            setSystemView(prev => prev === nextView ? prev : nextView);
+        };
+        window.addEventListener('hashchange', syncSystemView);
+        return () => window.removeEventListener('hashchange', syncSystemView);
+    }, []);
 
     useEffect(() => { if (dashPeriod === 'month') { setDashStartDate(getCurrentMonthStart()); setDashEndDate(getCurrentMonthEnd()); } }, [dashPeriod]);
     useEffect(() => { if (salesPeriod === 'month') { setSalesStart(getCurrentMonthStart()); setSalesEnd(getCurrentMonthEnd()); } }, [salesPeriod]);
@@ -1985,6 +2058,17 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
 
     if (showAdminPanel) return React.createElement(AdminUsersPanel, { onClose: () => setShowAdminPanel(false) });
 
+    const handleSystemChange = (nextView) => {
+        setSystemView(nextView);
+        if (nextView === 'main') {
+            window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`);
+            return;
+        }
+        window.location.hash = nextView;
+    };
+
+    const activeIntegratedSystem = INTEGRATED_SYSTEMS.find(system => system.id === systemView) || INTEGRATED_SYSTEMS[0];
+
     const getPaginatedData = (data, page) => {
         const start = (page - 1) * ITEMS_PER_PAGE;
         return data.slice(start, start + ITEMS_PER_PAGE);
@@ -2011,18 +2095,74 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
                          React.createElement('button', { onClick: () => setIsSaleModalOpen(true), className: "bg-yellow-500 hover:bg-yellow-400 text-slate-900 p-2 rounded-full shadow-lg transition-transform active:scale-95 ml-2" }, React.createElement(PlusCircle, { size: 20 }))
                     )
                 ),
-                React.createElement('div', { className: "flex space-x-1 overflow-x-auto no-scrollbar justify-start lg:justify-center" },
-                    ['dashboard', 'sales', 'cashier', 'products', 'customers'].map((v) => (
-                        React.createElement('button', { key: v, onClick: () => setView(v), className: `pb-2 px-3 lg:px-6 whitespace-nowrap font-medium text-sm lg:text-base transition-colors ${view === v ? 'text-yellow-400 border-b-2 border-yellow-400' : 'text-slate-400 hover:text-white'}` }, v === 'dashboard' ? 'Visão Geral' : v === 'sales' ? 'Cobranças' : v === 'cashier' ? 'Vendas' : v === 'products' ? 'Catálogo' : 'Clientes')
-                    ))
-                )
+                React.createElement('div', { className: "flex flex-wrap gap-2 mb-4" },
+                    INTEGRATED_SYSTEMS.map((system) => {
+                        const Icon = getSystemIcon(system.id);
+                        const active = systemView === system.id;
+                        return React.createElement('button', {
+                            key: system.id,
+                            onClick: () => handleSystemChange(system.id),
+                            className: `flex items-center gap-2 px-3 py-2 rounded-2xl border transition-all ${getSystemAccentClasses(system.id, active)}`
+                        },
+                            React.createElement(Icon, { size: 16 }),
+                            React.createElement('div', { className: "text-left leading-tight" },
+                                React.createElement('div', { className: "font-bold text-sm" }, system.label),
+                                React.createElement('div', { className: `text-[11px] ${active ? 'opacity-90' : 'text-slate-300'}` }, system.description)
+                            )
+                        );
+                    })
+                ),
+                systemView === 'main'
+                    ? React.createElement('div', { className: "flex space-x-1 overflow-x-auto no-scrollbar justify-start lg:justify-center" },
+                        ['dashboard', 'sales', 'cashier', 'products', 'customers'].map((v) => (
+                            React.createElement('button', { key: v, onClick: () => setView(v), className: `pb-2 px-3 lg:px-6 whitespace-nowrap font-medium text-sm lg:text-base transition-colors ${view === v ? 'text-yellow-400 border-b-2 border-yellow-400' : 'text-slate-400 hover:text-white'}` }, v === 'dashboard' ? 'Visão Geral' : v === 'sales' ? 'Cobranças' : v === 'cashier' ? 'Vendas' : v === 'products' ? 'Catálogo' : 'Clientes')
+                        ))
+                    )
+                    : React.createElement('div', { className: "bg-slate-800/70 border border-slate-700 rounded-2xl p-3 text-sm text-slate-300 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2" },
+                        React.createElement('div', null,
+                            React.createElement('p', { className: "font-bold text-white" }, activeIntegratedSystem.label),
+                            React.createElement('p', { className: "text-xs text-slate-400" }, "Navegação preservada em arquivo próprio, aberta dentro do hub principal.")
+                        ),
+                        React.createElement('div', { className: "flex gap-2" },
+                            React.createElement('button', { onClick: () => setExternalFrameVersion(prev => prev + 1), className: "px-3 py-2 rounded-xl border border-slate-600 text-slate-200 hover:bg-slate-700 font-medium text-xs flex items-center gap-2" }, React.createElement(RefreshCw, { size: 14 }), 'Recarregar módulo'),
+                            React.createElement('button', { onClick: () => window.open(activeIntegratedSystem.src, '_blank', 'noopener,noreferrer'), className: "px-3 py-2 rounded-xl bg-white text-slate-900 hover:bg-slate-100 font-bold text-xs" }, 'Abrir fora do hub')
+                        )
+                    )
             )
         ),
 
         // --- MAIN CONTAINER (Responsivo) ---
         React.createElement('main', { className: "p-4 max-w-7xl mx-auto" },
             loadingData ? React.createElement('div', { className: "flex justify-center py-10" }, "Carregando dados...") :
+            systemView !== 'main' ? React.createElement(IntegratedSystemFrame, {
+                system: activeIntegratedSystem,
+                frameVersion: externalFrameVersion,
+                onBackToMain: () => handleSystemChange('main'),
+                userProfile: userProfile
+            }) :
             view === 'dashboard' && React.createElement('div', { className: "space-y-4 animate-fade-in" },
+                React.createElement('div', { className: "grid grid-cols-1 md:grid-cols-2 gap-4" },
+                    INTEGRATED_SYSTEMS.filter(system => system.id !== 'main').map(system => {
+                        const Icon = getSystemIcon(system.id);
+                        return React.createElement('button', {
+                            key: system.id,
+                            onClick: () => handleSystemChange(system.id),
+                            className: `text-left bg-white rounded-2xl border shadow-sm p-4 transition-all hover:-translate-y-0.5 hover:shadow-md ${system.id === 'crm' ? 'border-blue-100 hover:border-blue-300' : 'border-emerald-100 hover:border-emerald-300'}`
+                        },
+                            React.createElement('div', { className: "flex items-start justify-between gap-3" },
+                                React.createElement('div', { className: "flex items-start gap-3" },
+                                    React.createElement('div', { className: `w-11 h-11 rounded-2xl flex items-center justify-center ${system.id === 'crm' ? 'bg-blue-50 text-blue-500' : 'bg-emerald-50 text-emerald-500'}` }, React.createElement(Icon, { size: 20 })),
+                                    React.createElement('div', null,
+                                        React.createElement('p', { className: "text-xs font-bold uppercase tracking-[0.18em] text-slate-400 mb-1" }, 'Módulo extra'),
+                                        React.createElement('h3', { className: "font-bold text-slate-800" }, system.label),
+                                        React.createElement('p', { className: "text-sm text-slate-500 mt-1" }, system.description)
+                                    )
+                                ),
+                                React.createElement(ChevronRight, { size: 18, className: "text-slate-300 shrink-0 mt-1" })
+                            )
+                        );
+                    })
+                ),
                 React.createElement(DateRangeFilter, { period: dashPeriod, startDate: dashStartDate, endDate: dashEndDate, onPeriodChange: setDashPeriod, onStartChange: setDashStartDate, onEndChange: setDashEndDate }),
                 
                 // GRID DASHBOARD
