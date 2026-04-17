@@ -236,6 +236,15 @@ const ManualEntryModal = ({ isOpen, onClose, onSave, initialData }) => {
     }
   }, [direction]);
 
+  useEffect(() => {
+    if (!isOpen) return undefined;
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const handleSubmit = () => {
@@ -253,8 +262,8 @@ const ManualEntryModal = ({ isOpen, onClose, onSave, initialData }) => {
     });
   };
 
-  return h('div', { className: 'fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-[95] backdrop-blur-sm' },
-    h('div', { className: 'bg-white rounded-2xl w-full max-w-lg max-h-[92vh] overflow-hidden shadow-2xl animate-fade-in flex flex-col' },
+  return h('div', { className: 'fixed inset-0 z-[120] bg-black/60 backdrop-blur-sm p-3 sm:p-4 overflow-y-auto overscroll-contain' },
+    h('div', { className: 'relative mx-auto my-auto w-full max-w-lg max-h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-2rem)] overflow-hidden rounded-2xl bg-white shadow-2xl animate-fade-in flex flex-col' },
       h('div', { className: 'p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50' },
         h('div', null,
           h('h3', { className: 'font-bold text-lg text-slate-800' }, initialData ? 'Editar Lançamento' : 'Novo Lançamento Manual'),
@@ -262,7 +271,7 @@ const ManualEntryModal = ({ isOpen, onClose, onSave, initialData }) => {
         ),
         h('button', { onClick: onClose, className: 'p-2 hover:bg-slate-200 rounded-full' }, h(X, { size: 20 }))
       ),
-      h('div', { className: 'p-5 space-y-4 overflow-y-auto' },
+      h('div', { className: 'p-4 sm:p-5 space-y-4 overflow-y-auto' },
         h('div', { className: 'grid grid-cols-2 gap-3' },
           h('button', {
             type: 'button',
@@ -673,15 +682,6 @@ const FinanceView = ({ user, sales, openManualEntryToken = 0 }) => {
             h('div', { className: 'flex items-center justify-between gap-3' }, h('span', { className: 'text-slate-500' }, 'Taxas de cartão'), h('strong', { className: 'text-orange-600' }, formatCurrency(metrics.cardFees))),
             h('div', { className: 'flex items-center justify-between gap-3' }, h('span', { className: 'text-slate-500' }, 'Estornos de cancelamento'), h('strong', { className: 'text-amber-600' }, formatCurrency(metrics.cancelReversals))),
             h('div', { className: 'pt-3 border-t border-slate-100 flex items-center justify-between gap-3' }, h('span', { className: 'font-bold text-slate-700' }, 'Lucro líquido do período'), h('strong', { className: metrics.netProfit >= 0 ? 'text-emerald-600 text-base' : 'text-red-600 text-base' }, formatCurrency(metrics.netProfit)))
-          )
-        ),
-        h('div', { className: 'bg-slate-900 text-white rounded-2xl shadow-sm p-4' },
-          h('h3', { className: 'font-bold text-lg mb-2 flex items-center gap-2' }, h(Receipt, { size: 18, className: 'text-yellow-400' }), 'Regras aplicadas'),
-          h('ul', { className: 'space-y-2 text-sm text-slate-300 leading-relaxed' },
-            h('li', null, '• Vendas canceladas geram um lançamento negativo na data do cancelamento, preservando a entrada original.'),
-            h('li', null, '• Taxas da administradora do cartão entram como saída separada.'),
-            h('li', null, '• Custo dos produtos é mostrado como métrica analítica e compõe o lucro líquido.'),
-            h('li', null, '• Entradas e saídas manuais entram no caixa e respeitam filtros e paginação.')
           )
         )
       )
