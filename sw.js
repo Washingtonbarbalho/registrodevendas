@@ -1,4 +1,4 @@
-const CACHE_NAME = 'aura-hub-fine-modular-v10-adm-financeiro';
+const CACHE_NAME = 'aura-hub-fine-modular-v11-finance-modal-fix';
 const urlsToCache = [
   './',
   './index.html',
