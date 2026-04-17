@@ -1,10 +1,14 @@
-const CACHE_NAME = 'aura-hub-unificado-v4';
+const CACHE_NAME = 'aura-hub-modular-v5';
 const urlsToCache = [
   './',
   './index.html',
   './styles.css',
   './app.js',
   './manifest.json',
+  './js/core.js',
+  './js/main-module.js',
+  './js/adm-module.js',
+  './js/crm-module.js',
   'https://cdn.tailwindcss.com'
 ];
 
