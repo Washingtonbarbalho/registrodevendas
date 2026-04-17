@@ -1,6 +1,7 @@
 {
-  "name": "Registro de Vendas",
-  "short_name": "Vendas App",
+  "name": "Aura Hub Integrado",
+  "short_name": "Aura Hub",
+  "description": "Hub integrado com vendas, CRM e administração Aura no mesmo repositório.",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#f1f5f9",
