@@ -30,3 +30,16 @@ body {
     -webkit-font-smoothing: antialiased;
     -webkit-tap-highlight-color: transparent;
 }
+
+
+.integrated-system-frame {
+    min-height: calc(100vh - 260px);
+    border: 0;
+    background: #ffffff;
+}
+
+@media (max-width: 768px) {
+    .integrated-system-frame {
+        min-height: calc(100vh - 220px);
+    }
+}
