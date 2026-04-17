@@ -81,6 +81,7 @@ const UserProfileModal = ({ isOpen, onClose, userProfile, onSave }) => {
     const [pixKey, setPixKey] = useState('');
     const [pixBank, setPixBank] = useState('');
     const [pixName, setPixName] = useState('');
+    const [pixLookupMessage, setPixLookupMessage] = useState('');
 
     useEffect(() => {
         if (isOpen && userProfile) {
@@ -91,8 +92,16 @@ const UserProfileModal = ({ isOpen, onClose, userProfile, onSave }) => {
             setPixKey(userProfile.pixKey || '');
             setPixBank(userProfile.pixBank || '');
             setPixName(userProfile.pixName || '');
+            setPixLookupMessage('');
         }
     }, [isOpen, userProfile]);
+
+    useEffect(() => {
+        if (!isOpen) return;
+        if (pixKey && name && !pixName.trim()) {
+            setPixName(name);
+        }
+    }, [pixKey, name, pixName, isOpen]);
 
     const handleSave = () => {
         onSave({ ...userProfile, name, storeName, phone, pixType, pixKey, pixBank, pixName });
@@ -115,14 +124,15 @@ const UserProfileModal = ({ isOpen, onClose, userProfile, onSave }) => {
                 ),
                 React.createElement('div', { className: "space-y-3 bg-emerald-50 p-4 rounded-xl border border-emerald-100" },
                     React.createElement('p', { className: "text-xs font-bold text-emerald-600 uppercase flex items-center gap-1" }, React.createElement(QrCode, { size: 14 }), "Configuração do PIX (Para Cobranças)"),
-                    React.createElement('select', { className: "w-full p-3 border border-slate-200 rounded-lg bg-white", value: pixType, onChange: e => { setPixType(e.target.value); setPixKey(''); } },
+                    React.createElement('select', { className: "w-full p-3 border border-slate-200 rounded-lg bg-white", value: pixType, onChange: e => { setPixType(e.target.value); setPixKey(''); setPixLookupMessage(''); } },
                         React.createElement('option', { value: "" }, "Selecione o Tipo de Chave..."),
                         React.createElement('option', { value: "cpf_cnpj" }, "CPF / CNPJ"),
                         React.createElement('option', { value: "phone" }, "Telefone"),
                         React.createElement('option', { value: "email" }, "E-mail"),
                         React.createElement('option', { value: "random" }, "Chave Aleatória")
                     ),
-                    React.createElement('input', { className: "w-full p-3 border border-slate-200 rounded-lg bg-white", value: applyPixMask(pixKey, pixType), onChange: e => setPixKey(e.target.value), placeholder: "Chave PIX", disabled: !pixType }),
+                    React.createElement('input', { className: "w-full p-3 border border-slate-200 rounded-lg bg-white", value: applyPixMask(pixKey, pixType), onChange: e => { setPixKey(e.target.value); setPixLookupMessage(e.target.value ? 'Neste app, a chave PIX não expõe automaticamente banco e titular. O titular pode ser sugerido pelo nome do perfil, mas o banco ainda precisa ser informado manualmente.' : ''); }, placeholder: "Chave PIX", disabled: !pixType }),
+                    pixLookupMessage && React.createElement('div', { className: "text-xs text-emerald-700 bg-white border border-emerald-200 rounded-lg p-3" }, pixLookupMessage),
                     React.createElement('input', { className: "w-full p-3 border border-slate-200 rounded-lg bg-white", value: pixBank, onChange: e => setPixBank(e.target.value), placeholder: "Nome do Banco (Ex: NuBank)" }),
                     React.createElement('input', { className: "w-full p-3 border border-slate-200 rounded-lg bg-white", value: pixName, onChange: e => setPixName(e.target.value), placeholder: "Nome Completo do Titular" })
                 )
