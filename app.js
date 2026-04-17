@@ -21,7 +21,7 @@ const getInitialUnifiedView = () => {
 
 const SystemDock = ({ activeView, onChange }) => React.createElement(
   'div',
-  { className: 'fixed bottom-4 left-1/2 -translate-x-1/2 z-[30]' },
+  { className: 'fixed bottom-4 left-1/2 -translate-x-1/2 z-[10]' },
   React.createElement(
     'div',
     { className: 'flex items-center gap-1 rounded-full border border-slate-700 bg-slate-900/95 p-1.5 shadow-2xl backdrop-blur-sm' },
