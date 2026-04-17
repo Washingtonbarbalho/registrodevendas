@@ -1,4 +1,4 @@
-const CACHE_NAME = 'aura-hub-fine-modular-v6';
+const CACHE_NAME = 'aura-hub-fine-modular-v7-layout';
 const urlsToCache = [
   './',
   './index.html',
