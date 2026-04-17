@@ -336,7 +336,7 @@ const UserProfileModal = ({ isOpen, onClose, userProfile, onSave }) => {
                     React.createElement('p', { className: "text-xs font-bold text-slate-400 uppercase" }, "Dados da Loja"),
                     React.createElement('input', { className: "w-full p-3 border border-slate-200 rounded-lg", value: name, onChange: e => setName(e.target.value), placeholder: "Seu Nome" }),
                     React.createElement('input', { className: "w-full p-3 border border-slate-200 rounded-lg", value: storeName, onChange: e => setStoreName(e.target.value), placeholder: "Nome da Loja" }),
-                    React.createElement(PhoneInput, { className: "w-full p-3 border border-slate-200 rounded-lg", value: phone, onChange: setPhone, placeholder: "Seu WhatsApp" })
+                    React.createElement('input', { type: "tel", className: "w-full p-3 border border-slate-200 rounded-lg", value: phone, onChange: e => setPhone(maskPhone(e.target.value)), placeholder: "Seu WhatsApp" })
                 ),
                 React.createElement('div', { className: "space-y-3 bg-emerald-50 p-4 rounded-xl border border-emerald-100" },
                     React.createElement('p', { className: "text-xs font-bold text-emerald-600 uppercase flex items-center gap-1" }, React.createElement(QrCode, { size: 14 }), "Configuração do PIX (Para Cobranças)"),
@@ -964,24 +964,44 @@ const NewSaleModal = ({ isOpen, onClose, customers, products, onSave }) => {
 
     useEffect(() => { let daysToAdd = 30; if (frequency === 'weekly') daysToAdd = 7; else if (frequency === 'biweekly') daysToAdd = 15; setFirstDueDate(addDays(saleDate, daysToAdd)); }, [frequency, saleDate]);
 
-    // Calcula taxa de cartão padrão automaticamente se não for editada pelo usuário
+    // Calcula taxa de cartão padrão automaticamente usando as TABELAS EXATAS
     useEffect(() => {
         if(saleType !== 'direct' || (directMethod !== 'credit' && directMethod !== 'debit')) return;
         
+        // =========================================================================
+        // TABELA EXATA DE TAXAS (Mapeado das imagens fornecidas)
+        // Array position: index 1 = 1x, index 2 = 2x ... index 12 = 12x
+        // =========================================================================
+        const TAXAS = {
+            presencial: {
+                debito: { visa_master: 1.37, outras: 2.58 },
+                credito: {
+                    visa_master: [0, 3.15, 5.39, 6.12, 6.85, 7.57, 8.28, 8.99, 9.69, 10.38, 11.06, 11.74, 12.40],
+                    outras:      [0, 4.91, 6.47, 7.20, 7.92, 8.63, 9.33, 10.03, 10.72, 11.41, 12.08, 12.75, 13.41]
+                }
+            },
+            link: {
+                debito: 4.20, // Assumindo valor de 1x, pois não há tarifa explícita de débito na imagem do link
+                credito: [0, 4.20, 6.09, 7.01, 7.91, 8.80, 9.67, 12.59, 13.42, 14.25, 15.06, 15.87, 16.66]
+            }
+        };
+
         let percent = 0;
         if(cardMode === 'presencial') {
             if(directMethod === 'debit') {
-                percent = cardBrand === 'visa_master' ? 1.99 : 2.99;
+                percent = cardBrand === 'visa_master' ? TAXAS.presencial.debito.visa_master : TAXAS.presencial.debito.outras;
             } else {
                 const inst = parseInt(cardInstallments) || 1;
-                if(inst === 1) percent = cardBrand === 'visa_master' ? 4.99 : 5.99;
-                else percent = (cardBrand === 'visa_master' ? 5.49 : 6.49) + (inst - 1) * 1.5;
+                const safeInst = Math.min(Math.max(inst, 1), 12); // Garante que fica entre 1 e 12
+                percent = cardBrand === 'visa_master' ? TAXAS.presencial.credito.visa_master[safeInst] : TAXAS.presencial.credito.outras[safeInst];
             }
         } else { // link
-            if(directMethod === 'debit') percent = 2.99;
-            else {
+            if(directMethod === 'debit') {
+                percent = TAXAS.link.debito;
+            } else {
                 const inst = parseInt(cardInstallments) || 1;
-                percent = inst === 1 ? 4.99 : 4.99 + (inst - 1) * 1.5;
+                const safeInst = Math.min(Math.max(inst, 1), 12);
+                percent = TAXAS.link.credito[safeInst];
             }
         }
         setFeePercent(percent.toFixed(2).replace('.', ','));
@@ -1567,10 +1587,10 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
             if (s.saleType === 'direct') {
                 let netDirect = s.totalPrice;
                 if (s.feeConfig && s.feeConfig.type === 'sem_juros') {
-                    netDirect -= (s.feeConfig.value || 0); // A loja assume a taxa, o dinheiro q cai é menor
+                    netDirect -= (s.feeConfig.value || 0); 
                     totalFeesPaidByStore += (s.feeConfig.value || 0);
                 } else if (s.feeConfig && s.feeConfig.type === 'com_juros') {
-                    netDirect -= (s.feeConfig.value || 0); // O valor da venda subiu pro cliente cobrir a taxa, o repasse p/ conta é o netDirect original
+                    netDirect -= (s.feeConfig.value || 0); 
                 }
                 cashIn += netDirect;
             } 
@@ -1614,7 +1634,7 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         }, 0);
         
         const periodCost = periodSales.reduce((acc, s) => acc + (s.totalCost || 0), 0);
-        const realProfit = cashIn - periodCost; // CashIn já está limpo de taxas
+        const realProfit = cashIn - periodCost; 
         
         return { 
             totalReceivable, totalReceived: cashIn, totalOverdue, totalUpcoming,
@@ -1816,10 +1836,19 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
 
     // --- GERADOR DE MENSAGENS E ACIONADOR DE WHATSAPP ---
     const handleOpenWA = (type, sale, installment, historyItem) => {
-        if (!sale || !sale.customerPhone) return;
+        if (!sale) return;
+
+        // BUSCA O TELEFONE ATUALIZADO NO CADASTRO DO CLIENTE
+        const currentCustomer = customers.find(c => c.id === sale.customerId);
+        const phoneToUse = currentCustomer?.phone || sale.customerPhone;
+
+        if (!phoneToUse) {
+            alert("Este cliente não possui um telefone de WhatsApp cadastrado!");
+            return;
+        }
 
         const store = userProfile?.storeName || "Nossa Loja";
-        const contractId = sale.id ? `VP-${sale.id.slice(-5).toUpperCase()}` : '00000'; // Alterado para VP-
+        const contractId = sale.id ? `VP-${sale.id.slice(-5).toUpperCase()}` : '00000'; 
         let msg = "";
 
         if (type === 'registro' || type === 'quitacao') {
@@ -1829,7 +1858,7 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
             msg += `📋 *Contrato:* ${contractId}\n`;
             msg += `📅 *Data:* ${formatDate(sale.saleDate)}\n\n`;
             msg += `👤 *Cliente:* ${sale.customerName}\n`;
-            if (sale.customerPhone) msg += `📱 *Telefone:* ${sale.customerPhone}\n`;
+            if (phoneToUse) msg += `📱 *Telefone:* ${phoneToUse}\n`;
             msg += `\n`;
             
             msg += `🛍️ *ITENS DA COMPRA:*\n`;
@@ -1934,7 +1963,7 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
             msg += `━━━━━━━━━━━━━━━━━━━\n\n`;
             msg += `📋 *Contrato:* ${contractId}\n`;
             msg += `👤 *Cliente:* ${sale.customerName}\n`;
-            if (sale.customerPhone) msg += `📱 *Telefone:* ${sale.customerPhone}\n`;
+            if (phoneToUse) msg += `📱 *Telefone:* ${phoneToUse}\n`;
             msg += `\n`;
             msg += `💵 *Valor Pago:* ${formatCurrency(paidValue)}\n`;
             msg += `📊 *Parcela:* ${installment.number}/${totalInst}\n`;
@@ -1951,7 +1980,7 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
             msg += `Muito obrigado!`;
         }
 
-        setWaChooserModal({ open: true, phone: sale.customerPhone, message: msg });
+        setWaChooserModal({ open: true, phone: phoneToUse, message: msg });
     };
 
     if (showAdminPanel) return React.createElement(AdminUsersPanel, { onClose: () => setShowAdminPanel(false) });
