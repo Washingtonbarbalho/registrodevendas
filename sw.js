@@ -1,4 +1,4 @@
-const CACHE_NAME = 'aura-hub-fine-modular-v9-pix-revert';
+const CACHE_NAME = 'aura-hub-fine-modular-v10-adm-financeiro';
 const urlsToCache = [
   './',
   './index.html',
@@ -22,6 +22,7 @@ const urlsToCache = [
   './js/adm/auth.js',
   './js/adm/modals.js',
   './js/adm/catalog.js',
+  './js/adm/finance.js',
   './js/adm/index.js',
   './js/crm/utils.js',
   './js/crm/ui.js',
@@ -31,25 +32,23 @@ const urlsToCache = [
   'https://cdn.tailwindcss.com'
 ];
 
-self.addEventListener('install', (event) => {
+self.addEventListener('install', event => {
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => cache.addAll(urlsToCache))
+    caches.open(CACHE_NAME).then(cache => cache.addAll(urlsToCache))
   );
 });
 
-self.addEventListener('fetch', (event) => {
+self.addEventListener('fetch', event => {
   event.respondWith(
-    caches.match(event.request)
-      .then((response) => response || fetch(event.request))
+    caches.match(event.request).then(response => response || fetch(event.request))
   );
 });
 
-self.addEventListener('activate', (event) => {
+self.addEventListener('activate', event => {
   const cacheWhitelist = [CACHE_NAME];
   event.waitUntil(
-    caches.keys().then((cacheNames) => Promise.all(
-      cacheNames.map((cacheName) => {
+    caches.keys().then(cacheNames => Promise.all(
+      cacheNames.map(cacheName => {
         if (!cacheWhitelist.includes(cacheName)) {
           return caches.delete(cacheName);
         }
