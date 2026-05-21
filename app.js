@@ -114,6 +114,70 @@ const getCurrentMonthEnd = () => {
     return new Date(d.getFullYear(), d.getMonth() + 1, 0).toLocaleDateString('pt-BR', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'America/Sao_Paulo' }).split('/').reverse().join('-');
 };
 
+// --- FUNÇÕES GERADORAS DO PIX COPIA E COLA (PADRÃO EMV) ---
+const formatPixKeyForPayload = (key, type) => {
+    if (!key) return '';
+    let cleanKey = key.trim();
+    if (type === 'phone') {
+        cleanKey = cleanKey.replace(/\D/g, '');
+        if (!cleanKey.startsWith('55')) cleanKey = '55' + cleanKey;
+        return '+' + cleanKey;
+    }
+    if (type === 'cpf_cnpj') return cleanKey.replace(/\D/g, '');
+    return cleanKey;
+};
+
+const generatePixPayload = (pixKey, pixType, pixName, pixCity, amount, txid = "***") => {
+    const formattedKey = formatPixKeyForPayload(pixKey, pixType);
+    if (!formattedKey) return '';
+
+    const tlv = (id, value) => {
+        const len = String(value.length).padStart(2, '0');
+        return `${id}${len}${value}`;
+    };
+
+    const cleanStr = (str) => {
+        return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9 ]/g, "").substring(0, 25).trim().toUpperCase() || "NOME";
+    };
+
+    const mName = cleanStr(pixName || "LOJA");
+    const mCity = cleanStr(pixCity || "BRASIL").substring(0, 15);
+    const amtStr = Number(amount).toFixed(2);
+
+    let payload = "";
+    payload += tlv("00", "01"); // Formato do Payload
+
+    const gui = tlv("00", "br.gov.bcb.pix");
+    const key = tlv("01", formattedKey);
+    payload += tlv("26", gui + key); // Info da Conta
+
+    payload += tlv("52", "0000"); // Categoria (Default)
+    payload += tlv("53", "986"); // Moeda BRL
+    if (amount > 0) payload += tlv("54", amtStr); // Valor
+    payload += tlv("58", "BR"); // País
+    payload += tlv("59", mName); // Nome Recebedor
+    payload += tlv("60", mCity); // Cidade Recebedor
+
+    const txidTlv = tlv("05", txid.replace(/[^a-zA-Z0-9]/g, "").substring(0, 25) || "***");
+    payload += tlv("62", txidTlv); // Campo Adicional
+
+    payload += "6304"; // Tag do CRC16
+
+    const getCRC16 = (str) => {
+        let crc = 0xFFFF;
+        for (let i = 0; i < str.length; i++) {
+            crc ^= str.charCodeAt(i) << 8;
+            for (let j = 0; j < 8; j++) {
+                if ((crc & 0x8000) > 0) crc = (crc << 1) ^ 0x1021;
+                else crc = crc << 1;
+            }
+        }
+        return (crc & 0xFFFF).toString(16).toUpperCase().padStart(4, '0');
+    };
+
+    return payload + getCRC16(payload);
+};
+
 
 // --- COMPONENTES DE UI ---
 
@@ -1849,6 +1913,28 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
 
         const store = userProfile?.storeName || "Nossa Loja";
         const contractId = sale.id ? `VP-${sale.id.slice(-5).toUpperCase()}` : '00000'; 
+        
+        // NOVO: Gerar Payload do PIX (se o usuário tiver os dados configurados e for o momento certo)
+        const hasPixSetup = userProfile?.pixKey && userProfile?.pixName;
+        let pixPayloadStr = "";
+
+        if (hasPixSetup) {
+            let pixAmount = 0;
+            if (type === 'cobranca' && installment) pixAmount = installment.amount; // Pix da Parcela
+            if (type === 'comprovante' && sale.paymentMethod === 'pix') pixAmount = sale.totalPrice; // Pix da Venda Direta
+
+            if (pixAmount > 0) {
+                pixPayloadStr = generatePixPayload(
+                    userProfile.pixKey, 
+                    userProfile.pixType, 
+                    userProfile.pixName, 
+                    userProfile.city || "BRASIL", 
+                    pixAmount, 
+                    contractId.replace("-", "") // TXID
+                );
+            }
+        }
+
         let msg = "";
 
         if (type === 'registro' || type === 'quitacao') {
@@ -1910,6 +1996,16 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
             else if (sale.paymentMethod === 'credit') paymentForm = `Crédito (${sale.cardInstallments}x)`;
             
             msg += `💳 *Forma de Pagto:* ${paymentForm}\n`;
+
+            // INCLUI DADOS DO PIX SE A FORMA FOR PIX E TIVER SIDO CONFIGURADO
+            if (sale.paymentMethod === 'pix' && pixPayloadStr) {
+                msg += `\nCaso ainda não tenha realizado o pagamento:\n`;
+                msg += `\n💳 *DADOS PARA PAGAMENTO (PIX):*\n`;
+                msg += `🏦 *Banco:* ${userProfile?.pixBank || ''}\n`;
+                msg += `👤 *Titular:* ${userProfile?.pixName || ''}\n`;
+                msg += `🔑 *Chave PIX:* ${applyPixMask(userProfile?.pixKey || '', userProfile?.pixType || '')}\n`;
+                msg += `\n*PIX COPIA E COLA (Padrão Banco Central):*\n${pixPayloadStr}\n`;
+            }
             
             msg += `\n━━━━━━━━━━━━━━━━━━━\n`;
             msg += `Muito obrigado pela preferência!\n*${store}*`;
@@ -1944,11 +2040,15 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
             msg += `📊 *STATUS DA PARCELA:*\n`;
             msg += `${installment.number}️⃣ ${instStatus}\n`;
 
-            if (userProfile?.pixKey && userProfile?.pixBank && userProfile?.pixName) {
+            if (hasPixSetup) {
                 msg += `\n💳 *DADOS PARA PAGAMENTO (PIX):*\n`;
                 msg += `🏦 *Banco:* ${userProfile.pixBank}\n`;
                 msg += `👤 *Titular:* ${userProfile.pixName}\n`;
                 msg += `🔑 *Chave PIX:* ${applyPixMask(userProfile.pixKey, userProfile.pixType)}\n`;
+                
+                if (pixPayloadStr) {
+                    msg += `\n*PIX COPIA E COLA (Padrão Banco Central):*\n${pixPayloadStr}\n`;
+                }
             }
 
             msg += `\nQualquer dúvida, estou à disposição!\n`;
