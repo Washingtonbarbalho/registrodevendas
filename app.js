@@ -333,7 +333,7 @@ const ConfirmModal = ({ isOpen, onClose, onConfirm, title, message, isCancel, on
 
 // --- MODAIS DE NEGÓCIO ---
 
-const WhatsAppChooserModal = ({ isOpen, onClose, phone, message, rawPixCode }) => {
+const WhatsAppChooserModal = ({ isOpen, onClose, phone, message }) => {
     if (!isOpen) return null;
 
     const handleOpen = (type) => {
@@ -354,13 +354,51 @@ const WhatsAppChooserModal = ({ isOpen, onClose, phone, message, rawPixCode }) =
             React.createElement('p', { className: "text-sm text-slate-500 mb-6" }, "Escolha a ação desejada para a mensagem."),
             React.createElement('div', { className: "space-y-3" },
                 React.createElement('button', { onClick: () => handleOpen('whatsapp'), className: "w-full p-4 bg-green-500 text-white font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-green-600 shadow-sm" }, React.createElement(MessageCircle, { size: 20 }), "Abrir no WhatsApp"),
-                React.createElement('button', { onClick: () => handleOpen('copy'), className: "w-full p-4 bg-slate-100 text-slate-600 font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-slate-200" }, React.createElement(Copy, { size: 20 }), "Copiar Mensagem"),
-                rawPixCode && React.createElement('button', { 
-                    onClick: () => { navigator.clipboard.writeText(rawPixCode); onClose(); alert("Código PIX Copiado!"); }, 
-                    className: "w-full p-4 bg-emerald-100 text-emerald-700 font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-emerald-200 border border-emerald-200 mt-2" 
-                }, React.createElement(QrCode, { size: 20 }), "Copiar SÓ o Código PIX")
+                React.createElement('button', { onClick: () => handleOpen('copy'), className: "w-full p-4 bg-slate-100 text-slate-600 font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-slate-200" }, React.createElement(Copy, { size: 20 }), "Copiar Mensagem")
             ),
             React.createElement('button', { onClick: onClose, className: "mt-4 p-2 text-slate-400 hover:text-slate-600 w-full font-bold" }, "Cancelar")
+        )
+    );
+};
+
+const PixCodeModal = ({ isOpen, onClose, userProfile, amount, txid }) => {
+    if (!isOpen || !userProfile?.pixKey) return null;
+    
+    const payload = generatePixPayload(userProfile.pixKey, userProfile.pixType, userProfile.pixName, userProfile.city || "BRASIL", amount, txid);
+
+    return React.createElement('div', { className: "fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-[90] backdrop-blur-sm" },
+        React.createElement('div', { className: "bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl animate-fade-in text-center" },
+            React.createElement('div', { className: "flex justify-between items-center mb-4" },
+                React.createElement('h3', { className: "text-lg font-bold text-slate-800 flex items-center gap-2" }, React.createElement(QrCode, { className: "text-emerald-500" }), "Receber via PIX"),
+                React.createElement('button', { onClick: onClose, className: "p-2 hover:bg-slate-100 rounded-full" }, React.createElement(X, { size: 20 }))
+            ),
+            
+            React.createElement('div', { className: "bg-emerald-50 p-4 rounded-xl border border-emerald-100 flex flex-col items-center" },
+                React.createElement('img', { 
+                    src: `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(payload)}`, 
+                    alt: "QR Code PIX", 
+                    className: "mb-4 rounded-lg shadow-sm border border-emerald-200 w-36 h-36" 
+                }),
+                React.createElement('p', { className: "font-bold text-emerald-800 text-lg mb-3" }, formatCurrency(amount)),
+                
+                React.createElement('div', { className: "w-full relative" },
+                    React.createElement('input', { 
+                        type: "text", 
+                        readOnly: true, 
+                        value: payload, 
+                        className: "w-full text-xs p-3 pr-12 border border-emerald-200 rounded-lg bg-white outline-none text-slate-500 font-mono" 
+                    }),
+                    React.createElement('button', { 
+                        onClick: () => { 
+                            navigator.clipboard.writeText(payload); 
+                            alert("Código PIX Copiado!");
+                        }, 
+                        className: "absolute right-2 top-2 p-1.5 bg-emerald-100 text-emerald-600 rounded hover:bg-emerald-200 transition-colors", 
+                        title: "Copiar" 
+                    }, React.createElement(Copy, { size: 16 }))
+                )
+            ),
+            React.createElement('button', { onClick: onClose, className: "w-full mt-4 p-3 bg-slate-900 text-white font-bold rounded-xl" }, "Fechar")
         )
     );
 };
@@ -1400,7 +1438,7 @@ const NewSaleModal = ({ isOpen, onClose, customers, products, onSave, userProfil
 
 
 // --- MODAL DE DETALHES COMPLETOS DA VENDA ---
-const SaleDetailsModal = ({ isOpen, onClose, sale, onPay, onEdit, onDeletePayment, onCancelSale, onDeleteSale, onOpenWA, hasPixSetup }) => {
+const SaleDetailsModal = ({ isOpen, onClose, sale, onPay, onEdit, onDeletePayment, onCancelSale, onDeleteSale, onOpenWA, onShowPixCode, hasPixSetup }) => {
     if (!isOpen || !sale) return null;
 
     const pendingAmount = sale.installments ? sale.installments.filter(i => !i.paid).reduce((acc, i) => acc + i.amount, 0) : 0;
@@ -1528,7 +1566,7 @@ const SaleDetailsModal = ({ isOpen, onClose, sale, onPay, onEdit, onDeletePaymen
                             ),
                             !inst.paid && sale.status !== 'canceled' ? React.createElement('div', { className: "flex gap-2 mt-2" },
                                 React.createElement('button', { onClick: () => onEdit({ open: true, saleId: sale.id, installmentIndex: idx, data: inst }), className: "flex-1 flex items-center justify-center gap-1 py-2 text-xs font-bold text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors" }, React.createElement(Edit2, { size: 14 }), "Ajustar"),
-                                hasPixSetup && React.createElement('button', { onClick: () => onOpenWA('pix_cobranca', sale, inst, null), className: "flex-1 flex items-center justify-center gap-1 py-2 text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 rounded-lg hover:bg-emerald-100 transition-colors shadow-sm" }, React.createElement(QrCode, { size: 14 }), "PIX"),
+                                hasPixSetup && React.createElement('button', { onClick: () => onShowPixCode(sale, inst), className: "flex-1 flex items-center justify-center gap-1 py-2 text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 rounded-lg hover:bg-emerald-100 transition-colors shadow-sm" }, React.createElement(QrCode, { size: 14 }), "PIX"),
                                 sale.customerPhone && React.createElement('button', { onClick: () => onOpenWA('cobranca', sale, inst, null), className: "flex-1 flex items-center justify-center gap-1 py-2 text-xs font-bold text-white bg-green-500 rounded-lg hover:bg-green-600 transition-colors shadow-sm" }, React.createElement(MessageCircle, { size: 14 }), "Cobrar")
                             ) : (inst.paid && sale.status !== 'canceled') ? React.createElement('div', { className: "flex gap-2 mt-2" },
                                 sale.customerPhone && React.createElement('button', { onClick: () => onOpenWA('recibo', sale, inst, null), className: "flex-1 flex items-center justify-center gap-1 py-2 text-xs font-bold text-emerald-600 bg-emerald-50 rounded-lg hover:bg-emerald-100 transition-colors shadow-sm border border-emerald-100" }, React.createElement(MessageCircle, { size: 14 }), "Enviar Recibo")
@@ -1599,7 +1637,9 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
     const [installmentListModal, setInstallmentListModal] = useState({ open: false, type: null, data: [] });
     const [paymentModal, setPaymentModal] = useState({ open: false, saleId: null, index: null, item: null, isLast: false });
     const [deletePaymentModal, setDeletePaymentModal] = useState({ open: false, saleId: null, instIndex: null, histIndex: null, historyItem: null });
-    const [waChooserModal, setWaChooserModal] = useState({ open: false, phone: '', message: '', rawPixCode: null });
+    
+    const [waChooserModal, setWaChooserModal] = useState({ open: false, phone: '', message: '' });
+    const [pixModalData, setPixModalData] = useState({ open: false, amount: 0, txid: '' });
 
     useEffect(() => {
         const customersRef = collection(db, 'artifacts', APP_ID, 'users', user.uid, 'customers');
@@ -1933,6 +1973,20 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         await updateDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'sales', saleId), { installments: updated, totalPrice: newTotal, status: allPaid ? 'completed' : 'active' });
     };
 
+    // Abertura do Modal Específico do PIX Copia e Cola nas Cobranças
+    const handleShowPixCode = (sale, installment) => {
+        if (!userProfile?.pixKey) {
+            alert("Configure sua chave PIX no seu Perfil primeiro para gerar esse código!");
+            return;
+        }
+        const contractId = sale.id ? `VP-${sale.id.slice(-5).toUpperCase()}` : '00000';
+        setPixModalData({
+            open: true,
+            amount: installment.amount,
+            txid: contractId.replace("-", "")
+        });
+    };
+
     // --- GERADOR DE MENSAGENS E ACIONADOR DE WHATSAPP ---
     const handleOpenWA = (type, sale, installment, historyItem) => {
         if (!sale) return;
@@ -1948,10 +2002,8 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
 
         const store = userProfile?.storeName || "Nossa Loja";
         const contractId = sale.id ? `VP-${sale.id.slice(-5).toUpperCase()}` : '00000'; 
-        const hasPixSetup = userProfile?.pixKey && userProfile?.pixName;
         
         let msg = "";
-        let pixPayloadStr = null; // Variável isolada apenas para o Código PIX bruto (se houver)
 
         if (type === 'registro' || type === 'quitacao') {
             const isQuitacao = type === 'quitacao';
@@ -2047,20 +2099,6 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
             msg += `\nQualquer dúvida, estou à disposição!\n`;
             msg += `━━━━━━━━━━━━━━━━━━━`;
         }
-        // NOVA MENSAGEM: Exclusiva para envio de Cobrança em formato PIX Copia e Cola
-        else if (type === 'pix_cobranca' && installment) {
-            if (!hasPixSetup) {
-                alert("Configure sua chave PIX no seu Perfil primeiro para gerar esse código!");
-                return;
-            }
-            const pixAmount = installment.amount;
-            pixPayloadStr = generatePixPayload(userProfile.pixKey, userProfile.pixType, userProfile.pixName, userProfile.city || "BRASIL", pixAmount, contractId.replace("-", ""));
-            
-            msg = `Olá *${sale.customerName}*!\n\n`;
-            msg += `Conforme combinado, segue o PIX Copia e Cola no valor de *${formatCurrency(pixAmount)}* referente à parcela ${installment.number} da sua compra:\n\n`;
-            msg += `${pixPayloadStr}\n\n`;
-            msg += `Qualquer dúvida, estou à disposição!`;
-        }
         else if (type === 'recibo' && installment) {
             const paidValue = historyItem ? historyItem.amount : installment.originalAmount || installment.amount;
             const paidDate = historyItem ? historyItem.date : installment.paidAt;
@@ -2087,7 +2125,7 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
             msg += `Muito obrigado!`;
         }
 
-        setWaChooserModal({ open: true, phone: phoneToUse, message: msg, rawPixCode: pixPayloadStr });
+        setWaChooserModal({ open: true, phone: phoneToUse, message: msg });
     };
 
     if (showAdminPanel) return React.createElement(AdminUsersPanel, { onClose: () => setShowAdminPanel(false) });
@@ -2293,7 +2331,17 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
             onCancelSale: (saleId) => setCancelModal({ open: true, saleId, reason: '' }),
             onDeleteSale: requestDelete,
             onOpenWA: handleOpenWA,
+            onShowPixCode: handleShowPixCode,
             hasPixSetup: !!(userProfile?.pixKey)
+        }),
+
+        // MODAL DO CÓDIGO PIX ISOLADO (NOVO)
+        React.createElement(PixCodeModal, {
+            isOpen: pixModalData.open,
+            onClose: () => setPixModalData({ open: false, amount: 0, txid: '' }),
+            userProfile: userProfile,
+            amount: pixModalData.amount,
+            txid: pixModalData.txid
         }),
 
         // MODAL DE LISTA DE PARCELAS
@@ -2323,7 +2371,7 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         }),
         React.createElement(ConfirmModal, { isOpen: deleteModal.open, title: "Tem certeza?", message: "O registro será apagado permanentemente.", onClose: () => { setDeleteModal({ open: false, id: null, type: null }); setSelectedSaleDetail(null); }, onConfirm: confirmDelete }),
         
-        React.createElement(WhatsAppChooserModal, { isOpen: waChooserModal.open, phone: waChooserModal.phone, message: waChooserModal.message, rawPixCode: waChooserModal.rawPixCode, onClose: () => setWaChooserModal({ open: false, phone: '', message: '', rawPixCode: null }) })
+        React.createElement(WhatsAppChooserModal, { isOpen: waChooserModal.open, phone: waChooserModal.phone, message: waChooserModal.message, onClose: () => setWaChooserModal({ open: false, phone: '', message: '' }) })
     );
 };
 
