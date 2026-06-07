@@ -589,57 +589,6 @@ const InstallmentListModal = ({ isOpen, onClose, title, items, onPay, onOpenWA }
     );
 };
 
-// --- PAINEL DE NOTIFICAÇÕES (COBRANÇAS UMA POR UMA) ---
-const NotificationPanel = ({ isOpen, onClose, alerts, onOpenSale }) => {
-    if (!isOpen) return null;
-
-    return React.createElement('div', { className: "fixed inset-0 z-[100] flex justify-end" },
-        React.createElement('div', { className: "absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in", onClick: onClose }),
-        React.createElement('div', { className: "relative w-full max-w-md bg-slate-50 h-full shadow-2xl flex flex-col animate-fade-in" },
-            // Header do Painel
-            React.createElement('div', { className: "p-5 border-b border-slate-200 flex justify-between items-center bg-white shrink-0" },
-                React.createElement('div', null,
-                    React.createElement('h3', { className: "font-bold text-xl flex items-center gap-2 text-slate-800" }, React.createElement(Bell, { className: "text-yellow-500", size: 24 }), "Notificações"),
-                    React.createElement('p', { className: "text-xs text-slate-500 mt-1" }, "Cobranças que exigem sua atenção")
-                ),
-                React.createElement('button', { onClick: onClose, className: "p-2 hover:bg-slate-100 text-slate-500 rounded-full transition-colors" }, React.createElement(X, { size: 24 }))
-            ),
-            // Lista de Alertas
-            React.createElement('div', { className: "flex-1 overflow-y-auto p-4 space-y-3 no-scrollbar" },
-                alerts.length === 0 ? React.createElement('div', { className: "text-center text-slate-400 mt-10 flex flex-col items-center gap-2" }, React.createElement(CheckCircle, { size: 48, className: "text-emerald-100" }), "Nenhuma cobrança pendente para os próximos 7 dias.") :
-                alerts.map(alert => {
-                    const isOverdue = alert.type === 'overdue';
-                    const isToday = alert.type === 'today';
-
-                    return React.createElement('div', {
-                        key: alert.id,
-                        onClick: () => onOpenSale(alert.sale),
-                        className: `p-4 rounded-xl border-l-4 cursor-pointer transition-all hover:-translate-y-1 hover:shadow-md bg-white shadow-sm flex flex-col gap-2 ${isOverdue ? 'border-l-red-500 border-y-red-100 border-r-red-100' : isToday ? 'border-l-orange-500 border-y-orange-100 border-r-orange-100' : 'border-l-blue-500 border-y-blue-100 border-r-blue-100'}`
-                    },
-                        React.createElement('div', { className: "flex justify-between items-start" },
-                            React.createElement('div', { className: "flex items-center gap-1.5" },
-                                isOverdue ? React.createElement(AlertTriangle, { size: 14, className: "text-red-500" }) : isToday ? React.createElement(AlertCircle, { size: 14, className: "text-orange-500" }) : React.createElement(Clock, { size: 14, className: "text-blue-500" }),
-                                React.createElement('span', { className: `text-[10px] font-bold uppercase tracking-wider ${isOverdue ? 'text-red-600' : isToday ? 'text-orange-600' : 'text-blue-600'}` },
-                                    isOverdue ? `Vencida há ${Math.abs(alert.daysDiff)} dia(s)` : isToday ? 'Vence Hoje!' : `Vence em ${alert.daysDiff} dia(s)`
-                                )
-                            ),
-                            React.createElement('span', { className: "text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full" }, formatDate(alert.dueDate))
-                        ),
-                        React.createElement('div', null,
-                            React.createElement('p', { className: "font-bold text-slate-800 text-sm leading-tight" }, alert.customerName),
-                            React.createElement('p', { className: "text-xs text-slate-500 mt-0.5" }, `Parcela ${alert.number}`)
-                        ),
-                        React.createElement('div', { className: "flex justify-between items-center mt-1 pt-2 border-t border-slate-50" },
-                            React.createElement('span', { className: "text-xs font-bold text-slate-400 flex items-center gap-1" }, React.createElement(ArrowUpRight, { size: 14 }), "Ver detalhes"),
-                            React.createElement('span', { className: "font-bold text-slate-800" }, formatCurrency(alert.amount))
-                        )
-                    );
-                })
-            )
-        )
-    );
-};
-
 // --- TELA DE LOGIN / REGISTRO ---
 const AuthScreen = () => {
     const [step, setStep] = useState('email'); 
@@ -1644,10 +1593,6 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
     const [sales, setSales] = useState([]);
     const [loadingData, setLoadingData] = useState(true);
 
-    // SISTEMA DE NOTIFICAÇÕES (ALERTS)
-    const [showNotificationPanel, setShowNotificationPanel] = useState(false);
-    const [hasSeenInitialAlerts, setHasSeenInitialAlerts] = useState(false);
-
     // Dashboard Date Filter
     const [dashPeriod, setDashPeriod] = useState('month'); 
     const [dashStartDate, setDashStartDate] = useState(getCurrentMonthStart());
@@ -1715,63 +1660,6 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
     useEffect(() => setCashierPage(1), [cashierSearch, cashierPeriod, cashierStart, cashierEnd]);
     useEffect(() => setProductsPage(1), [productSearch]);
     useEffect(() => setCustomersPage(1), [customerSearch]);
-
-    // PROCESSAMENTO DOS ALERTAS (NOTIFICAÇÕES DE COBRANÇA)
-    const notificationAlerts = useMemo(() => {
-        const todayStr = getBrazilDateString();
-        const todayDateObj = new Date(todayStr + 'T12:00:00');
-        let allAlerts = [];
-
-        sales.forEach(sale => {
-            if (sale.status === 'canceled' || sale.status === 'completed') return;
-            if (!sale.installments) return;
-
-            sale.installments.forEach((inst, idx) => {
-                if (inst.paid) return;
-
-                const dueDateObj = new Date(inst.dueDate + 'T12:00:00');
-                const diffTime = dueDateObj - todayDateObj;
-                const daysDiff = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-                // <= 7 days cobre os próximos 7 dias. 0 é hoje. < 0 é vencido.
-                if (daysDiff <= 7) {
-                    let type = 'upcoming';
-                    if (daysDiff < 0) type = 'overdue';
-                    else if (daysDiff === 0) type = 'today';
-
-                    allAlerts.push({
-                        id: `${sale.id}-${idx}`,
-                        saleId: sale.id,
-                        sale: sale,
-                        customerName: sale.customerName,
-                        amount: inst.amount,
-                        number: inst.number,
-                        dueDate: inst.dueDate,
-                        daysDiff: daysDiff,
-                        type: type,
-                        installmentIndex: idx
-                    });
-                }
-            });
-        });
-
-        // Ordena por urgência: mais atrasado primeiro, depois hoje, depois próximos dias
-        allAlerts.sort((a, b) => a.daysDiff - b.daysDiff);
-        return allAlerts;
-    }, [sales]);
-
-    // AUTO-ABERTURA DO PAINEL DE NOTIFICAÇÕES (1 vez por acesso se tiver algo urgente)
-    useEffect(() => {
-        if (!loadingData && !hasSeenInitialAlerts && notificationAlerts.length > 0) {
-            // Verifica se tem alerta vencido ou vencendo hoje
-            const hasUrgent = notificationAlerts.some(a => a.type === 'overdue' || a.type === 'today');
-            if (hasUrgent) {
-                setShowNotificationPanel(true);
-            }
-            setHasSeenInitialAlerts(true);
-        }
-    }, [loadingData, notificationAlerts, hasSeenInitialAlerts]);
-
 
     const sortedProducts = useMemo(() => {
         const list = [...products].sort((a, b) => a.code.localeCompare(b.code));
@@ -2261,24 +2149,11 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
                         React.createElement('h1', { className: "text-xl lg:text-2xl font-bold bg-gradient-to-r from-yellow-200 to-yellow-500 bg-clip-text text-transparent" }, userProfile?.storeName || "Minha Hinode"),
                         React.createElement('p', { className: "text-xs text-slate-400" }, `Olá, ${userProfile?.name?.split(' ')[0]}`)
                     ),
-                    React.createElement('div', { className: "flex gap-2 items-center" },
-                        userProfile?.role === 'admin' && React.createElement('button', { onClick: () => setShowAdminPanel(true), className: "bg-slate-800 p-2 rounded-full text-yellow-400 border border-slate-700 hover:bg-slate-700 transition-colors" }, React.createElement(Users, { size: 20 })),
-                        React.createElement('button', { onClick: () => setProfileModalOpen(true), className: "bg-slate-800 p-2 rounded-full text-blue-400 border border-slate-700 hover:bg-slate-700 transition-colors" }, React.createElement(User, { size: 20 })),
-                        React.createElement('button', { onClick: onLogout, className: "bg-slate-800 p-2 rounded-full text-red-400 border border-slate-700 hover:bg-slate-700 transition-colors" }, React.createElement(LogOut, { size: 20 })),
-                        
-                        // DIVISOR
-                        React.createElement('div', { className: "w-px h-6 bg-slate-700 mx-1 hidden sm:block" }),
-                        
-                        // SINO DE NOTIFICAÇÕES
-                        React.createElement('button', { 
-                            onClick: () => setShowNotificationPanel(true), 
-                            className: "relative bg-slate-800 p-2 rounded-full text-white border border-slate-700 hover:bg-slate-700 transition-colors" 
-                        }, 
-                            React.createElement(Bell, { size: 20 }),
-                            notificationAlerts.length > 0 && React.createElement('span', { className: "absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full h-5 w-5 flex items-center justify-center border-2 border-slate-900" }, notificationAlerts.length)
-                        ),
-
-                        React.createElement('button', { onClick: () => setIsSaleModalOpen(true), className: "bg-yellow-500 hover:bg-yellow-400 text-slate-900 p-2 rounded-full shadow-lg transition-transform active:scale-95 ml-1" }, React.createElement(PlusCircle, { size: 20 }))
+                    React.createElement('div', { className: "flex gap-2" },
+                        userProfile?.role === 'admin' && React.createElement('button', { onClick: () => setShowAdminPanel(true), className: "bg-slate-800 p-2 rounded-full text-yellow-400 border border-slate-700 hover:bg-slate-700" }, React.createElement(Users, { size: 20 })),
+                        React.createElement('button', { onClick: () => setProfileModalOpen(true), className: "bg-slate-800 p-2 rounded-full text-blue-400 border border-slate-700 hover:bg-slate-700" }, React.createElement(User, { size: 20 })),
+                        React.createElement('button', { onClick: onLogout, className: "bg-slate-800 p-2 rounded-full text-red-400 border border-slate-700 hover:bg-slate-700" }, React.createElement(LogOut, { size: 20 })),
+                         React.createElement('button', { onClick: () => setIsSaleModalOpen(true), className: "bg-yellow-500 hover:bg-yellow-400 text-slate-900 p-2 rounded-full shadow-lg transition-transform active:scale-95 ml-2" }, React.createElement(PlusCircle, { size: 20 }))
                     )
                 ),
                 React.createElement('div', { className: "flex space-x-1 overflow-x-auto no-scrollbar justify-start lg:justify-center" },
@@ -2438,17 +2313,6 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
             )
         ),
         
-        // MODAL DO PAINEL DE NOTIFICAÇÕES (Sino)
-        React.createElement(NotificationPanel, {
-            isOpen: showNotificationPanel,
-            onClose: () => setShowNotificationPanel(false),
-            alerts: notificationAlerts,
-            onOpenSale: (sale) => {
-                setShowNotificationPanel(false);
-                setSelectedSaleDetail(sale);
-            }
-        }),
-
         // MODAIS GERAIS
         React.createElement(UserProfileModal, { isOpen: profileModalOpen, onClose: () => setProfileModalOpen(false), userProfile: userProfile, onSave: handleUpdateProfile }),
         React.createElement(CustomerFormModal, { isOpen: customerModalData.open, onClose: () => setCustomerModalData({open:false, data:null}), initialData: customerModalData.data, onSave: handleSaveCustomer }),
