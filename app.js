@@ -1441,6 +1441,12 @@ const SaleDetailsModal = ({ isOpen, onClose, sale, onPay, onEdit, onDeletePaymen
     const paidInstallments = sale.installments ? sale.installments.filter(i => i.paid).length : 0;
     const totalInst = sale.installmentsCount || 0;
 
+    // CÁLCULO DE LUCRO ESTIMADO ADICIONADO AQUI
+    let profit = sale.totalPrice - (sale.totalCost || 0);
+    if (sale.feeConfig && sale.feeConfig.type === 'sem_juros') {
+        profit -= sale.feeConfig.value;
+    }
+
     const waType = sale.saleType === 'direct' ? 'comprovante' : (sale.status === 'completed' ? 'quitacao' : 'registro');
     const waTitle = sale.saleType === 'direct' ? 'Enviar Comprovante' : (sale.status === 'completed' ? 'Enviar Quitação' : 'Enviar Resumo da Venda');
 
@@ -1502,7 +1508,13 @@ const SaleDetailsModal = ({ isOpen, onClose, sale, onPay, onEdit, onDeletePaymen
                     React.createElement('div', { className: "flex justify-between text-sm" }, React.createElement('span', { className: "text-slate-500" }, "Valor dos Produtos:"), React.createElement('span', { className: "text-slate-800 font-bold" }, formatCurrency((sale.totalPrice + (sale.totalDiscount||0)) - (sale.feeConfig?.type === 'com_juros' ? sale.feeConfig.value : 0)))),
                     sale.totalDiscount > 0 && React.createElement('div', { className: "flex justify-between text-sm text-emerald-600" }, React.createElement('span', null, "Descontos Aplicados:"), React.createElement('span', { className: "font-bold" }, `- ${formatCurrency(sale.totalDiscount)}`)),
                     sale.feeConfig && React.createElement('div', { className: "flex justify-between text-sm text-orange-600" }, React.createElement('span', null, sale.feeConfig.type === 'sem_juros' ? "Taxa Maquininha (Loja Paga):" : "Taxa Repassada (Cliente Paga):"), React.createElement('span', { className: "font-bold" }, `${sale.feeConfig.type === 'sem_juros' ? '-' : '+'} ${formatCurrency(sale.feeConfig.value)}`)),
-                    React.createElement('div', { className: "flex justify-between text-sm" }, React.createElement('span', { className: "text-slate-500" }, "Custo Total:"), React.createElement('span', { className: "text-slate-800" }, formatCurrency(sale.totalCost || 0)))
+                    React.createElement('div', { className: "flex justify-between text-sm" }, React.createElement('span', { className: "text-slate-500" }, "Custo Total:"), React.createElement('span', { className: "text-slate-800" }, formatCurrency(sale.totalCost || 0))),
+                    
+                    // RETORNO DA LINHA DO LUCRO ESTIMADO
+                    React.createElement('div', { className: "flex justify-between text-sm font-bold text-emerald-600 pt-2 border-t border-slate-100 mt-1" }, 
+                        React.createElement('span', null, "Lucro Estimado:"), 
+                        React.createElement('span', null, formatCurrency(profit))
+                    )
                 ),
 
                 // Info Especifica de Venda Direta
