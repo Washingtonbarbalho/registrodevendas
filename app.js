@@ -589,6 +589,7 @@ const InstallmentListModal = ({ isOpen, onClose, title, items, onPay, onOpenWA }
     );
 };
 
+
 // --- TELA DE LOGIN / REGISTRO ---
 const AuthScreen = () => {
     const [step, setStep] = useState('email'); 
@@ -1454,6 +1455,29 @@ const SaleDetailsModal = ({ isOpen, onClose, sale, onPay, onEdit, onDeletePaymen
     const waType = sale.saleType === 'direct' ? 'comprovante' : (sale.status === 'completed' ? 'quitacao' : 'registro');
     const waTitle = sale.saleType === 'direct' ? 'Enviar Comprovante' : (sale.status === 'completed' ? 'Enviar Quitação' : 'Enviar Resumo da Venda');
 
+    // --- LÓGICA DO TERMÔMETRO DE LUCRO / RECUPERAÇÃO DE CUSTO ---
+    let paidSoFar = sale.entryAmount || 0;
+    if (sale.saleType === 'direct') {
+        paidSoFar = sale.totalPrice; 
+    } else if (sale.installments) {
+        sale.installments.forEach(inst => {
+            if (inst.history && inst.history.length > 0) {
+                inst.history.forEach(h => {
+                    if (h.type !== 'abatement') paidSoFar += h.amount;
+                });
+            } else if (inst.paid) {
+                paidSoFar += (inst.originalAmount || inst.amount);
+            }
+        });
+    }
+
+    const totalCost = sale.totalCost || 0;
+    const totalExpectedProfit = sale.totalPrice - totalCost - (sale.feeConfig?.type === 'sem_juros' ? (sale.feeConfig.value || 0) : 0);
+    const realizedProfit = Math.max(0, paidSoFar - totalCost);
+    const remainingToRecover = Math.max(0, totalCost - paidSoFar);
+    const isProfitable = paidSoFar >= totalCost;
+    const costRecoveryPercent = totalCost > 0 ? Math.min(100, (paidSoFar / totalCost) * 100) : 100;
+
     return React.createElement('div', { className: "fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-[55] backdrop-blur-sm" },
         React.createElement('div', { className: "bg-white rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col shadow-2xl animate-fade-in" },
             // Header
@@ -1512,8 +1536,29 @@ const SaleDetailsModal = ({ isOpen, onClose, sale, onPay, onEdit, onDeletePaymen
                     React.createElement('div', { className: "flex justify-between text-sm" }, React.createElement('span', { className: "text-slate-500" }, "Valor dos Produtos:"), React.createElement('span', { className: "text-slate-800 font-bold" }, formatCurrency((sale.totalPrice + (sale.totalDiscount||0)) - (sale.feeConfig?.type === 'com_juros' ? sale.feeConfig.value : 0)))),
                     sale.totalDiscount > 0 && React.createElement('div', { className: "flex justify-between text-sm text-emerald-600" }, React.createElement('span', null, "Descontos Aplicados:"), React.createElement('span', { className: "font-bold" }, `- ${formatCurrency(sale.totalDiscount)}`)),
                     sale.feeConfig && React.createElement('div', { className: "flex justify-between text-sm text-orange-600" }, React.createElement('span', null, sale.feeConfig.type === 'sem_juros' ? "Taxa Maquininha (Loja Paga):" : "Taxa Repassada (Cliente Paga):"), React.createElement('span', { className: "font-bold" }, `${sale.feeConfig.type === 'sem_juros' ? '-' : '+'} ${formatCurrency(sale.feeConfig.value)}`)),
-                    React.createElement('div', { className: "flex justify-between text-sm" }, React.createElement('span', { className: "text-slate-500" }, "Custo Total:"), React.createElement('span', { className: "text-slate-800" }, formatCurrency(sale.totalCost || 0))),
-                    React.createElement('div', { className: "flex justify-between text-sm pt-3 border-t border-slate-100" }, React.createElement('span', { className: "font-bold text-emerald-600 flex items-center gap-1" }, React.createElement(Wallet, { size: 14 }), "Lucro Estimado Líquido:"), React.createElement('span', { className: `font-bold ${profit >= 0 ? 'text-emerald-600' : 'text-red-500'}` }, formatCurrency(profit)))
+                    React.createElement('div', { className: "flex justify-between text-sm" }, React.createElement('span', { className: "text-slate-500" }, "Custo Total:"), React.createElement('span', { className: "text-slate-800" }, formatCurrency(sale.totalCost || 0)))
+                ),
+
+                // TERMÔMETRO DE LUCRO DA VENDA (NOVO BLOCO)
+                sale.status !== 'canceled' && React.createElement('div', { className: "bg-slate-50 p-4 rounded-xl border border-slate-200 relative z-10" },
+                    React.createElement('p', { className: "text-xs font-bold text-slate-500 uppercase mb-3 flex items-center gap-2" }, React.createElement(TrendingUp, { size: 14 }), "Termômetro da Venda"),
+                    React.createElement('div', { className: "mb-3" },
+                        React.createElement('div', { className: "flex justify-between text-xs mb-1" },
+                            React.createElement('span', { className: "text-slate-500" }, `Recuperação de Custo (${formatCurrency(totalCost)})`),
+                            React.createElement('span', { className: "font-bold text-slate-700" }, `${costRecoveryPercent.toFixed(0)}%`)
+                        ),
+                        React.createElement('div', { className: "w-full bg-slate-200 rounded-full h-2" },
+                            React.createElement('div', { className: `h-2 rounded-full transition-all ${isProfitable ? 'bg-emerald-500' : 'bg-yellow-500'}`, style: { width: `${costRecoveryPercent}%` } })
+                        )
+                    ),
+                    React.createElement('div', { className: "flex flex-col gap-1 mt-3 pt-3 border-t border-slate-200" },
+                        !isProfitable ? React.createElement('p', { className: "text-sm text-yellow-600 flex items-center gap-2 font-medium" },
+                            React.createElement(AlertTriangle, { size: 16 }), `Falta ${formatCurrency(remainingToRecover)} para pagar o custo.`
+                        ) : React.createElement('p', { className: "text-sm text-emerald-600 flex items-center gap-2 font-bold" },
+                            React.createElement(CheckCircle, { size: 16 }), `Custo pago! Lucro atual: ${formatCurrency(realizedProfit)}`
+                        ),
+                        React.createElement('p', { className: "text-xs text-slate-400 mt-1" }, `Lucro Estimado Final: ${formatCurrency(totalExpectedProfit)}`)
+                    )
                 ),
 
                 // Info Especifica de Venda Direta
@@ -1660,6 +1705,7 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
     useEffect(() => setCashierPage(1), [cashierSearch, cashierPeriod, cashierStart, cashierEnd]);
     useEffect(() => setProductsPage(1), [productSearch]);
     useEffect(() => setCustomersPage(1), [customerSearch]);
+
 
     const sortedProducts = useMemo(() => {
         const list = [...products].sort((a, b) => a.code.localeCompare(b.code));
@@ -2149,11 +2195,15 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
                         React.createElement('h1', { className: "text-xl lg:text-2xl font-bold bg-gradient-to-r from-yellow-200 to-yellow-500 bg-clip-text text-transparent" }, userProfile?.storeName || "Minha Hinode"),
                         React.createElement('p', { className: "text-xs text-slate-400" }, `Olá, ${userProfile?.name?.split(' ')[0]}`)
                     ),
-                    React.createElement('div', { className: "flex gap-2" },
-                        userProfile?.role === 'admin' && React.createElement('button', { onClick: () => setShowAdminPanel(true), className: "bg-slate-800 p-2 rounded-full text-yellow-400 border border-slate-700 hover:bg-slate-700" }, React.createElement(Users, { size: 20 })),
-                        React.createElement('button', { onClick: () => setProfileModalOpen(true), className: "bg-slate-800 p-2 rounded-full text-blue-400 border border-slate-700 hover:bg-slate-700" }, React.createElement(User, { size: 20 })),
-                        React.createElement('button', { onClick: onLogout, className: "bg-slate-800 p-2 rounded-full text-red-400 border border-slate-700 hover:bg-slate-700" }, React.createElement(LogOut, { size: 20 })),
-                         React.createElement('button', { onClick: () => setIsSaleModalOpen(true), className: "bg-yellow-500 hover:bg-yellow-400 text-slate-900 p-2 rounded-full shadow-lg transition-transform active:scale-95 ml-2" }, React.createElement(PlusCircle, { size: 20 }))
+                    React.createElement('div', { className: "flex gap-2 items-center" },
+                        userProfile?.role === 'admin' && React.createElement('button', { onClick: () => setShowAdminPanel(true), className: "bg-slate-800 p-2 rounded-full text-yellow-400 border border-slate-700 hover:bg-slate-700 transition-colors" }, React.createElement(Users, { size: 20 })),
+                        React.createElement('button', { onClick: () => setProfileModalOpen(true), className: "bg-slate-800 p-2 rounded-full text-blue-400 border border-slate-700 hover:bg-slate-700 transition-colors" }, React.createElement(User, { size: 20 })),
+                        React.createElement('button', { onClick: onLogout, className: "bg-slate-800 p-2 rounded-full text-red-400 border border-slate-700 hover:bg-slate-700 transition-colors" }, React.createElement(LogOut, { size: 20 })),
+                        
+                        // DIVISOR
+                        React.createElement('div', { className: "w-px h-6 bg-slate-700 mx-1 hidden sm:block" }),
+                        
+                        React.createElement('button', { onClick: () => setIsSaleModalOpen(true), className: "bg-yellow-500 hover:bg-yellow-400 text-slate-900 p-2 rounded-full shadow-lg transition-transform active:scale-95 ml-1" }, React.createElement(PlusCircle, { size: 20 }))
                     )
                 ),
                 React.createElement('div', { className: "flex space-x-1 overflow-x-auto no-scrollbar justify-start lg:justify-center" },
@@ -2335,7 +2385,7 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
             hasPixSetup: !!(userProfile?.pixKey)
         }),
 
-        // MODAL DO CÓDIGO PIX ISOLADO (NOVO)
+        // MODAL DO CÓDIGO PIX ISOLADO
         React.createElement(PixCodeModal, {
             isOpen: pixModalData.open,
             onClose: () => setPixModalData({ open: false, amount: 0, txid: '' }),
