@@ -164,6 +164,65 @@ const generatePixPayload = (pixKey, pixType, pixName, pixCity, amount, txid = "*
 };
 
 
+// --- MOTOR DE ANÁLISE DE CRÉDITO ---
+const analyzeCustomerCredit = (customerObj, requestedAmount, allSales) => {
+    if(!customerObj) return { approved: false, reason: "Cliente não encontrado para análise.", availableLimit: 0, currentDebt: 0, calculatedLimit: 0 };
+
+    const customerSales = allSales.filter(s => s.customerId === customerObj.id && (s.saleType === 'prazo' || !s.saleType));
+    const today = getBrazilDateString();
+    
+    let hasOverdue = false;
+    let currentDebt = 0;
+    let paidOnTimeCount = 0;
+    let paidLateCount = 0;
+    let canceledSalesCount = 0;
+
+    customerSales.forEach(s => {
+        if (s.status === 'canceled') {
+            canceledSalesCount++;
+        } else {
+            (s.installments || []).forEach(inst => {
+                if (!inst.paid) {
+                    currentDebt += inst.amount;
+                    if (inst.dueDate < today) hasOverdue = true; // Constatou atraso aberto
+                } else {
+                    // Pagou, vamos checar se pagou em dia
+                    if (inst.paidAt && inst.paidAt > inst.dueDate) {
+                        paidLateCount++;
+                    } else {
+                        paidOnTimeCount++;
+                    }
+                }
+            });
+        }
+    });
+
+    const baseLimit = 150;
+    const income = customerObj.income || 0;
+    const absoluteMaxLimit = income > 0 ? income * 0.40 : 300; // Teto do Limite: 40% da renda ou R$300 se não provar renda
+
+    let calculatedLimit = baseLimit + (paidOnTimeCount * 50) - (paidLateCount * 20) - (canceledSalesCount * 100);
+    
+    if (calculatedLimit < 0) calculatedLimit = 0;
+    if (calculatedLimit > absoluteMaxLimit) calculatedLimit = absoluteMaxLimit;
+
+    const availableLimit = Math.max(0, calculatedLimit - currentDebt);
+
+    // REGRA DE BLOQUEIO ABSOLUTO (INADIMPLÊNCIA)
+    if (hasOverdue) {
+        return { approved: false, reason: "Cliente bloqueado por inadimplência. Possui parcelas ativas em atraso.", availableLimit, calculatedLimit, currentDebt };
+    }
+
+    // REGRA DE LIMITE EXCEDIDO
+    if (requestedAmount > availableLimit) {
+        const suggestedEntry = requestedAmount - availableLimit;
+        return { approved: false, reason: "Limite de crédito insuficiente para esta compra.", availableLimit, calculatedLimit, currentDebt, suggestedEntry };
+    }
+
+    return { approved: true, reason: "Crédito aprovado com base no histórico do cliente.", availableLimit, calculatedLimit, currentDebt };
+};
+
+
 // --- COMPONENTES DE UI ---
 
 const MoneyInput = ({ value, onChange, placeholder, className, autoFocus, disabled }) => {
@@ -1066,7 +1125,9 @@ const NewSaleScreen = ({ mode, onClose, customers, products, sales, onSaveSale, 
     const [feeType, setFeeType] = useState('sem_juros'); 
     const [feePercent, setFeePercent] = useState('0,00');
 
-    // Credit Analysis Modal State
+    // Credit Analysis UI States
+    const [isAnalyzingCredit, setIsAnalyzingCredit] = useState(false);
+    const [approvedSaleData, setApprovedSaleData] = useState(null);
     const [creditModal, setCreditModal] = useState({ open: false, result: null, pendingSaleData: null, manualReason: '' });
 
     useEffect(() => { 
@@ -1205,6 +1266,10 @@ const NewSaleScreen = ({ mode, onClose, customers, products, sales, onSaveSale, 
         setCart([...cart, newItem]);
         setSelectedProductId(''); setCurrentQty(1); setCurrentCost(0); setCurrentPrice(''); setBaseUnitPrice(0); setCurrentDiscount(''); setProductSearch('');
     };
+
+    const handleRemoveItem = (tempId) => {
+        setCart(cart.filter(item => item.tempId !== tempId));
+    };
     
     const calculateInstallments = () => {
         const total = totalRemaining;
@@ -1220,64 +1285,6 @@ const NewSaleScreen = ({ mode, onClose, customers, products, sales, onSaveSale, 
             else currentDateStr = addDays(currentDateStr, 30);
         }
         return installments;
-    };
-
-    // FUNÇÃO CENTRAL DA ANÁLISE DE CRÉDITO
-    const analyzeCustomerCredit = (customerObj, requestedAmount) => {
-        if(!customerObj) return { approved: false, reason: "Cliente não encontrado para análise.", availableLimit: 0, currentDebt: 0, calculatedLimit: 0 };
-
-        const customerSales = sales.filter(s => s.customerId === customerObj.id && (s.saleType === 'prazo' || !s.saleType));
-        const today = getBrazilDateString();
-        
-        let hasOverdue = false;
-        let currentDebt = 0;
-        let paidOnTimeCount = 0;
-        let paidLateCount = 0;
-        let canceledSalesCount = 0;
-
-        customerSales.forEach(s => {
-            if (s.status === 'canceled') {
-                canceledSalesCount++;
-            } else {
-                (s.installments || []).forEach(inst => {
-                    if (!inst.paid) {
-                        currentDebt += inst.amount;
-                        if (inst.dueDate < today) hasOverdue = true; // Constatou atraso aberto
-                    } else {
-                        // Pagou, vamos checar se pagou em dia
-                        if (inst.paidAt && inst.paidAt > inst.dueDate) {
-                            paidLateCount++;
-                        } else {
-                            paidOnTimeCount++;
-                        }
-                    }
-                });
-            }
-        });
-
-        const baseLimit = 150;
-        const income = customerObj.income || 0;
-        const absoluteMaxLimit = income > 0 ? income * 0.40 : 300; // Teto do Limite: 40% da renda ou R$300 se não provar renda
-
-        let calculatedLimit = baseLimit + (paidOnTimeCount * 50) - (paidLateCount * 20) - (canceledSalesCount * 100);
-        
-        if (calculatedLimit < 0) calculatedLimit = 0;
-        if (calculatedLimit > absoluteMaxLimit) calculatedLimit = absoluteMaxLimit;
-
-        const availableLimit = Math.max(0, calculatedLimit - currentDebt);
-
-        // REGRA DE BLOQUEIO ABSOLUTO (INADIMPLÊNCIA)
-        if (hasOverdue) {
-            return { approved: false, reason: "Cliente bloqueado por inadimplência. Possui parcelas ativas em atraso.", availableLimit, calculatedLimit, currentDebt };
-        }
-
-        // REGRA DE LIMITE EXCEDIDO
-        if (requestedAmount > availableLimit) {
-            const suggestedEntry = requestedAmount - availableLimit;
-            return { approved: false, reason: "Limite de crédito insuficiente para esta compra.", availableLimit, calculatedLimit, currentDebt, suggestedEntry };
-        }
-
-        return { approved: true, reason: "Crédito aprovado com base no histórico do cliente.", availableLimit, calculatedLimit, currentDebt };
     };
 
     const handleFinish = () => {
@@ -1297,26 +1304,36 @@ const NewSaleScreen = ({ mode, onClose, customers, products, sales, onSaveSale, 
         };
 
         if (saleType === 'prazo') {
-            const requestedAmount = totalRemaining;
-            
-            // EXECUTA ANÁLISE ANTES DE CONTINUAR
-            const analysis = analyzeCustomerCredit(customer, requestedAmount);
+            setIsAnalyzingCredit(true); // INICIA A TELA DE CARREGAMENTO
 
-            if (!analysis.approved) {
-                // Interrompe e abre o modal de reprovação
-                setCreditModal({ open: true, result: analysis, pendingSaleData: saleData, manualReason: '' });
-                return;
-            }
+            // Simula um delay de 2 segundos para o sistema "pensar"
+            setTimeout(() => {
+                const requestedAmount = totalRemaining;
+                const analysis = analyzeCustomerCredit(customer, requestedAmount, sales);
 
-            // Se aprovado, adiciona os logs da analise e prossegue
-            const finalInstallments = calculateInstallments();
-            saleData = { 
-                ...saleData, 
-                entryAmount: entryValue, frequency, installmentsCount: finalInstallments.length, installments: finalInstallments, 
-                status: finalInstallments.length === 0 && entryValue >= totalCartValue ? 'completed' : 'active',
-                creditAnalysis: { approvedBySystem: true, result: analysis }
-            };
+                if (!analysis.approved) {
+                    setIsAnalyzingCredit(false);
+                    // Interrompe e abre o modal de reprovação amarelo
+                    setCreditModal({ open: true, result: analysis, pendingSaleData: saleData, manualReason: '' });
+                    return;
+                }
+
+                // Se aprovado pelo robô
+                const finalInstallments = calculateInstallments();
+                const finalSaleDataToSave = { 
+                    ...saleData, 
+                    entryAmount: entryValue, frequency, installmentsCount: finalInstallments.length, installments: finalInstallments, 
+                    status: finalInstallments.length === 0 && entryValue >= totalCartValue ? 'completed' : 'active',
+                    creditAnalysis: { approvedBySystem: true, result: analysis }
+                };
+                
+                setIsAnalyzingCredit(false);
+                setApprovedSaleData(finalSaleDataToSave); // ABRE A TELA VERDE DE SUCESSO
+
+            }, 2000); 
+
         } else {
+            // Se for venda no Caixa (Direta) não passa por aprovação
             let finalSalePrice = totalCartValue;
             let feeObj = null;
 
@@ -1333,10 +1350,10 @@ const NewSaleScreen = ({ mode, onClose, customers, products, sales, onSaveSale, 
                 cardInstallments: directMethod === 'credit' ? parseInt(cardInstallments) : 1, installments: [], 
                 status: 'completed', totalPrice: finalSalePrice, feeConfig: feeObj
             };
+            
+            onSaveSale(saleData); 
+            onClose();
         }
-        
-        onSaveSale(saleData); 
-        onClose();
     };
 
     const handleManualApprove = () => {
@@ -1359,6 +1376,29 @@ const NewSaleScreen = ({ mode, onClose, customers, products, sales, onSaveSale, 
         setCreditModal({ open: false, result: null, pendingSaleData: null, manualReason: '' });
         onClose();
     };
+
+    // --- RENDERIZAÇÕES DE SOBREPOSIÇÃO (LOADING E SUCESSO DE CRÉDITO) ---
+    if (isAnalyzingCredit) {
+        return React.createElement('div', { className: "fixed inset-0 bg-slate-900 z-[100] flex flex-col items-center justify-center p-4" },
+            React.createElement(RefreshCw, { size: 64, className: "text-yellow-500 animate-spin mb-6" }),
+            React.createElement('h2', { className: "text-2xl font-black text-white text-center uppercase tracking-wider mb-2" }, "Analisando Crédito"),
+            React.createElement('p', { className: "text-slate-400 text-center animate-pulse" }, "Avaliando histórico, renda e pagamentos do cliente...")
+        );
+    }
+
+    if (approvedSaleData) {
+        return React.createElement('div', { className: "fixed inset-0 bg-emerald-500 z-[100] flex flex-col items-center justify-center p-4 animate-fade-in" },
+            React.createElement('div', { className: "w-24 h-24 bg-white rounded-full flex items-center justify-center mb-6 shadow-2xl animate-bounce" },
+                React.createElement(ThumbsUp, { size: 48, className: "text-emerald-500" })
+            ),
+            React.createElement('h2', { className: "text-3xl font-black text-white text-center uppercase tracking-wider mb-2 drop-shadow-md" }, "Venda Aprovada!"),
+            React.createElement('p', { className: "text-emerald-100 text-center mb-8 font-medium max-w-md" }, "O histórico deste cliente é bom e permitiu a liberação de limite para esta compra a prazo."),
+            React.createElement('button', { 
+                onClick: () => { onSaveSale(approvedSaleData); onClose(); }, 
+                className: "w-full max-w-sm py-4 bg-slate-900 text-emerald-400 font-bold rounded-2xl shadow-xl hover:bg-slate-800 transition-colors text-lg flex items-center justify-center gap-2"
+            }, React.createElement(CheckCircle, { size: 24 }), "Concluir e Salvar Venda")
+        );
+    }
 
     return React.createElement('div', { className: "fixed inset-0 bg-slate-100 z-50 flex flex-col animate-fade-in" },
         // Header Fixado
@@ -1554,7 +1594,7 @@ const NewSaleScreen = ({ mode, onClose, customers, products, sales, onSaveSale, 
             )
         ),
 
-        // MODAL DE ANÁLISE DE CRÉDITO (NEGADO)
+        // MODAL DE ANÁLISE DE CRÉDITO (NEGADO/AMARELO)
         creditModal.open && React.createElement('div', { className: "fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm" },
             React.createElement('div', { className: "bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl animate-fade-in flex flex-col max-h-[90vh]" },
                 React.createElement('div', { className: "w-16 h-16 bg-red-100 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4" },
@@ -2275,7 +2315,7 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
             onClose: () => setNewSaleMode(null), 
             customers: customers, 
             products: products, 
-            sales: sales, // Passando o histórico de vendas para o motor de crédito
+            sales: sales, 
             onSaveSale: handleAddSale, 
             userProfile: userProfile,
             user: user
@@ -2461,17 +2501,34 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
                 
                 // GRID CLIENTES
                 React.createElement('div', { className: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" },
-                    paginatedCustomers.map(c => React.createElement('div', { key: c.id, className: "bg-white p-4 rounded-xl border border-slate-100 flex flex-col shadow-sm" }, 
-                        React.createElement('div', { className: "flex-1" }, 
-                            React.createElement('h3', { className: "font-bold text-slate-800 mb-1" }, c.name), 
-                            React.createElement('div', { className: "space-y-1 mt-2 text-sm text-slate-600" }, 
-                                c.phone && React.createElement('p', { className: "flex items-center gap-2" }, React.createElement(Phone, { size: 14, className: "text-slate-400"}), c.phone), 
-                                c.document && React.createElement('p', { className: "flex items-center gap-2" }, React.createElement(FileText, { size: 14, className: "text-slate-400"}), c.document), 
-                                c.cityState && React.createElement('p', { className: "flex items-center gap-2" }, React.createElement(MapPin, { size: 14, className: "text-slate-400"}), c.cityState)
-                            )
-                        ), 
-                        React.createElement('div', { className: "flex gap-2 mt-4 pt-3 border-t border-slate-100" }, React.createElement('button', { onClick: () => setCustomerModalData({open: true, data: c}), className: "flex-1 text-slate-400 hover:text-yellow-600 p-2 flex justify-center items-center rounded-lg hover:bg-slate-50 transition-colors" }, React.createElement(Edit2, { size: 18 })), React.createElement('button', { onClick: () => requestDelete('customer', c.id), className: "flex-1 text-slate-400 hover:text-red-500 p-2 flex justify-center items-center rounded-lg hover:bg-red-50 transition-colors" }, React.createElement(Trash2, { size: 18 })))
-                    ))
+                    paginatedCustomers.map(c => {
+                        const creditInfo = analyzeCustomerCredit(c, 0, sales);
+
+                        return React.createElement('div', { key: c.id, className: "bg-white p-4 rounded-xl border border-slate-100 flex flex-col shadow-sm relative overflow-hidden" }, 
+                            React.createElement('div', { className: "flex-1" }, 
+                                React.createElement('h3', { className: "font-bold text-slate-800 mb-1" }, c.name), 
+                                React.createElement('div', { className: "space-y-1 mt-2 text-sm text-slate-600" }, 
+                                    c.phone && React.createElement('p', { className: "flex items-center gap-2" }, React.createElement(Phone, { size: 14, className: "text-slate-400"}), c.phone), 
+                                    c.document && React.createElement('p', { className: "flex items-center gap-2" }, React.createElement(FileText, { size: 14, className: "text-slate-400"}), c.document), 
+                                    c.cityState && React.createElement('p', { className: "flex items-center gap-2" }, React.createElement(MapPin, { size: 14, className: "text-slate-400"}), c.cityState)
+                                ),
+
+                                // SESSÃO DE CRÉDITO DO CLIENTE AQUI:
+                                React.createElement('div', { className: "mt-4 p-3 bg-slate-50 rounded-lg border border-slate-100" },
+                                    React.createElement('p', { className: "text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1" }, React.createElement(Shield, { size: 12 }), "Análise de Crédito"),
+                                    React.createElement('div', { className: "flex justify-between items-center text-sm" },
+                                        React.createElement('span', { className: "text-slate-600" }, "Limite Disponível:"),
+                                        React.createElement('span', { className: `font-bold ${creditInfo.availableLimit > 0 ? 'text-emerald-600' : 'text-red-500'}` }, formatCurrency(creditInfo.availableLimit))
+                                    ),
+                                    creditInfo.currentDebt > 0 && React.createElement('div', { className: "flex justify-between items-center text-xs mt-1 border-t border-slate-200 pt-1" },
+                                        React.createElement('span', { className: "text-slate-500" }, "Em Aberto:"),
+                                        React.createElement('span', { className: "font-bold text-orange-500" }, formatCurrency(creditInfo.currentDebt))
+                                    )
+                                )
+                            ), 
+                            React.createElement('div', { className: "flex gap-2 mt-4 pt-3 border-t border-slate-100" }, React.createElement('button', { onClick: () => setCustomerModalData({open: true, data: c}), className: "flex-1 text-slate-400 hover:text-yellow-600 p-2 flex justify-center items-center rounded-lg hover:bg-slate-50 transition-colors" }, React.createElement(Edit2, { size: 18 })), React.createElement('button', { onClick: () => requestDelete('customer', c.id), className: "flex-1 text-slate-400 hover:text-red-500 p-2 flex justify-center items-center rounded-lg hover:bg-red-50 transition-colors" }, React.createElement(Trash2, { size: 18 })))
+                        )
+                    })
                 ),
                 React.createElement(Pagination, { totalItems: sortedCustomers.length, itemsPerPage: ITEMS_PER_PAGE, currentPage: customersPage, onPageChange: setCustomersPage })
             )
