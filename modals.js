@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'https://esm.sh/react@18.2.0';
-import { PackageMinus, AlertTriangle, MessageCircle, Copy, QrCode, X, User, Wallet, Clock, Users, CheckCircle, Edit2, Package, Tag, Info, ShieldAlert, History, XCircle, Receipt, BadgePercent, Calendar, PieChart } from 'https://esm.sh/lucide-react@0.292.0';
+// 👇 Aqui está a correção: o Trash2 foi adicionado aos ícones
+import { PackageMinus, AlertTriangle, MessageCircle, Copy, QrCode, X, User, Wallet, Clock, Users, CheckCircle, Edit2, Package, Tag, Info, ShieldAlert, History, XCircle, Receipt, BadgePercent, Calendar, PieChart, Trash2 } from 'https://esm.sh/lucide-react@0.292.0';
 import { formatCurrency, parseMoney, maskMoney, maskPhone, applyPixMask, generatePixPayload, maskCpfCnpj, maskCep, formatDate, getBrazilDateString } from './utils.js';
 import { MoneyInput } from './components.js';
 
