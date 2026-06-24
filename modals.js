@@ -1,8 +1,13 @@
-import React, { useState, useEffect } from 'https://esm.sh/react@18.2.0';
-// 👇 Aqui está a correção: o Trash2 foi adicionado aos ícones
-import { PackageMinus, AlertTriangle, MessageCircle, Copy, QrCode, X, User, Wallet, Clock, Users, CheckCircle, Edit2, Package, Tag, Info, ShieldAlert, History, XCircle, Receipt, BadgePercent, Calendar, PieChart, Trash2 } from 'https://esm.sh/lucide-react@0.292.0';
+import React, { useState, useEffect, useMemo } from 'https://esm.sh/react@18.2.0';
+import { PackageMinus, AlertTriangle, MessageCircle, Copy, QrCode, X, User, Wallet, Clock, Users, CheckCircle, Edit2, Package, Tag, Info, ShieldAlert, History, XCircle, Receipt, BadgePercent, Calendar, PieChart, Trash2, ArrowUpCircle, ArrowDownCircle } from 'https://esm.sh/lucide-react@0.292.0';
 import { formatCurrency, parseMoney, maskMoney, maskPhone, applyPixMask, generatePixPayload, maskCpfCnpj, maskCep, formatDate, getBrazilDateString } from './utils.js';
 import { MoneyInput } from './components.js';
+
+const formatDateTime = (dateStr) => {
+    if (!dateStr) return '--/--/---- --:--';
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('pt-BR') + ' ' + date.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
+};
 
 export const ConfirmModal = ({ isOpen, onClose, onConfirm, title, message, isCancel, onReasonChange, reasonValue }) => {
     if (!isOpen) return null;
@@ -39,11 +44,9 @@ export const ConfirmModal = ({ isOpen, onClose, onConfirm, title, message, isCan
 
 export const WhatsAppChooserModal = ({ isOpen, onClose, phone, message }) => {
     if (!isOpen) return null;
-
     const handleOpen = (type) => {
         const encodedMsg = encodeURIComponent(message);
         const cleanPhone = phone?.replace(/\D/g, '') || '';
-
         if (type === 'whatsapp') {
             window.open(`https://api.whatsapp.com/send?phone=55${cleanPhone}&text=${encodedMsg}`, '_blank');
         } else if (type === 'copy') {
@@ -51,7 +54,6 @@ export const WhatsAppChooserModal = ({ isOpen, onClose, phone, message }) => {
         }
         onClose();
     };
-
     return React.createElement('div', { className: "fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-[90] backdrop-blur-sm" },
         React.createElement('div', { className: "bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl animate-fade-in text-center" },
             React.createElement('h3', { className: "text-lg font-bold text-slate-800 mb-1" }, "Enviar Mensagem"),
@@ -67,16 +69,13 @@ export const WhatsAppChooserModal = ({ isOpen, onClose, phone, message }) => {
 
 export const PixCodeModal = ({ isOpen, onClose, userProfile, amount, txid }) => {
     if (!isOpen || !userProfile?.pixKey) return null;
-    
     const payload = generatePixPayload(userProfile.pixKey, userProfile.pixType, userProfile.pixName, userProfile.city || "BRASIL", amount, txid);
-
     return React.createElement('div', { className: "fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-[90] backdrop-blur-sm" },
         React.createElement('div', { className: "bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl animate-fade-in text-center" },
             React.createElement('div', { className: "flex justify-between items-center mb-4" },
                 React.createElement('h3', { className: "text-lg font-bold text-slate-800 flex items-center gap-2" }, React.createElement(QrCode, { className: "text-emerald-500" }), "Receber via PIX"),
                 React.createElement('button', { onClick: onClose, className: "p-2 hover:bg-slate-100 rounded-full" }, React.createElement(X, { size: 20 }))
             ),
-            
             React.createElement('div', { className: "bg-emerald-50 p-4 rounded-xl border border-emerald-100 flex flex-col items-center" },
                 React.createElement('img', { 
                     src: `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(payload)}`, 
@@ -84,19 +83,10 @@ export const PixCodeModal = ({ isOpen, onClose, userProfile, amount, txid }) => 
                     className: "mb-4 rounded-lg shadow-sm border border-emerald-200 w-36 h-36" 
                 }),
                 React.createElement('p', { className: "font-bold text-emerald-800 text-lg mb-3" }, formatCurrency(amount)),
-                
                 React.createElement('div', { className: "w-full relative" },
-                    React.createElement('input', { 
-                        type: "text", 
-                        readOnly: true, 
-                        value: payload, 
-                        className: "w-full text-xs p-3 pr-12 border border-emerald-200 rounded-lg bg-white outline-none text-slate-500 font-mono" 
-                    }),
+                    React.createElement('input', { type: "text", readOnly: true, value: payload, className: "w-full text-xs p-3 pr-12 border border-emerald-200 rounded-lg bg-white outline-none text-slate-500 font-mono" }),
                     React.createElement('button', { 
-                        onClick: () => { 
-                            navigator.clipboard.writeText(payload); 
-                            alert("Código PIX Copiado!");
-                        }, 
+                        onClick: () => { navigator.clipboard.writeText(payload); alert("Código PIX Copiado!"); }, 
                         className: "absolute right-2 top-2 p-1.5 bg-emerald-100 text-emerald-600 rounded hover:bg-emerald-200 transition-colors", 
                         title: "Copiar" 
                     }, React.createElement(Copy, { size: 16 }))
@@ -118,22 +108,14 @@ export const UserProfileModal = ({ isOpen, onClose, userProfile, onSave }) => {
 
     useEffect(() => {
         if (isOpen && userProfile) {
-            setName(userProfile.name || '');
-            setStoreName(userProfile.storeName || '');
-            setPhone(userProfile.phone || '');
-            setPixType(userProfile.pixType || '');
-            setPixKey(userProfile.pixKey || '');
-            setPixBank(userProfile.pixBank || '');
-            setPixName(userProfile.pixName || '');
+            setName(userProfile.name || ''); setStoreName(userProfile.storeName || ''); setPhone(userProfile.phone || '');
+            setPixType(userProfile.pixType || ''); setPixKey(userProfile.pixKey || ''); setPixBank(userProfile.pixBank || ''); setPixName(userProfile.pixName || '');
         }
     }, [isOpen, userProfile]);
 
-    const handleSave = () => {
-        onSave({ ...userProfile, name, storeName, phone, pixType, pixKey, pixBank, pixName });
-    };
+    const handleSave = () => { onSave({ ...userProfile, name, storeName, phone, pixType, pixKey, pixBank, pixName }); };
 
     if (!isOpen) return null;
-
     return React.createElement('div', { className: "fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-[80] backdrop-blur-sm" },
         React.createElement('div', { className: "bg-white rounded-2xl w-full max-w-md max-h-[90vh] flex flex-col shadow-2xl animate-fade-in" },
             React.createElement('div', { className: "p-4 border-b border-slate-100 flex justify-between items-center" },
@@ -184,37 +166,22 @@ export const PaymentConfirmationModal = ({ isOpen, onClose, onConfirm, installme
 
     const handleConfirm = () => {
         const val = parseMoney(amount);
-        if (val <= 0) {
-            setError('Digite um valor válido.');
-            return;
-        }
-        
+        if (val <= 0) { setError('Digite um valor válido.'); return; }
         const valCents = Math.round(val * 100);
         const instAmtCents = Math.round(installment.amount * 100);
-
-        if (isLast && valCents > instAmtCents) {
-            setError('Na última parcela não é permitido pagar valor maior que o restante.');
-            return;
-        }
+        if (isLast && valCents > instAmtCents) { setError('Na última parcela não é permitido pagar valor maior que o restante.'); return; }
         onConfirm(val, date);
     };
 
     if (!isOpen || !installment) return null;
-
     return React.createElement('div', { className: "fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-[75] backdrop-blur-sm" },
         React.createElement('div', { className: "bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl animate-fade-in" },
             React.createElement('div', { className: "text-center mb-4" },
-                React.createElement('div', { className: "w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-3" },
-                    React.createElement(Wallet, { className: "text-emerald-600", size: 24 })
-                ),
+                React.createElement('div', { className: "w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-3" }, React.createElement(Wallet, { className: "text-emerald-600", size: 24 })),
                 React.createElement('h3', { className: "text-lg font-bold text-slate-800" }, "Confirmar Pagamento"),
                 React.createElement('p', { className: "text-sm text-slate-500" }, `Parcela ${installment.number} - Restante: ${formatCurrency(installment.amount)}`)
             ),
-
-            error && React.createElement('div', { className: "bg-red-50 text-red-500 text-xs p-3 rounded-lg mb-4 flex items-center gap-2" },
-                React.createElement(AlertTriangle, { size: 14 }), error
-            ),
-
+            error && React.createElement('div', { className: "bg-red-50 text-red-500 text-xs p-3 rounded-lg mb-4 flex items-center gap-2" }, React.createElement(AlertTriangle, { size: 14 }), error),
             React.createElement('div', { className: "space-y-4" },
                 React.createElement('div', null,
                     React.createElement('label', { className: "block text-xs font-bold text-slate-500 uppercase mb-1" }, "Valor Pago (R$)"),
@@ -225,7 +192,6 @@ export const PaymentConfirmationModal = ({ isOpen, onClose, onConfirm, installme
                     React.createElement('input', { type: "date", className: "w-full p-3 border border-slate-200 rounded-xl", value: date, onChange: e => setDate(e.target.value) })
                 )
             ),
-
             React.createElement('div', { className: "flex gap-3 mt-6" },
                 React.createElement('button', { onClick: onClose, className: "flex-1 p-3 text-slate-500 font-bold hover:bg-slate-50 rounded-xl" }, "Cancelar"),
                 React.createElement('button', { onClick: handleConfirm, className: "flex-1 p-3 bg-emerald-500 text-white font-bold rounded-xl shadow-lg shadow-emerald-200 hover:bg-emerald-600" }, "Confirmar")
@@ -236,7 +202,6 @@ export const PaymentConfirmationModal = ({ isOpen, onClose, onConfirm, installme
 
 export const InstallmentListModal = ({ isOpen, onClose, title, items, onPay, onOpenWA }) => {
     if (!isOpen) return null;
-
     const groupedItems = items.reduce((acc, item) => {
         if (!acc[item.customerName]) acc[item.customerName] = [];
         acc[item.customerName].push(item);
@@ -246,10 +211,7 @@ export const InstallmentListModal = ({ isOpen, onClose, title, items, onPay, onO
     return React.createElement('div', { className: "fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-[80] backdrop-blur-sm" },
         React.createElement('div', { className: "bg-white rounded-2xl w-full max-w-md max-h-[90vh] flex flex-col shadow-2xl animate-fade-in" },
             React.createElement('div', { className: "p-4 border-b border-slate-100 flex justify-between items-center" },
-                React.createElement('h3', { className: "font-bold text-lg text-slate-800 flex items-center gap-2" }, 
-                    React.createElement(Clock, { className: "text-yellow-600", size: 20 }), 
-                    title
-                ),
+                React.createElement('h3', { className: "font-bold text-lg text-slate-800 flex items-center gap-2" }, React.createElement(Clock, { className: "text-yellow-600", size: 20 }), title),
                 React.createElement('button', { onClick: onClose, className: "p-2 hover:bg-slate-100 rounded-full" }, React.createElement(X, { size: 20 }))
             ),
             React.createElement('div', { className: "flex-1 overflow-y-auto p-4 space-y-4" },
@@ -267,19 +229,11 @@ export const InstallmentListModal = ({ isOpen, onClose, title, items, onPay, onO
                                         React.createElement('p', { className: "font-bold text-slate-800" }, formatCurrency(item.amount)),
                                         React.createElement('span', { className: "text-[10px] bg-white border border-slate-200 px-1.5 rounded text-slate-500" }, `Parcela ${item.number}`)
                                     ),
-                                    React.createElement('p', { className: `text-xs ${item.isOverdue ? 'text-red-500 font-bold' : 'text-slate-400'}` }, 
-                                        item.isOverdue ? `Venceu ${formatDate(item.dueDate)}` : `Vence ${formatDate(item.dueDate)}`
-                                    )
+                                    React.createElement('p', { className: `text-xs ${item.isOverdue ? 'text-red-500 font-bold' : 'text-slate-400'}` }, item.isOverdue ? `Venceu ${formatDate(item.dueDate)}` : `Vence ${formatDate(item.dueDate)}`)
                                 ),
                                 React.createElement('div', { className: "flex gap-2" },
-                                    item.customerPhone && React.createElement('button', { 
-                                        onClick: () => onOpenWA('cobranca', item.sale, item, null),
-                                        className: "p-2 bg-green-500 text-white rounded-lg shadow-sm hover:bg-green-600 transition-colors"
-                                    }, React.createElement(MessageCircle, { size: 16 })),
-                                    React.createElement('button', { 
-                                        onClick: () => onPay(item),
-                                        className: "p-2 bg-slate-800 text-white rounded-lg shadow-sm hover:bg-slate-700 transition-colors"
-                                    }, React.createElement(CheckCircle, { size: 16 }))
+                                    item.customerPhone && React.createElement('button', { onClick: () => onOpenWA('cobranca', item.sale, item, null), className: "p-2 bg-green-500 text-white rounded-lg shadow-sm hover:bg-green-600 transition-colors" }, React.createElement(MessageCircle, { size: 16 })),
+                                    React.createElement('button', { onClick: () => onPay(item), className: "p-2 bg-slate-800 text-white rounded-lg shadow-sm hover:bg-slate-700 transition-colors" }, React.createElement(CheckCircle, { size: 16 }))
                                 )
                             )
                         ))
@@ -308,59 +262,337 @@ export const EditInstallmentModal = ({ isOpen, onClose, installment, onSave }) =
     );
 };
 
-export const ProductDetailsModal = ({ isOpen, onClose, product }) => {
-    if (!isOpen || !product) return null;
+/* --- MODAIS DE PRODUTO DO SISTEMA ADMINISTRATIVO --- */
 
-    const today = getBrazilDateString();
-    const isPromoActive = product.isPromo && today >= product.promoStart && today <= product.promoEnd;
+export const ProductModal = ({ isOpen, onClose, onSave, lastCode, initialData }) => {
+    const [name, setName] = useState('');
+    const [description, setDescription] = useState('');
+    const [salePrice, setSalePrice] = useState('');
+    const [costPrice, setCostPrice] = useState('');
+    const [isPromo, setIsPromo] = useState(false);
+    const [promoPrice, setPromoPrice] = useState('');
+    const [promoStart, setPromoStart] = useState('');
+    const [promoEnd, setPromoEnd] = useState('');
 
-    return React.createElement('div', { className: "fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 overflow-y-auto" },
-        React.createElement('div', { className: "bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl animate-fade-in" },
-            React.createElement('div', { className: "flex justify-between items-center mb-6 border-b border-slate-100 pb-4" },
-                React.createElement('h3', { className: "text-lg font-bold flex items-center gap-2 text-slate-800" }, React.createElement(Package, { className: "text-yellow-500" }), "Detalhes do Produto"),
-                React.createElement('button', { onClick: onClose, className: "p-2 hover:bg-slate-100 rounded-full text-slate-400" }, React.createElement(X, { size: 20 }))
-            ),
-            
-            React.createElement('div', { className: "space-y-4" },
+    useEffect(() => {
+        if (initialData && isOpen) {
+            setName(initialData.name || ''); setDescription(initialData.description || ''); 
+            setSalePrice(initialData.salePrice || 0); setCostPrice(initialData.costPrice || 0); 
+            setIsPromo(initialData.isPromo || false); setPromoPrice(initialData.promoPrice || 0); 
+            setPromoStart(initialData.promoStart || ''); setPromoEnd(initialData.promoEnd || '');
+        } else if (isOpen) {
+            setName(''); setDescription(''); setSalePrice(''); setCostPrice('');
+            setIsPromo(false); setPromoPrice(''); setPromoStart(''); setPromoEnd('');
+        }
+    }, [initialData, isOpen]);
+
+    const nextCode = useMemo(() => { 
+        if (initialData) return initialData.code; 
+        if (!lastCode) return '000001'; 
+        return String(parseInt(lastCode, 10) + 1).padStart(6, '0'); 
+    }, [lastCode, initialData]);
+
+    if (!isOpen) return null;
+
+    const numCost = typeof costPrice === 'number' ? costPrice : parseMoney(costPrice);
+    const numSale = parseMoney(salePrice);
+    const profit = numSale - numCost;
+    const margin = numSale > 0 ? (profit / numSale) * 100 : 0;
+
+    const handleSubmit = () => {
+        if (!name || numSale <= 0) return alert("Nome e Preço de Venda são obrigatórios.");
+        const dataToSave = {
+            code: nextCode, name: name.toUpperCase(), description, salePrice: numSale, costPrice: numCost,
+            isPromo, promoPrice: isPromo ? parseMoney(promoPrice) : 0, promoStart: isPromo ? promoStart : null, promoEnd: isPromo ? promoEnd : null
+        };
+        if (!initialData) {
+            dataToSave.quantity = 0;
+            dataToSave.movements = [];
+        }
+        onSave(dataToSave);
+    };
+
+    return React.createElement('div', { className: "fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-[70] backdrop-blur-sm" },
+        React.createElement('div', { className: "bg-white rounded-2xl w-full max-w-lg shadow-2xl animate-fade-in flex flex-col max-h-[95vh]" },
+            React.createElement('div', { className: "p-6 border-b border-slate-100 flex justify-between items-center shrink-0" },
                 React.createElement('div', null,
-                    React.createElement('span', { className: "text-xs font-mono bg-slate-100 text-slate-500 px-2 py-1 rounded" }, `#${product.code}`),
-                    React.createElement('h2', { className: "text-xl font-bold text-slate-800 mt-2 leading-tight" }, product.name),
-                    product.description && React.createElement('p', { className: "text-sm text-slate-500 mt-1" }, product.description)
+                    React.createElement('h3', { className: "text-xl font-bold text-slate-800 flex items-center gap-2" }, React.createElement(Package, { className: "text-yellow-500" }), initialData ? 'Editar Produto' : 'Novo Produto'),
+                    React.createElement('p', { className: "text-sm text-slate-400 font-mono mt-1" }, `CÓD: #${nextCode}`)
                 ),
-
-                React.createElement('div', { className: "grid grid-cols-2 gap-4" },
-                    React.createElement('div', { className: "bg-slate-50 p-3 rounded-xl border border-slate-100" },
-                        React.createElement('p', { className: "text-[10px] uppercase font-bold text-slate-400 mb-1" }, "Preço Base"),
-                        React.createElement('p', { className: "font-bold text-slate-800 text-lg" }, formatCurrency(product.salePrice))
+                React.createElement('button', { onClick: onClose, className: "p-2 bg-slate-100 rounded-full hover:bg-slate-200" }, React.createElement(X, { size: 20 }))
+            ),
+            React.createElement('div', { className: "p-6 overflow-y-auto flex-1 space-y-4 no-scrollbar" },
+                !initialData && React.createElement('div', { className: "bg-blue-50 p-3 rounded-xl border border-blue-100 flex items-start gap-2" },
+                    React.createElement(Info, { className: "text-blue-500 shrink-0 mt-0.5", size: 16 }),
+                    React.createElement('p', { className: "text-xs text-blue-700" }, React.createElement('b', null, "O produto será criado com estoque zero."), " Após salvar, use a opção 'Movimentar Estoque' para dar entrada e registrar as quantidades.")
+                ),
+                React.createElement('div', { className: "bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3" },
+                    React.createElement('p', { className: "text-xs font-bold text-slate-400 uppercase" }, "Dados Básicos"),
+                    React.createElement('div', null,
+                        React.createElement('label', { className: "block text-[10px] font-bold text-slate-500 uppercase mb-1" }, "Nome do Produto *"),
+                        React.createElement('input', { className: "w-full p-3 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-yellow-500 uppercase", value: name, onChange: e => setName(e.target.value.toUpperCase()) })
                     ),
-                    React.createElement('div', { className: "bg-slate-50 p-3 rounded-xl border border-slate-100" },
-                        React.createElement('p', { className: "text-[10px] uppercase font-bold text-slate-400 mb-1" }, "Estoque Atual"),
-                        React.createElement('p', { className: `font-bold text-lg ${product.quantity <= 0 ? 'text-red-500' : 'text-slate-800'}` }, `${product.quantity} un.`)
+                    React.createElement('div', null,
+                        React.createElement('label', { className: "block text-[10px] font-bold text-slate-500 uppercase mb-1" }, "Descrição (Opcional)"),
+                        React.createElement('textarea', { className: "w-full p-3 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-yellow-500 text-sm", rows: "2", value: description, onChange: e => setDescription(e.target.value) })
                     )
                 ),
-
-                isPromoActive && React.createElement('div', { className: "bg-purple-50 p-4 rounded-xl border border-purple-200" },
-                    React.createElement('p', { className: "text-xs font-bold text-purple-700 uppercase flex items-center gap-1 mb-2" }, React.createElement(Tag, { size: 14 }), "Promoção Ativa"),
-                    React.createElement('div', { className: "flex justify-between items-end" },
+                React.createElement('div', { className: "bg-white p-4 rounded-xl border border-slate-200 space-y-3 shadow-sm" },
+                    React.createElement('p', { className: "text-xs font-bold text-slate-400 uppercase" }, "Precificação e Lucro"),
+                    React.createElement('div', { className: "grid grid-cols-2 gap-3" },
                         React.createElement('div', null,
-                            React.createElement('p', { className: "text-[10px] text-purple-500 font-bold uppercase" }, "Valor Especial"),
-                            React.createElement('p', { className: "font-bold text-purple-700 text-2xl" }, formatCurrency(product.promoPrice))
+                            React.createElement('label', { className: "block text-[10px] font-bold text-slate-500 uppercase mb-1" }, "Custo Médio Base"),
+                            React.createElement(MoneyInput, { value: costPrice, onChange: setCostPrice, className: "w-full p-3 pl-10 border border-slate-200 rounded-lg focus:ring-2 focus:ring-yellow-500 outline-none font-bold text-slate-800" })
                         ),
-                        React.createElement('div', { className: "text-right" },
-                            React.createElement('p', { className: "text-[10px] text-purple-500 font-bold uppercase" }, "Válido até"),
-                            React.createElement('p', { className: "font-bold text-purple-600 text-sm" }, formatDate(product.promoEnd))
+                        React.createElement('div', null,
+                            React.createElement('label', { className: "block text-[10px] font-bold text-slate-500 uppercase mb-1" }, "Preço de Venda *"),
+                            React.createElement(MoneyInput, { value: salePrice, onChange: setSalePrice, className: "w-full p-3 pl-10 border border-yellow-300 rounded-lg focus:ring-2 focus:ring-yellow-500 outline-none font-bold text-slate-800" })
+                        )
+                    ),
+                    React.createElement('div', { className: "flex gap-4 pt-2 border-t border-slate-100" },
+                        React.createElement('div', { className: "flex-1" },
+                            React.createElement('span', { className: "text-[10px] text-slate-400 uppercase font-bold block" }, "Lucro Estimado (R$)"),
+                            React.createElement('span', { className: `font-bold ${profit >= 0 ? 'text-emerald-600' : 'text-red-500'}` }, formatCurrency(profit))
+                        ),
+                        React.createElement('div', { className: "flex-1" },
+                            React.createElement('span', { className: "text-[10px] text-slate-400 uppercase font-bold block" }, "Margem (%)"),
+                            React.createElement('span', { className: `font-bold ${margin >= 0 ? 'text-emerald-600' : 'text-red-500'}` }, `${margin.toFixed(2)}%`)
                         )
                     )
                 ),
-
-                React.createElement('div', { className: "bg-blue-50 p-3 rounded-xl border border-blue-100 flex items-start gap-3 mt-4" },
-                    React.createElement(Info, { size: 18, className: "text-blue-500 shrink-0 mt-0.5" }),
-                    React.createElement('p', { className: "text-xs text-blue-700" }, "Para editar preços, descrições ou estoque, acesse o sistema Gestor Integrado de Cadastros independente.")
+                React.createElement('div', { className: `p-4 rounded-xl border transition-colors ${isPromo ? 'bg-purple-50 border-purple-200' : 'bg-slate-50 border-slate-200'}` },
+                    React.createElement('div', { className: "flex justify-between items-center cursor-pointer", onClick: () => setIsPromo(!isPromo) },
+                        React.createElement('p', { className: `text-xs font-bold uppercase flex items-center gap-2 ${isPromo ? 'text-purple-700' : 'text-slate-400'}` }, React.createElement(Tag, { size: 14 }), " Ativar Preço Promocional"),
+                        React.createElement('div', { className: `w-10 h-6 rounded-full p-1 transition-colors ${isPromo ? 'bg-purple-500' : 'bg-slate-300'}` },
+                            React.createElement('div', { className: `bg-white w-4 h-4 rounded-full shadow-sm transform transition-transform ${isPromo ? 'translate-x-4' : 'translate-x-0'}` })
+                        )
+                    ),
+                    isPromo && React.createElement('div', { className: "mt-4 space-y-3 animate-fade-in" },
+                        React.createElement('div', null,
+                            React.createElement('label', { className: "block text-[10px] font-bold text-purple-600 uppercase mb-1" }, "Preço na Promoção"),
+                            React.createElement(MoneyInput, { value: promoPrice, onChange: setPromoPrice, className: "w-full p-3 pl-10 border border-purple-200 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none text-purple-900 font-bold" })
+                        ),
+                        React.createElement('div', { className: "grid grid-cols-2 gap-3" },
+                            React.createElement('div', null,
+                                React.createElement('label', { className: "block text-[10px] font-bold text-purple-600 uppercase mb-1" }, "Início da Promo"),
+                                React.createElement('input', { type: "date", className: "w-full p-2 border border-purple-200 rounded-lg text-sm outline-none focus:ring-1 focus:ring-purple-500", value: promoStart, onChange: e => setPromoStart(e.target.value) })
+                            ),
+                            React.createElement('div', null,
+                                React.createElement('label', { className: "block text-[10px] font-bold text-purple-600 uppercase mb-1" }, "Fim da Promo"),
+                                React.createElement('input', { type: "date", className: "w-full p-2 border border-purple-200 rounded-lg text-sm outline-none focus:ring-1 focus:ring-purple-500", value: promoEnd, onChange: e => setPromoEnd(e.target.value) })
+                            )
+                        )
+                    )
                 )
             ),
+            React.createElement('div', { className: "p-6 border-t border-slate-100 flex gap-3 shrink-0 bg-white rounded-b-2xl" },
+                React.createElement('button', { onClick: onClose, className: "flex-1 p-3 text-slate-500 font-bold bg-slate-100 rounded-xl hover:bg-slate-200" }, "Cancelar"),
+                React.createElement('button', { onClick: handleSubmit, className: "flex-1 p-3 bg-slate-900 text-yellow-400 font-bold rounded-xl hover:bg-slate-800 shadow-lg" }, "Salvar Cadastro")
+            )
+        )
+    );
+};
 
-            React.createElement('div', { className: "mt-6" },
-                React.createElement('button', { onClick: onClose, className: "w-full p-3 bg-slate-900 text-white font-bold rounded-xl shadow-lg" }, "Fechar")
+export const ProductDetailsModal = ({ isOpen, onClose, product, salesHistory, onEdit, onMovementRequest, onDeleteRequest }) => {
+    const [tab, setTab] = useState('info');
+
+    const combinedHistory = useMemo(() => {
+        let history = [];
+        if (!product) return history;
+
+        if (product.movements && Array.isArray(product.movements)) {
+            product.movements.forEach(m => {
+                history.push({
+                    id: m.id, date: m.date, type: m.type, qty: m.quantity,
+                    isEntry: ['compra', 'ajuste_entrada', 'devolucao'].includes(m.type),
+                    totalValue: m.quantity * (m.unitCost || 0), notes: m.notes
+                });
+            });
+        }
+        
+        if (salesHistory && Array.isArray(salesHistory)) {
+            salesHistory.forEach(sale => {
+                const itemMatch = sale.items?.find(i => i.productId === product.id);
+                if (itemMatch) {
+                    const salePriceItem = itemMatch.price !== undefined ? itemMatch.price : product.salePrice;
+                    history.push({
+                        id: `sale-${sale.id}`, date: sale.saleDate + 'T12:00:00.000Z', type: 'venda',
+                        qty: itemMatch.quantity, isEntry: false, totalValue: itemMatch.quantity * salePriceItem,
+                        notes: `Venda p/ ${sale.customerName?.split(' ')[0]}`
+                    });
+                    if (sale.status === 'canceled') {
+                        history.push({
+                            id: `cancel-${sale.id}`, 
+                            date: sale.canceledAt ? new Date(sale.canceledAt.seconds * 1000).toISOString() : sale.saleDate + 'T12:00:01.000Z',
+                            type: 'cancelamento', qty: itemMatch.quantity, isEntry: true,
+                            totalValue: itemMatch.quantity * salePriceItem, notes: `Venda Cancelada`
+                        });
+                    }
+                }
+            });
+        }
+        return history.sort((a, b) => new Date(b.date) - new Date(a.date));
+    }, [product, salesHistory]);
+
+    if (!isOpen || !product) return null;
+
+    const isPromoActive = product.isPromo && getBrazilDateString() >= product.promoStart && getBrazilDateString() <= product.promoEnd;
+
+    return React.createElement('div', { className: "fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-[60] backdrop-blur-sm" },
+        React.createElement('div', { className: "bg-white rounded-2xl w-full max-w-md max-h-[95vh] flex flex-col shadow-2xl animate-fade-in" },
+            React.createElement('div', { className: "p-5 border-b border-slate-100 flex justify-between items-start bg-slate-900 text-white rounded-t-2xl shrink-0" },
+                React.createElement('div', null,
+                    React.createElement('span', { className: "text-[10px] font-mono bg-slate-800 text-yellow-400 px-2 py-0.5 rounded" }, `CÓD: #${product.code}`),
+                    React.createElement('h3', { className: "text-xl font-bold mt-2 leading-tight" }, product.name)
+                ),
+                React.createElement('button', { onClick: onClose, className: "p-2 hover:bg-slate-800 rounded-full text-slate-300 transition-colors" }, React.createElement(X, { size: 20 }))
+            ),
+            React.createElement('div', { className: "flex border-b border-slate-100 shrink-0 bg-slate-50" },
+                React.createElement('button', { onClick: () => setTab('info'), className: `flex-1 py-3 text-sm font-bold border-b-2 transition-colors ${tab === 'info' ? 'border-yellow-500 text-slate-800' : 'border-transparent text-slate-400 hover:text-slate-600'}` }, "Detalhes"),
+                React.createElement('button', { onClick: () => setTab('history'), className: `flex-1 py-3 text-sm font-bold border-b-2 transition-colors ${tab === 'history' ? 'border-yellow-500 text-slate-800' : 'border-transparent text-slate-400 hover:text-slate-600'}` }, "Histórico")
+            ),
+            React.createElement('div', { className: "flex-1 overflow-y-auto p-5 space-y-4 no-scrollbar" },
+                tab === 'info' && React.createElement('div', { className: "space-y-4 animate-fade-in" },
+                    React.createElement('div', { className: "grid grid-cols-2 gap-4" },
+                        React.createElement('div', { className: "bg-slate-50 p-4 rounded-xl border border-slate-100" },
+                            React.createElement('p', { className: "text-[10px] uppercase font-bold text-slate-400 mb-1" }, "Custo Médio"),
+                            React.createElement('p', { className: "font-bold text-slate-800 text-lg" }, formatCurrency(product.costPrice))
+                        ),
+                        React.createElement('div', { className: "bg-slate-50 p-4 rounded-xl border border-slate-100" },
+                            React.createElement('p', { className: "text-[10px] uppercase font-bold text-slate-400 mb-1" }, "Estoque"),
+                            React.createElement('p', { className: `font-bold text-lg ${product.quantity <= 0 ? 'text-red-500' : 'text-slate-800'}` }, `${product.quantity} un.`)
+                        )
+                    ),
+                    React.createElement('div', { className: "bg-white p-4 rounded-xl border border-slate-200 shadow-sm" },
+                        React.createElement('div', { className: "flex justify-between items-center mb-2" },
+                            React.createElement('p', { className: "text-[10px] uppercase font-bold text-slate-400" }, "Preço de Venda"),
+                            isPromoActive && React.createElement('span', { className: "bg-purple-100 text-purple-700 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase" }, "Promoção Ativa")
+                        ),
+                        isPromoActive ? React.createElement('div', { className: "flex items-end gap-3" },
+                            React.createElement('p', { className: "text-sm font-bold text-slate-400 line-through" }, formatCurrency(product.salePrice)),
+                            React.createElement('p', { className: "text-2xl font-bold text-purple-600" }, formatCurrency(product.promoPrice))
+                        ) : React.createElement('p', { className: "text-2xl font-bold text-slate-800" }, formatCurrency(product.salePrice))
+                    ),
+                    product.description && React.createElement('div', { className: "bg-slate-50 p-4 rounded-xl border border-slate-100" },
+                        React.createElement('p', { className: "text-[10px] uppercase font-bold text-slate-400 mb-1" }, "Descrição"),
+                        React.createElement('p', { className: "text-sm text-slate-600 whitespace-pre-wrap" }, product.description)
+                    ),
+                    React.createElement('div', { className: "grid grid-cols-2 gap-3 pt-2" },
+                        React.createElement('button', { onClick: () => onMovementRequest(product), className: "p-3 bg-emerald-500 text-white font-bold rounded-xl shadow-lg shadow-emerald-200 flex items-center justify-center gap-2 hover:bg-emerald-600 transition-colors" },
+                            React.createElement(ArrowUpCircle, { size: 18 }), " Movimentar"
+                        ),
+                        React.createElement('button', { onClick: () => onEdit(product), className: "p-3 bg-slate-100 text-slate-600 font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-slate-200 transition-colors" },
+                            React.createElement(Edit2, { size: 18 }), " Editar Info"
+                        )
+                    )
+                ),
+                tab === 'history' && React.createElement('div', { className: "space-y-3 animate-fade-in relative" },
+                    combinedHistory.length === 0 ? React.createElement('p', { className: "text-center text-slate-400 py-10 italic text-sm" }, "Nenhuma movimentação registrada.") :
+                    combinedHistory.map((h, i) => React.createElement('div', { key: i, className: "bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex items-center gap-3" },
+                        React.createElement('div', { className: `p-2 rounded-lg shrink-0 ${h.isEntry ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500'}` },
+                            h.isEntry ? React.createElement(ArrowUpCircle, { size: 20 }) : React.createElement(ArrowDownCircle, { size: 20 })
+                        ),
+                        React.createElement('div', { className: "flex-1" },
+                            React.createElement('div', { className: "flex justify-between items-start" },
+                                React.createElement('p', { className: "text-xs font-bold text-slate-800 uppercase leading-tight" }, h.type.replace('_', ' ')),
+                                React.createElement('div', { className: "text-right" },
+                                    React.createElement('p', { className: `font-bold text-sm ${h.isEntry ? 'text-emerald-600' : 'text-red-500'}` }, `${h.isEntry ? '+' : '-'}${h.qty} un.`)
+                                )
+                            ),
+                            React.createElement('div', { className: "flex justify-between items-center mt-1" },
+                                React.createElement('p', { className: "text-[10px] text-slate-400" }, formatDateTime(h.date)),
+                                h.totalValue > 0 && React.createElement('p', { className: "text-xs font-bold text-slate-600" }, formatCurrency(h.totalValue))
+                            ),
+                            h.notes && React.createElement('p', { className: "text-[10px] text-slate-500 mt-1 italic" }, `"${h.notes}"`)
+                        )
+                    ))
+                )
+            ),
+            React.createElement('div', { className: "p-4 border-t border-slate-100 bg-white rounded-b-2xl shrink-0 flex flex-col gap-2" },
+                React.createElement('button', { onClick: () => onDeleteRequest('product', product.id), className: "w-full py-3 text-red-400 hover:text-red-600 text-sm font-bold bg-white hover:bg-red-50 rounded-xl transition-colors border border-transparent flex items-center justify-center gap-2" },
+                    React.createElement(Trash2, { size: 16 }), " Excluir Produto Permanentemente"
+                )
+            )
+        )
+    );
+};
+
+export const StockMovementModal = ({ isOpen, onClose, product, onSave }) => {
+    const [type, setType] = useState('compra');
+    const [quantity, setQuantity] = useState('');
+    const [unitCost, setUnitCost] = useState('');
+    const [notes, setNotes] = useState('');
+
+    useEffect(() => {
+        if (isOpen && product) {
+            setType('compra'); setQuantity(''); setNotes('');
+            setUnitCost(maskMoney((product.costPrice * 100).toFixed(0)));
+        }
+    }, [isOpen, product]);
+
+    const handleSubmit = () => {
+        const qtyVal = parseInt(quantity) || 0;
+        if (qtyVal <= 0) return alert("Insira uma quantidade válida maior que zero.");
+        const costVal = parseMoney(unitCost);
+        if (type === 'compra' && costVal <= 0) return alert("Para compras, insira o valor unitário pago na mercadoria.");
+        onSave(product.id, { type, quantity: qtyVal, unitCost: costVal, notes });
+    };
+
+    const isEntry = ['compra', 'ajuste_entrada', 'devolucao'].includes(type);
+    if (!isOpen || !product) return null;
+
+    return React.createElement('div', { className: "fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-[80] backdrop-blur-sm" },
+        React.createElement('div', { className: "bg-white rounded-2xl w-full max-w-sm shadow-2xl animate-fade-in flex flex-col" },
+            React.createElement('div', { className: "p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-2xl" },
+                React.createElement('h3', { className: "font-bold text-lg text-slate-800 flex items-center gap-2" }, React.createElement(ArrowUpCircle, { className: "text-yellow-600", size: 20 }), " Movimentar Estoque"),
+                React.createElement('button', { onClick: onClose, className: "p-2 hover:bg-slate-200 rounded-full" }, React.createElement(X, { size: 20 }))
+            ),
+            React.createElement('div', { className: "p-5 space-y-4" },
+                React.createElement('div', { className: "bg-slate-100 p-3 rounded-xl border border-slate-200 flex justify-between items-center" },
+                    React.createElement('div', null,
+                        React.createElement('p', { className: "text-xs font-bold text-slate-500 uppercase line-clamp-1" }, product.name),
+                        React.createElement('p', { className: "text-[10px] text-slate-400 font-mono" }, `Cód: #${product.code}`)
+                    ),
+                    React.createElement('div', { className: "text-right" },
+                        React.createElement('p', { className: "text-[10px] text-slate-400 uppercase font-bold" }, "Estoque Atual"),
+                        React.createElement('p', { className: "font-bold text-slate-800" }, `${product.quantity} un.`)
+                    )
+                ),
+                React.createElement('div', null,
+                    React.createElement('label', { className: "block text-[10px] font-bold text-slate-500 uppercase mb-1" }, "Tipo de Movimentação *"),
+                    React.createElement('select', { className: "w-full p-3 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-yellow-500 bg-white", value: type, onChange: e => setType(e.target.value) },
+                        React.createElement('optgroup', { label: "Entradas (Soma Estoque)" },
+                            React.createElement('option', { value: "compra" }, "Compra de Mercadoria"),
+                            React.createElement('option', { value: "ajuste_entrada" }, "Ajuste de Entrada (+)")
+                        ),
+                        React.createElement('optgroup', { label: "Saídas (Subtrai Estoque)" },
+                            React.createElement('option', { value: "ajuste_saida" }, "Ajuste de Saída (-)"),
+                            React.createElement('option', { value: "avaria" }, "Avaria / Perda / Vencido")
+                        )
+                    )
+                ),
+                React.createElement('div', { className: "grid grid-cols-2 gap-3" },
+                    React.createElement('div', null,
+                        React.createElement('label', { className: "block text-[10px] font-bold text-slate-500 uppercase mb-1" }, "Qtd *"),
+                        React.createElement('input', { type: "number", min: "1", className: "w-full p-3 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-yellow-500 text-center font-bold", value: quantity, onChange: e => setQuantity(e.target.value), placeholder: "0" })
+                    ),
+                    React.createElement('div', null,
+                        React.createElement('label', { className: "block text-[10px] font-bold text-slate-500 uppercase mb-1" }, "Custo Unitário (R$)"),
+                        React.createElement(MoneyInput, { value: unitCost, onChange: setUnitCost, disabled: !isEntry, className: `w-full p-3 pl-8 border border-slate-200 rounded-lg outline-none font-bold text-sm ${isEntry ? 'focus:ring-2 focus:ring-yellow-500 bg-white' : 'bg-slate-100 text-slate-400'}` })
+                    )
+                ),
+                type === 'compra' && React.createElement('div', { className: "bg-yellow-50 p-3 rounded-lg border border-yellow-200 text-[10px] text-yellow-800 leading-tight" },
+                    React.createElement('span', { className: "font-bold block mb-1" }, "Cálculo de Custo Médio Ativo!"),
+                    "Ao registrar uma compra, o sistema unirá o valor atual do estoque com o valor desta nova compra e calculará automaticamente o novo custo base do produto."
+                ),
+                React.createElement('div', null,
+                    React.createElement('label', { className: "block text-[10px] font-bold text-slate-500 uppercase mb-1" }, "Observações (Opcional)"),
+                    React.createElement('input', { type: "text", className: "w-full p-3 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-yellow-500 text-sm", value: notes, onChange: e => setNotes(e.target.value), placeholder: "NFe, motivo..." })
+                )
+            ),
+            React.createElement('div', { className: "p-4 border-t border-slate-100 flex gap-3 bg-white rounded-b-2xl" },
+                React.createElement('button', { onClick: onClose, className: "flex-1 p-3 text-slate-500 font-bold bg-slate-100 rounded-xl hover:bg-slate-200" }, "Cancelar"),
+                React.createElement('button', { onClick: handleSubmit, className: `flex-1 p-3 text-white font-bold rounded-xl shadow-lg ${isEntry ? 'bg-emerald-500 hover:bg-emerald-600 shadow-emerald-200' : 'bg-red-500 hover:bg-red-600 shadow-red-200'}` }, `Confirmar ${isEntry ? 'Entrada' : 'Saída'}`)
             )
         )
     );
