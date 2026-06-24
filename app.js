@@ -4,7 +4,7 @@ import { Users, User, LogOut, Lock } from 'https://esm.sh/lucide-react@0.292.0';
 
 // Firebase
 import { app, db, auth, APP_ID } from './firebase-config.js';
-import { collection, onSnapshot, query, doc, getDoc, updateDoc, deleteDoc, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
+import { collection, onSnapshot, query, doc, getDoc, updateDoc, deleteDoc, addDoc, serverTimestamp, setDoc } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js";
 
 // Utils
@@ -14,7 +14,7 @@ import { getCurrentMonthStart, getCurrentMonthEnd, getBrazilDateString, addDays,
 import { 
     UserProfileModal, CustomerFormModal, ProductDetailsModal, EditInstallmentModal, 
     SaleDetailsModal, PixCodeModal, InstallmentListModal, PaymentConfirmationModal, 
-    ConfirmModal, WhatsAppChooserModal 
+    ConfirmModal, WhatsAppChooserModal, ProductModal, StockMovementModal
 } from './modals.js';
 
 // Telas Secundárias
@@ -61,7 +61,10 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
     const [productSearch, setProductSearch] = useState('');
     const [customerSearch, setCustomerSearch] = useState('');
 
-    const [productViewModalData, setProductViewModalData] = useState({ open: false, data: null }); 
+    const [productDetailsData, setProductDetailsData] = useState({ open: false, data: null });
+    const [productModalData, setProductModalData] = useState({ open: false, data: null });
+    const [stockMovementData, setStockMovementData] = useState({ open: false, data: null });
+
     const [customerModalData, setCustomerModalData] = useState({ open: false, data: null });
     const [profileModalOpen, setProfileModalOpen] = useState(false);
     
@@ -215,6 +218,68 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         };
     }, [sales, dashStartDate, dashEndDate]);
 
+    const handleSaveProduct = async (data) => {
+        if (productModalData.data) {
+            await updateDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'products', productModalData.data.id), data);
+        } else {
+            await addDoc(collection(db, 'artifacts', APP_ID, 'users', user.uid, 'products'), { ...data, createdAt: serverTimestamp() });
+        }
+        setProductModalData({ open: false, data: null });
+        if (productDetailsData.open && productModalData.data) {
+            const updatedProduct = { ...productModalData.data, ...data };
+            setProductDetailsData({ open: true, data: updatedProduct });
+        }
+    };
+
+    const handleStockMovement = async (productId, movementInfo) => {
+        const productRef = doc(db, 'artifacts', APP_ID, 'users', user.uid, 'products', productId);
+        const p = products.find(prod => prod.id === productId);
+        if (!p) return;
+
+        const currentQty = parseInt(p.quantity) || 0;
+        const currentCost = parseFloat(p.costPrice) || 0;
+        const movQty = parseInt(movementInfo.quantity) || 0;
+        const movCost = parseFloat(movementInfo.unitCost) || 0;
+        const movType = movementInfo.type; 
+
+        let newQty = currentQty;
+        let newCost = currentCost;
+        let isEntry = ['compra', 'ajuste_entrada', 'devolucao'].includes(movType);
+
+        if (isEntry) {
+            newQty = currentQty + movQty;
+            if (movType === 'compra' && movQty > 0) {
+                const totalCurrentValue = currentQty * currentCost;
+                const totalAddedValue = movQty * movCost;
+                newCost = (totalCurrentValue + totalAddedValue) / newQty;
+            }
+        } else {
+            newQty = currentQty - movQty;
+        }
+
+        const newMovement = {
+            id: Date.now().toString(),
+            type: movType,
+            quantity: movQty,
+            unitCost: isEntry && movType === 'compra' ? movCost : 0,
+            date: new Date().toISOString(),
+            previousQty: currentQty,
+            newQty: newQty,
+            notes: movementInfo.notes || ''
+        };
+
+        const updatedMovements = p.movements ? [...p.movements, newMovement] : [newMovement];
+
+        await updateDoc(productRef, {
+            quantity: newQty,
+            costPrice: newCost,
+            movements: updatedMovements
+        });
+
+        setStockMovementData({ open: false, data: null });
+        setProductDetailsData({ open: true, data: { ...p, quantity: newQty, costPrice: newCost, movements: updatedMovements }});
+    };
+
     const handleSaveCustomer = async (data) => {
         if (customerModalData.data) await updateDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'customers', customerModalData.data.id), data);
         else await addDoc(collection(db, 'artifacts', APP_ID, 'users', user.uid, 'customers'), { ...data, createdAt: serverTimestamp() });
@@ -274,6 +339,9 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         const col = type === 'sale' ? 'sales' : type === 'customer' ? 'customers' : 'products';
         await deleteDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, col, id));
         setDeleteModal({ open: false, type: null, id: null });
+        if (type === 'product' && productDetailsData.data?.id === id) {
+            setProductDetailsData({ open: false, data: null });
+        }
     };
 
     const handleUpdateProfile = async (updatedData) => {
@@ -578,7 +646,7 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
                 cashierSearch, setCashierSearch, paginatedCashier, directSales, cashierPage, setCashierPage, setSelectedSaleDetail, ITEMS_PER_PAGE
             }),
             view === 'products' && React.createElement(AbaProdutos, {
-                productSearch, setProductSearch, paginatedProducts, sortedProducts, productsPage, setProductsPage, setProductViewModalData, ITEMS_PER_PAGE
+                productSearch, setProductSearch, paginatedProducts, sortedProducts, productsPage, setProductsPage, setProductDetailsData, setProductModalData, ITEMS_PER_PAGE
             }),
             view === 'customers' && React.createElement(AbaClientes, {
                 customerSearch, setCustomerSearch, setCustomerModalData, paginatedCustomers, sales, requestDelete, sortedCustomers, customersPage, setCustomersPage, ITEMS_PER_PAGE
@@ -587,9 +655,31 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         
         React.createElement(UserProfileModal, { isOpen: profileModalOpen, onClose: () => setProfileModalOpen(false), userProfile: userProfile, onSave: handleUpdateProfile }),
         React.createElement(CustomerFormModal, { isOpen: customerModalData.open, onClose: () => setCustomerModalData({open:false, data:null}), initialData: customerModalData.data, onSave: handleSaveCustomer }),
-        React.createElement(ProductDetailsModal, { isOpen: productViewModalData.open, onClose: () => setProductViewModalData({open:false, data:null}), product: productViewModalData.data }),
         React.createElement(EditInstallmentModal, { isOpen: editInstallmentModal.open, onClose: () => setEditInstallmentModal({ open: false, saleId: null, data: null }), installment: editInstallmentModal.data, onSave: saveEditedInstallment }),
         
+        React.createElement(ProductDetailsModal, { 
+            isOpen: productDetailsData.open, 
+            onClose: () => setProductDetailsData({open:false, data:null}), 
+            product: productDetailsData.data,
+            salesHistory: sales,
+            onEdit: (p) => setProductModalData({open: true, data: p}),
+            onMovementRequest: (p) => setStockMovementData({open: true, data: p}),
+            onDeleteRequest: requestDelete
+        }),
+        React.createElement(ProductModal, {
+            isOpen: productModalData.open,
+            onClose: () => setProductModalData({open: false, data: null}),
+            onSave: handleSaveProduct,
+            initialData: productModalData.data,
+            lastCode: products.length > 0 ? String(products.reduce((max, p) => Math.max(max, parseInt(p.code || '0', 10) || 0), 0)).padStart(6, '0') : null
+        }),
+        React.createElement(StockMovementModal, {
+            isOpen: stockMovementData.open,
+            onClose: () => setStockMovementData({open: false, data: null}),
+            product: stockMovementData.data,
+            onSave: handleStockMovement
+        }),
+
         React.createElement(SaleDetailsModal, {
             isOpen: !!activeSaleDetails, onClose: () => setSelectedSaleDetail(null), sale: activeSaleDetails,
             onPay: handleClickPay, onEdit: setEditInstallmentModal, onDeletePayment: confirmDeletePayment,
