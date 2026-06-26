@@ -262,8 +262,6 @@ export const EditInstallmentModal = ({ isOpen, onClose, installment, onSave }) =
     );
 };
 
-/* --- MODAIS DE PRODUTO DO SISTEMA ADMINISTRATIVO --- */
-
 export const ProductModal = ({ isOpen, onClose, onSave, lastCode, initialData }) => {
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
@@ -894,6 +892,72 @@ export const SaleDetailsModal = ({ isOpen, onClose, sale, onPay, onEdit, onDelet
                 sale.status !== 'canceled' && React.createElement('button', { onClick: () => onCancelSale(sale.id), className: "w-full py-3 text-orange-600 text-sm font-bold bg-orange-50 hover:bg-orange-100 rounded-xl transition-colors border border-orange-100 flex items-center justify-center gap-2" }, React.createElement(PackageMinus, { size: 16 }), "Cancelar Venda e Voltar Estoque"),
                 React.createElement('button', { onClick: () => { onDeleteSale('sale', sale.id); onClose(); }, className: "w-full py-3 text-red-400 hover:text-red-600 text-sm font-bold bg-white hover:bg-red-50 rounded-xl transition-colors border border-transparent flex items-center justify-center gap-2" }, React.createElement(Trash2, { size: 16 }), "Excluir Registro Permanentemente")
             )
+        )
+    );
+};
+
+export const TransactionModal = ({ isOpen, onClose, onSave }) => {
+    const [description, setDescription] = useState('');
+    const [amount, setAmount] = useState('');
+    const [type, setType] = useState('expense');
+    const [category, setCategory] = useState('');
+    const [date, setDate] = useState(getBrazilDateString());
+
+    useEffect(() => {
+        if(isOpen) { setDescription(''); setAmount(''); setType('expense'); setCategory(''); setDate(getBrazilDateString()); }
+    }, [isOpen]);
+
+    const handleSubmit = () => {
+        const val = parseMoney(amount);
+        if(!description || val <= 0 || !category) return alert("Preencha descrição, valor e categoria!");
+        onSave({ description, amount: val, type, category, date: date + 'T12:00:00.000Z' });
+    };
+
+    if(!isOpen) return null;
+    return React.createElement('div', { className: "fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-[90] backdrop-blur-sm" },
+        React.createElement('div', { className: "bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl animate-fade-in" },
+            React.createElement('div', { className: "flex justify-between items-center mb-4" },
+                React.createElement('h3', { className: "text-lg font-bold text-slate-800" }, "Novo Lançamento"),
+                React.createElement('button', { onClick: onClose, className: "p-2 hover:bg-slate-100 rounded-full text-slate-400" }, React.createElement(X, { size: 20 }))
+            ),
+            React.createElement('div', { className: "space-y-4" },
+                React.createElement('div', { className: "flex bg-slate-100 rounded-lg p-1" },
+                    React.createElement('button', { onClick: () => setType('expense'), className: `flex-1 py-2 text-xs font-bold rounded-md transition-colors ${type === 'expense' ? 'bg-white shadow-sm text-red-600' : 'text-slate-500'}` }, "Despesa / Saída"),
+                    React.createElement('button', { onClick: () => setType('income'), className: `flex-1 py-2 text-xs font-bold rounded-md transition-colors ${type === 'income' ? 'bg-white shadow-sm text-emerald-600' : 'text-slate-500'}` }, "Receita / Entrada")
+                ),
+                React.createElement('div', null,
+                    React.createElement('label', { className: "block text-[10px] font-bold text-slate-500 uppercase mb-1" }, "Descrição *"),
+                    React.createElement('input', { className: "w-full p-3 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-yellow-500 uppercase text-sm", placeholder: "Ex: Conta de Luz, DAS MEI...", value: description, onChange: e => setDescription(e.target.value.toUpperCase()) })
+                ),
+                React.createElement('div', { className: "grid grid-cols-2 gap-3" },
+                    React.createElement('div', null,
+                        React.createElement('label', { className: "block text-[10px] font-bold text-slate-500 uppercase mb-1" }, "Valor *"),
+                        React.createElement(MoneyInput, { className: "w-full p-3 pl-8 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-yellow-500 font-bold", value: amount, onChange: setAmount })
+                    ),
+                    React.createElement('div', null,
+                        React.createElement('label', { className: "block text-[10px] font-bold text-slate-500 uppercase mb-1" }, "Data *"),
+                        React.createElement('input', { type: "date", className: "w-full p-2.5 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-yellow-500 text-sm", value: date, onChange: e => setDate(e.target.value) })
+                    )
+                ),
+                React.createElement('div', null,
+                    React.createElement('label', { className: "block text-[10px] font-bold text-slate-500 uppercase mb-1" }, "Categoria *"),
+                    React.createElement('select', { className: "w-full p-3 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-yellow-500 bg-white text-sm", value: category, onChange: e => setCategory(e.target.value) },
+                        React.createElement('option', { value: "" }, "Selecione..."),
+                        type === 'expense' ? React.createElement(React.Fragment, null,
+                            React.createElement('option', { value: "Impostos/DAS" }, "Impostos / DAS"),
+                            React.createElement('option', { value: "Marketing" }, "Marketing / Anúncios"),
+                            React.createElement('option', { value: "Infraestrutura" }, "Energia / Internet / Aluguel"),
+                            React.createElement('option', { value: "Pessoal" }, "Retirada Pessoal"),
+                            React.createElement('option', { value: "Outros" }, "Outras Despesas")
+                        ) : React.createElement(React.Fragment, null,
+                            React.createElement('option', { value: "Aporte" }, "Aporte de Capital"),
+                            React.createElement('option', { value: "Rendimento" }, "Rendimentos"),
+                            React.createElement('option', { value: "Outros" }, "Outras Receitas")
+                        )
+                    )
+                )
+            ),
+            React.createElement('button', { onClick: handleSubmit, className: "mt-6 w-full py-3 bg-slate-900 text-yellow-400 font-bold rounded-xl shadow-lg hover:bg-slate-800 transition-colors" }, "Salvar Lançamento")
         )
     );
 };
