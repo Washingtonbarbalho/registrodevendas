@@ -1,5 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'https://esm.sh/react@18.2.0';
-import { PackageMinus, AlertTriangle, MessageCircle, Copy, QrCode, X, User, Wallet, Clock, Users, CheckCircle, Edit2, Package, Tag, Info, ShieldAlert, History, XCircle, Receipt, BadgePercent, Calendar, PieChart, Trash2, ArrowUpCircle, ArrowDownCircle } from 'https://esm.sh/lucide-react@0.292.0';
+import { 
+    PackageMinus, AlertTriangle, MessageCircle, Copy, QrCode, X, User, Wallet, Clock, Users, 
+    CheckCircle, Edit2, Package, Tag, Info, ShieldAlert, History, XCircle, Receipt, BadgePercent, 
+    Calendar, PieChart, Trash2, ArrowUpCircle, ArrowDownCircle, TrendingUp, TrendingDown, Plus 
+} from 'https://esm.sh/lucide-react@0.292.0';
 import { formatCurrency, parseMoney, maskMoney, maskPhone, applyPixMask, generatePixPayload, maskCpfCnpj, maskCep, formatDate, getBrazilDateString } from './utils.js';
 import { MoneyInput } from './components.js';
 
@@ -261,8 +265,6 @@ export const EditInstallmentModal = ({ isOpen, onClose, installment, onSave }) =
         )
     );
 };
-
-/* --- MODAIS DE PRODUTO DO SISTEMA ADMINISTRATIVO --- */
 
 export const ProductModal = ({ isOpen, onClose, onSave, lastCode, initialData }) => {
     const [name, setName] = useState('');
@@ -893,6 +895,99 @@ export const SaleDetailsModal = ({ isOpen, onClose, sale, onPay, onEdit, onDelet
             React.createElement('div', { className: "p-4 border-t border-slate-100 bg-white rounded-b-2xl shrink-0 flex flex-col gap-2" },
                 sale.status !== 'canceled' && React.createElement('button', { onClick: () => onCancelSale(sale.id), className: "w-full py-3 text-orange-600 text-sm font-bold bg-orange-50 hover:bg-orange-100 rounded-xl transition-colors border border-orange-100 flex items-center justify-center gap-2" }, React.createElement(PackageMinus, { size: 16 }), "Cancelar Venda e Voltar Estoque"),
                 React.createElement('button', { onClick: () => { onDeleteSale('sale', sale.id); onClose(); }, className: "w-full py-3 text-red-400 hover:text-red-600 text-sm font-bold bg-white hover:bg-red-50 rounded-xl transition-colors border border-transparent flex items-center justify-center gap-2" }, React.createElement(Trash2, { size: 16 }), "Excluir Registro Permanentemente")
+            )
+        )
+    );
+};
+
+export const TransactionModal = ({ isOpen, onClose, onSave }) => {
+    const [description, setDescription] = useState('');
+    const [amount, setAmount] = useState('');
+    const [type, setType] = useState('expense');
+    const [category, setCategory] = useState('');
+    const [date, setDate] = useState(getBrazilDateString());
+
+    useEffect(() => {
+        if(isOpen) { setDescription(''); setAmount(''); setType('expense'); setCategory(''); setDate(getBrazilDateString()); }
+    }, [isOpen]);
+
+    const handleSubmit = () => {
+        const val = parseMoney(amount);
+        if(!description || val <= 0 || !category) return alert("Preencha descrição, valor e categoria!");
+        onSave({ description, amount: val, type, category, date: date + 'T12:00:00.000Z' });
+    };
+
+    if(!isOpen) return null;
+    return React.createElement('div', { className: "fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-[90] backdrop-blur-sm" },
+        React.createElement('div', { className: "bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl animate-fade-in" },
+            React.createElement('div', { className: "flex justify-between items-center mb-4" },
+                React.createElement('h3', { className: "text-lg font-bold text-slate-800" }, "Novo Lançamento"),
+                React.createElement('button', { onClick: onClose, className: "p-2 hover:bg-slate-100 rounded-full text-slate-400" }, React.createElement(X, { size: 20 }))
+            ),
+            React.createElement('div', { className: "space-y-4" },
+                React.createElement('div', { className: "flex bg-slate-100 rounded-lg p-1" },
+                    React.createElement('button', { onClick: () => setType('expense'), className: `flex-1 py-2 text-xs font-bold rounded-md transition-colors ${type === 'expense' ? 'bg-white shadow-sm text-red-600' : 'text-slate-500'}` }, "Despesa / Saída"),
+                    React.createElement('button', { onClick: () => setType('income'), className: `flex-1 py-2 text-xs font-bold rounded-md transition-colors ${type === 'income' ? 'bg-white shadow-sm text-emerald-600' : 'text-slate-500'}` }, "Receita / Entrada")
+                ),
+                React.createElement('div', null,
+                    React.createElement('label', { className: "block text-[10px] font-bold text-slate-500 uppercase mb-1" }, "Descrição *"),
+                    React.createElement('input', { className: "w-full p-3 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-yellow-500 uppercase text-sm", placeholder: "Ex: Conta de Luz, DAS MEI...", value: description, onChange: e => setDescription(e.target.value.toUpperCase()) })
+                ),
+                React.createElement('div', { className: "grid grid-cols-2 gap-3" },
+                    React.createElement('div', null,
+                        React.createElement('label', { className: "block text-[10px] font-bold text-slate-500 uppercase mb-1" }, "Valor *"),
+                        React.createElement(MoneyInput, { className: "w-full p-3 pl-8 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-yellow-500 font-bold", value: amount, onChange: setAmount })
+                    ),
+                    React.createElement('div', null,
+                        React.createElement('label', { className: "block text-[10px] font-bold text-slate-500 uppercase mb-1" }, "Data *"),
+                        React.createElement('input', { type: "date", className: "w-full p-2.5 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-yellow-500 text-sm", value: date, onChange: e => setDate(e.target.value) })
+                    )
+                ),
+                React.createElement('div', null,
+                    React.createElement('label', { className: "block text-[10px] font-bold text-slate-500 uppercase mb-1" }, "Categoria *"),
+                    React.createElement('select', { className: "w-full p-3 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-yellow-500 bg-white text-sm", value: category, onChange: e => setCategory(e.target.value) },
+                        React.createElement('option', { value: "" }, "Selecione..."),
+                        type === 'expense' ? React.createElement(React.Fragment, null,
+                            React.createElement('option', { value: "Impostos/DAS" }, "Impostos / DAS"),
+                            React.createElement('option', { value: "Marketing" }, "Marketing / Anúncios"),
+                            React.createElement('option', { value: "Infraestrutura" }, "Energia / Internet / Aluguel"),
+                            React.createElement('option', { value: "Pessoal" }, "Retirada Pessoal"),
+                            React.createElement('option', { value: "Outros" }, "Outras Despesas")
+                        ) : React.createElement(React.Fragment, null,
+                            React.createElement('option', { value: "Aporte" }, "Aporte de Capital"),
+                            React.createElement('option', { value: "Rendimento" }, "Rendimentos"),
+                            React.createElement('option', { value: "Outros" }, "Outras Receitas")
+                        )
+                    )
+                )
+            ),
+            React.createElement('button', { onClick: handleSubmit, className: "mt-6 w-full py-3 bg-slate-900 text-yellow-400 font-bold rounded-xl shadow-lg hover:bg-slate-800 transition-colors" }, "Salvar Lançamento")
+        )
+    );
+};
+
+export const FinancialListModal = ({ isOpen, onClose, title, type, transactions, onAddManual }) => {
+    if (!isOpen) return null;
+    const icon = type === 'income' ? React.createElement(TrendingUp, { className: "text-emerald-500" }) : React.createElement(TrendingDown, { className: "text-red-500" });
+    
+    return React.createElement('div', { className: "fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-[80] backdrop-blur-sm" },
+        React.createElement('div', { className: "bg-white rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col shadow-2xl animate-fade-in" },
+            React.createElement('div', { className: "p-4 border-b border-slate-100 flex justify-between items-center" },
+                React.createElement('div', { className: "flex items-center gap-2" }, icon, React.createElement('h3', { className: "font-bold text-lg text-slate-800" }, title)),
+                React.createElement('button', { onClick: onClose, className: "p-2 hover:bg-slate-100 rounded-full" }, React.createElement(X, { size: 20 }))
+            ),
+            React.createElement('div', { className: "flex-1 overflow-y-auto p-4 space-y-2 no-scrollbar" },
+                transactions.length === 0 ? React.createElement('p', { className: "text-center text-slate-400 py-10" }, "Nenhuma movimentação neste período.") :
+                transactions.map((t, i) => React.createElement('div', { key: i, className: "bg-slate-50 p-3 rounded-xl border border-slate-100 flex justify-between items-center" },
+                    React.createElement('div', null,
+                        React.createElement('p', { className: "font-bold text-slate-800 text-sm" }, t.description),
+                        React.createElement('p', { className: "text-[10px] text-slate-500 mt-0.5" }, formatDate(t.date.split('T')[0]), " • ", t.category)
+                    ),
+                    React.createElement('p', { className: `font-bold ${type === 'income' ? 'text-emerald-600' : 'text-red-500'}` }, formatCurrency(t.amount))
+                ))
+            ),
+            React.createElement('div', { className: "p-4 border-t border-slate-100 bg-white rounded-b-2xl" },
+                React.createElement('button', { onClick: onAddManual, className: "w-full p-3 bg-slate-900 text-yellow-400 font-bold rounded-xl shadow-lg flex items-center justify-center gap-2" }, React.createElement(Plus, { size: 18 }), `Lançar ${type === 'income' ? 'Entrada' : 'Saída'} Manual`)
             )
         )
     );
