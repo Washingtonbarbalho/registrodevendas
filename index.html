@@ -65,7 +65,7 @@
             await Promise.all([
                 './utils.js', './nova-venda.js', './modals.js', './auth-admin.js',
                 './aba-clientes.js', './app-resilience.js', './app-resilience-fixes.js'
-            ].map(path => fetch(`${path}?refresh=${version}`, { cache: 'reload' }).catch(() => null)));
+            ].map(path => fetch(path, { cache: 'reload' }).catch(() => null)));
 
             const appResponse = await fetch(`./app.js?v=${version}`, { cache: 'no-store' });
             if (!appResponse.ok) throw new Error(`Falha ao carregar app.js (${appResponse.status})`);
