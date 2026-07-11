@@ -1,4 +1,4 @@
-/* Ajustes finais de navegação e crédito */
+/* Ajustes finais de navegação, crédito e identidade */
 
 /* O título da aba já aparece dentro de cada página com sua descrição.
    No topo permanece apenas a saudação e o contexto da loja. */
@@ -11,6 +11,47 @@
     color: #334155 !important;
     font-size: 13px !important;
     font-weight: 750 !important;
+}
+
+/* Nova identidade visual criada em SVG no próprio projeto. */
+.app-brand-mark {
+    padding: 0 !important;
+    overflow: hidden;
+    background: transparent !important;
+    box-shadow: 0 9px 24px rgba(2, 6, 23, .28) !important;
+}
+
+.app-brand-mark > svg {
+    display: none !important;
+}
+
+.app-brand-mark::before {
+    content: "";
+    display: block;
+    width: 100%;
+    height: 100%;
+    border-radius: inherit;
+    background: url("./app-icon.svg?v=15") center / cover no-repeat;
+}
+
+.app-loading-dot {
+    position: relative;
+    padding: 0 !important;
+    overflow: hidden;
+    background: transparent !important;
+    color: transparent !important;
+    box-shadow: 0 12px 28px rgba(2, 6, 23, .22);
+}
+
+.app-loading-dot > svg {
+    display: none !important;
+}
+
+.app-loading-dot::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: url("./app-icon.svg?v=15") center / cover no-repeat;
 }
 
 /* Dá um pouco mais de espaço aos três controles dos clientes. */
