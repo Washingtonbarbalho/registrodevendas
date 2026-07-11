@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - scripts/apply_final_features.py
+      - scripts/run_final_features.trigger
 
 permissions:
   contents: write
