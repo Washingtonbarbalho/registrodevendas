@@ -16,6 +16,7 @@ jobs:
         shell: bash
         run: |
           set -e
+          echo "Iniciando diagnóstico dos arquivos JavaScript"
           for arquivo in *.js; do
             echo "::group::Verificando $arquivo"
             node --input-type=module --check < "$arquivo"
