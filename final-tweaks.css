@@ -20,7 +20,25 @@
     }
 }
 
-/* Controle de crédito no celular. */
+/* O modal de crédito é montado diretamente no body.
+   Isso evita que a animação da aba transforme o fixed em um elemento
+   preso ao conteúdo rolável, situação que mostrava apenas o blur. */
+.credit-settings-modal-overlay {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 10000 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    margin: 0 !important;
+    isolation: isolate;
+}
+
+.credit-settings-modal-panel {
+    position: relative !important;
+    z-index: 1 !important;
+}
+
 @media (max-width: 640px) {
     .app-topbar {
         min-height: 62px !important;
@@ -32,5 +50,34 @@
         text-overflow: ellipsis;
         white-space: nowrap;
         font-size: 12px !important;
+    }
+
+    .credit-settings-modal-overlay {
+        display: flex !important;
+        align-items: flex-end !important;
+        justify-content: center !important;
+        overflow: hidden !important;
+        padding: 0 !important;
+    }
+
+    .credit-settings-modal-panel {
+        display: flex !important;
+        flex-direction: column !important;
+        width: 100% !important;
+        max-width: none !important;
+        max-height: 92vh !important;
+        max-height: 92dvh !important;
+        min-height: 0 !important;
+        margin: 0 !important;
+        border-radius: 25px 25px 0 0 !important;
+        background: #fff !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+    }
+
+    .credit-settings-modal-panel > div[class*="overflow-y-auto"] {
+        min-height: 0 !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch;
     }
 }
