@@ -1,0 +1,23 @@
+name: Diagnóstico de sintaxe
+
+on:
+  push:
+    branches:
+      - diagnostico-sintaxe-layout
+
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar repositório
+        uses: actions/checkout@v4
+
+      - name: Verificar sintaxe dos arquivos JavaScript
+        shell: bash
+        run: |
+          set -e
+          for arquivo in *.js; do
+            echo "::group::Verificando $arquivo"
+            node --input-type=module --check < "$arquivo"
+            echo "::endgroup::"
+          done
