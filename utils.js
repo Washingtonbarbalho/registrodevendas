@@ -128,11 +128,13 @@ export const generatePixPayload = (pixKey, pixType, pixName, pixCity, amount, tx
 };
 
 export const analyzeCustomerCredit = (customerObj, requestedAmount, allSales) => {
-    if(!customerObj) return { approved: false, reason: "Cliente não encontrado para análise.", availableLimit: 0, currentDebt: 0, calculatedLimit: 0 };
+    if (!customerObj) return { approved: false, reason: "Cliente não encontrado para análise.", availableLimit: 0, currentDebt: 0, calculatedLimit: 0, creditActive: false };
 
     const customerSales = allSales.filter(s => s.customerId === customerObj.id && (s.saleType === 'prazo' || !s.saleType));
     const today = getBrazilDateString();
-    
+    const creditActive = customerObj.creditEnabled !== false;
+    const ignoreOverdue = customerObj.creditIgnoreOverdue === true;
+
     let hasOverdue = false;
     let currentDebt = 0;
     let paidOnTimeCount = 0;
@@ -145,38 +147,53 @@ export const analyzeCustomerCredit = (customerObj, requestedAmount, allSales) =>
         } else {
             (s.installments || []).forEach(inst => {
                 if (!inst.paid) {
-                    currentDebt += inst.amount;
+                    currentDebt += Number(inst.amount) || 0;
                     if (inst.dueDate < today) hasOverdue = true;
+                } else if (inst.paidAt && inst.paidAt > inst.dueDate) {
+                    paidLateCount++;
                 } else {
-                    if (inst.paidAt && inst.paidAt > inst.dueDate) {
-                        paidLateCount++;
-                    } else {
-                        paidOnTimeCount++;
-                    }
+                    paidOnTimeCount++;
                 }
             });
         }
     });
 
     const baseLimit = 150;
-    const income = customerObj.income || 0;
-    const absoluteMaxLimit = income > 0 ? income * 0.40 : 300; 
+    const income = Number(customerObj.income) || 0;
+    const absoluteMaxLimit = income > 0 ? income * 0.40 : 300;
+    let automaticLimit = baseLimit + (paidOnTimeCount * 50) - (paidLateCount * 20) - (canceledSalesCount * 100);
+    automaticLimit = Math.max(0, Math.min(automaticLimit, absoluteMaxLimit));
 
-    let calculatedLimit = baseLimit + (paidOnTimeCount * 50) - (paidLateCount * 20) - (canceledSalesCount * 100);
-    
-    if (calculatedLimit < 0) calculatedLimit = 0;
-    if (calculatedLimit > absoluteMaxLimit) calculatedLimit = absoluteMaxLimit;
+    const hasManualLimit = customerObj.creditLimit !== undefined && customerObj.creditLimit !== null && customerObj.creditLimit !== '';
+    const manualLimit = hasManualLimit ? Math.max(0, Number(customerObj.creditLimit) || 0) : null;
+    const calculatedLimit = hasManualLimit ? manualLimit : automaticLimit;
+    const availableLimit = creditActive ? Math.max(0, calculatedLimit - currentDebt) : 0;
+    const baseResult = {
+        availableLimit,
+        calculatedLimit,
+        automaticLimit,
+        currentDebt,
+        hasOverdue,
+        creditActive,
+        limitSource: hasManualLimit ? 'manual' : 'automatic'
+    };
 
-    const availableLimit = Math.max(0, calculatedLimit - currentDebt);
+    if (!creditActive) {
+        return { ...baseResult, approved: false, reason: "Cliente inativo para novas compras a prazo." };
+    }
 
-    if (hasOverdue) {
-        return { approved: false, reason: "Cliente bloqueado por inadimplência. Possui parcelas ativas em atraso.", availableLimit, calculatedLimit, currentDebt };
+    if (hasOverdue && !ignoreOverdue) {
+        return { ...baseResult, approved: false, reason: "Cliente bloqueado por inadimplência. Possui parcelas ativas em atraso." };
     }
 
     if (requestedAmount > availableLimit) {
         const suggestedEntry = requestedAmount - availableLimit;
-        return { approved: false, reason: "Limite de crédito insuficiente para esta compra.", availableLimit, calculatedLimit, currentDebt, suggestedEntry };
+        return { ...baseResult, approved: false, reason: "Limite de crédito insuficiente para esta compra.", suggestedEntry };
     }
 
-    return { approved: true, reason: "Crédito aprovado com base no histórico do cliente.", availableLimit, calculatedLimit, currentDebt };
+    return {
+        ...baseResult,
+        approved: true,
+        reason: hasManualLimit ? "Crédito aprovado pelo limite personalizado do cliente." : "Crédito aprovado com base no histórico do cliente."
+    };
 };
