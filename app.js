@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'https://esm.sh/react@18.2.0';
 import { createRoot } from 'https://esm.sh/react-dom@18.2.0/client';
-import { Users, User, LogOut, Lock, LayoutDashboard, ReceiptText, WalletCards, Package, Contact, Store, ShieldCheck } from 'https://esm.sh/lucide-react@0.292.0';
+import { Users, User, LogOut, Lock, LayoutDashboard, Receipt, WalletCards, Package, Contact, Store, ShieldCheck } from 'https://esm.sh/lucide-react@0.292.0';
 
 // Firebase
 import { app, db, auth, APP_ID } from './firebase-config.js';
@@ -700,7 +700,7 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
 
     const navItems = [
         { id: 'dashboard', label: 'Visão geral', shortLabel: 'Início', icon: LayoutDashboard },
-        { id: 'sales', label: 'Vendas a prazo', shortLabel: 'A prazo', icon: ReceiptText },
+        { id: 'sales', label: 'Vendas a prazo', shortLabel: 'A prazo', icon: Receipt },
         { id: 'cashier', label: 'Vendas no caixa', shortLabel: 'Caixa', icon: WalletCards },
         { id: 'products', label: 'Produtos', shortLabel: 'Produtos', icon: Package },
         { id: 'customers', label: 'Clientes', shortLabel: 'Clientes', icon: Contact }

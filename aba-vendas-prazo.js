@@ -1,5 +1,5 @@
 import React from 'https://esm.sh/react@18.2.0';
-import { Plus, Search, ShieldAlert, CheckCircle2, ChevronRight, ReceiptText } from 'https://esm.sh/lucide-react@0.292.0';
+import { Plus, Search, ShieldAlert, CheckCircle2, ChevronRight, Receipt } from 'https://esm.sh/lucide-react@0.292.0';
 import { formatCurrency, formatDate } from './utils.js';
 import { DateRangeFilter, Pagination } from './components.js';
 
@@ -49,7 +49,7 @@ export const AbaVendasPrazo = ({ setNewSaleMode, salesPeriod, salesStart, salesE
 
             paginatedSales.length === 0
                 ? React.createElement('div', { className: "empty-state" },
-                    React.createElement('div', { className: "empty-state-icon" }, React.createElement(ReceiptText, { size: 22 })),
+                    React.createElement('div', { className: "empty-state-icon" }, React.createElement(Receipt, { size: 22 })),
                     React.createElement('p', { className: "empty-state-title" }, "Nenhuma venda a prazo encontrada"),
                     React.createElement('p', { className: "empty-state-copy" }, "Ajuste o período ou faça uma nova venda.")
                 )

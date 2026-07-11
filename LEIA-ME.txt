@@ -1,11 +1,13 @@
-CORREÇÃO DO ERRO “UNEXPECTED TOKEN )” — LAYOUT MODERNO V6
+CORREÇÃO DE COMPATIBILIDADE DOS ÍCONES — LAYOUT MODERNO V7
 
-O erro estava no arquivo app.js, na tela de carregamento: havia um parêntese excedente.
+Esta versão corrige os erros de inicialização causados por ícones inexistentes no lucide-react 0.292.0:
+- ReceiptText foi substituído por Receipt em app.js e aba-vendas-prazo.js.
+- UsersRound foi substituído por Users em aba-clientes.js.
 
+Também mantém a correção do parêntese excedente do app.js e renova o cache para V7.
+
+Para instalar:
 1. Extraia o ZIP.
-2. Envie todos os arquivos diretamente para a raiz do repositório registrodevendas.
-3. Substitua principalmente app.js, index.html e sw.js.
-4. Aguarde o GitHub Pages publicar a alteração.
-5. Feche o sistema e abra novamente. A versão V6 força a atualização do cache.
-
-Todos os arquivos JavaScript deste pacote foram validados após a correção.
+2. Substitua TODOS os arquivos correspondentes na raiz do repositório registrodevendas.
+3. Aguarde o GitHub Pages publicar.
+4. Feche totalmente o navegador/app e abra novamente.

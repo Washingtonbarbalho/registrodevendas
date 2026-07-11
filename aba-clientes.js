@@ -1,5 +1,5 @@
 import React from 'https://esm.sh/react@18.2.0';
-import { Search, Phone, FileText, MapPin, ShieldCheck, Pencil, Trash2, Plus, UsersRound } from 'https://esm.sh/lucide-react@0.292.0';
+import { Search, Phone, FileText, MapPin, ShieldCheck, Pencil, Trash2, Plus, Users } from 'https://esm.sh/lucide-react@0.292.0';
 import { formatCurrency, analyzeCustomerCredit } from './utils.js';
 import { Pagination } from './components.js';
 
@@ -39,7 +39,7 @@ export const AbaClientes = ({ customerSearch, setCustomerSearch, setCustomerModa
 
             paginatedCustomers.length === 0
                 ? React.createElement('div', { className: "empty-state" },
-                    React.createElement('div', { className: "empty-state-icon" }, React.createElement(UsersRound, { size: 22 })),
+                    React.createElement('div', { className: "empty-state-icon" }, React.createElement(Users, { size: 22 })),
                     React.createElement('p', { className: "empty-state-title" }, "Nenhum cliente encontrado"),
                     React.createElement('p', { className: "empty-state-copy" }, "Tente mudar sua busca ou adicione um novo cadastro.")
                 )

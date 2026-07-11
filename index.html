@@ -18,7 +18,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="./styles.css?v=6">
+    <link rel="stylesheet" href="./styles.css?v=7">
 </head>
 <body>
     <div id="root"></div>
@@ -40,7 +40,7 @@
         };
 
         try {
-            const resetKey = 'registro-vendas-cache-v6';
+            const resetKey = 'registro-vendas-cache-v7';
             if (localStorage.getItem(resetKey) !== 'ok') {
                 if ('serviceWorker' in navigator) {
                     const registrations = await navigator.serviceWorker.getRegistrations();
@@ -53,11 +53,11 @@
                 localStorage.setItem(resetKey, 'ok');
             }
 
-            await import('./app.js?v=6');
+            await import('./app.js?v=7');
 
             if ('serviceWorker' in navigator) {
                 window.addEventListener('load', () => {
-                    navigator.serviceWorker.register('./sw.js?v=6').catch(console.error);
+                    navigator.serviceWorker.register('./sw.js?v=7').catch(console.error);
                 });
             }
         } catch (error) {
