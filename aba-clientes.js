@@ -1,26 +1,17 @@
-import React, { useEffect, useState } from 'https://esm.sh/react@18.2.0';
+import React, { useState } from 'https://esm.sh/react@18.2.0';
 import { Search, Phone, FileText, MapPin, ShieldCheck, Pencil, Trash2, Plus, Users, X, Lock, SlidersHorizontal } from 'https://esm.sh/lucide-react@0.292.0';
-import { formatCurrency, analyzeCustomerCredit, maskMoney, parseMoney } from './utils.js?v=10';
+import { formatCurrency, analyzeCustomerCredit, maskMoney, parseMoney } from './utils.js?v=11';
 import { Pagination, MoneyInput } from './components.js';
 import { db, auth, APP_ID } from './firebase-config.js';
 import { doc, updateDoc } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
-import { loadDraft, saveDraft, clearDraft } from './draft-storage.js?v=1';
 
 export const AbaClientes = ({ customerSearch, setCustomerSearch, setCustomerModalData, paginatedCustomers, sales, requestDelete, sortedCustomers, customersPage, setCustomersPage, ITEMS_PER_PAGE }) => {
-    const userId = auth.currentUser?.uid || 'anonymous';
-    const creditDraftKey = `registro-vendas:draft:${userId}:credit-settings`;
-    const restoredCredit = loadDraft(creditDraftKey, null);
-    const [creditModal, setCreditModal] = useState(restoredCredit?.creditModal || { open: false, customer: null });
-    const [creditEnabled, setCreditEnabled] = useState(restoredCredit?.creditEnabled ?? true);
-    const [limitMode, setLimitMode] = useState(restoredCredit?.limitMode || 'automatic');
-    const [manualLimit, setManualLimit] = useState(restoredCredit?.manualLimit || '');
-    const [ignoreOverdue, setIgnoreOverdue] = useState(restoredCredit?.ignoreOverdue || false);
+    const [creditModal, setCreditModal] = useState({ open: false, customer: null });
+    const [creditEnabled, setCreditEnabled] = useState(true);
+    const [limitMode, setLimitMode] = useState('automatic');
+    const [manualLimit, setManualLimit] = useState('');
+    const [ignoreOverdue, setIgnoreOverdue] = useState(false);
     const [savingCredit, setSavingCredit] = useState(false);
-
-    useEffect(() => {
-        if (!creditModal.open) return;
-        saveDraft(creditDraftKey, { creditModal, creditEnabled, limitMode, manualLimit, ignoreOverdue });
-    }, [creditDraftKey, creditModal, creditEnabled, limitMode, manualLimit, ignoreOverdue]);
 
     const openCreditSettings = customer => {
         const hasManualLimit = customer.creditLimit !== undefined && customer.creditLimit !== null && customer.creditLimit !== '';
@@ -32,8 +23,11 @@ export const AbaClientes = ({ customerSearch, setCustomerSearch, setCustomerModa
     };
 
     const closeCreditSettings = () => {
-        clearDraft(creditDraftKey);
         setCreditModal({ open: false, customer: null });
+        setCreditEnabled(true);
+        setLimitMode('automatic');
+        setManualLimit('');
+        setIgnoreOverdue(false);
     };
 
     const saveCreditSettings = async () => {
@@ -120,7 +114,12 @@ export const AbaClientes = ({ customerSearch, setCustomerSearch, setCustomerModa
                                     ? React.createElement('span', { className: "status-badge status-neutral" }, "Crédito inativo")
                                     : React.createElement('span', { className: `status-badge ${creditInfo.availableLimit > 0 ? 'status-paid' : 'status-canceled'}` }, `Disponível: ${formatCurrency(creditInfo.availableLimit)}`),
                                 React.createElement('span', { className: "status-badge status-info" }, creditInfo.limitSource === 'manual' ? 'Limite manual' : 'Limite automático')
-                            )
+                            ),
+                            React.createElement('button', {
+                                onClick: event => { event.stopPropagation(); openCreditSettings(customer); },
+                                className: "md:hidden mt-3 w-full min-h-10 px-3 rounded-xl border border-amber-200 bg-amber-50 text-amber-800 text-xs font-extrabold flex items-center justify-center gap-2",
+                                title: "Configurar crédito"
+                            }, React.createElement(SlidersHorizontal, { size: 16 }), "Ajustar crédito a prazo")
                         ),
                         React.createElement('div', { className: "hidden md:block list-meta" },
                             customer.cityState
@@ -140,7 +139,7 @@ export const AbaClientes = ({ customerSearch, setCustomerSearch, setCustomerModa
                         React.createElement('div', { className: "list-actions" },
                             React.createElement('button', {
                                 onClick: event => { event.stopPropagation(); openCreditSettings(customer); },
-                                className: "list-action-button",
+                                className: "list-action-button hidden md:grid",
                                 title: "Configurar crédito"
                             }, React.createElement(SlidersHorizontal, { size: 17 })),
                             React.createElement('button', {
