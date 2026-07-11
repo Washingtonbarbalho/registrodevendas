@@ -1,0 +1,36 @@
+/* Ajustes finais de navegação e crédito */
+
+/* O título da aba já aparece dentro de cada página com sua descrição.
+   No topo permanece apenas a saudação e o contexto da loja. */
+.app-topbar-title {
+    display: none !important;
+}
+
+.app-topbar-subtitle {
+    margin-top: 0 !important;
+    color: #334155 !important;
+    font-size: 13px !important;
+    font-weight: 750 !important;
+}
+
+/* Dá um pouco mais de espaço aos três controles dos clientes. */
+@media (min-width: 760px) {
+    .page-stack .list-actions {
+        min-width: 108px;
+    }
+}
+
+/* Controle de crédito no celular. */
+@media (max-width: 640px) {
+    .app-topbar {
+        min-height: 62px !important;
+    }
+
+    .app-topbar-subtitle {
+        max-width: 230px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 12px !important;
+    }
+}
