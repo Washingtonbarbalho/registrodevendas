@@ -18,9 +18,10 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="./styles.css?v=8">
-    <link rel="stylesheet" href="./modals-theme.css?v=1">
-    <link rel="stylesheet" href="./ui-refinements.css?v=1">
+    <link rel="stylesheet" href="./styles.css?v=10">
+    <link rel="stylesheet" href="./modals-theme.css?v=2">
+    <link rel="stylesheet" href="./ui-refinements.css?v=2">
+    <link rel="stylesheet" href="./final-tweaks.css?v=1">
 </head>
 <body>
     <div id="root"></div>
@@ -42,7 +43,7 @@
         };
 
         try {
-            const cleanupKey = 'registro-vendas-cleanup-v8';
+            const cleanupKey = 'registro-vendas-cleanup-v10';
             if (sessionStorage.getItem(cleanupKey) !== 'ok') {
                 if ('serviceWorker' in navigator) {
                     const registrations = await navigator.serviceWorker.getRegistrations();
@@ -60,14 +61,15 @@
                 }
             }
 
-            const version = '8';
+            const version = '10';
             const appResponse = await fetch(`./app.js?v=${version}`, { cache: 'no-store' });
             if (!appResponse.ok) throw new Error(`Falha ao carregar app.js (${appResponse.status})`);
 
             let appSource = await appResponse.text();
             const freshModules = [
                 'modals', 'auth-admin', 'nova-venda', 'aba-visao-geral',
-                'aba-vendas-prazo', 'aba-vendas-caixa', 'aba-produtos', 'aba-clientes'
+                'aba-vendas-prazo', 'aba-vendas-caixa', 'aba-produtos', 'aba-clientes',
+                'utils', 'draft-storage'
             ];
 
             appSource = appSource.replace(
@@ -83,6 +85,7 @@
             const appBlobUrl = URL.createObjectURL(new Blob([appSource], { type: 'text/javascript' }));
             try {
                 await import(appBlobUrl);
+                await import('./app-resilience.js?v=2');
             } finally {
                 URL.revokeObjectURL(appBlobUrl);
             }
