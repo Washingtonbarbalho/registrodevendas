@@ -40,8 +40,6 @@
         };
 
         try {
-            // V8: remove qualquer service worker/cache antigo antes de carregar o sistema.
-            // O reload único garante que a página deixe de ser controlada por um worker antigo.
             const cleanupKey = 'registro-vendas-cleanup-v8';
             if (sessionStorage.getItem(cleanupKey) !== 'ok') {
                 if ('serviceWorker' in navigator) {
@@ -70,11 +68,15 @@
                 'aba-vendas-prazo', 'aba-vendas-caixa', 'aba-produtos', 'aba-clientes'
             ];
 
-            freshModules.forEach(moduleName => {
-                const pattern = new RegExp(`(['\"])\\./${moduleName}\\.js(?:\\?[^'\"]*)?\\1`, 'g');
-                const moduleUrl = new URL(`./${moduleName}.js?v=${version}`, location.href).href;
-                appSource = appSource.replace(pattern, `'${moduleUrl}'`);
-            });
+            appSource = appSource.replace(
+                /(['"])(\.\/[^'"]+?\.js)(?:\?[^'"]*)?\1/g,
+                (match, quote, modulePath) => {
+                    const moduleName = modulePath.split('/').pop().replace(/\.js$/, '');
+                    const moduleUrl = new URL(modulePath, location.href);
+                    if (freshModules.includes(moduleName)) moduleUrl.search = `?v=${version}`;
+                    return `'${moduleUrl.href}'`;
+                }
+            );
 
             const appBlobUrl = URL.createObjectURL(new Blob([appSource], { type: 'text/javascript' }));
             try {
