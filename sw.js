@@ -1,8 +1,8 @@
-const CACHE_NAME = 'registro-vendas-modern-v5';
+const CACHE_NAME = 'registro-vendas-modern-v6';
 const APP_SHELL = [
   './',
   './index.html',
-  './styles.css?v=5',
+  './styles.css?v=6',
   './manifest.json'
 ];
 

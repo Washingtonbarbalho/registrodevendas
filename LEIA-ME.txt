@@ -1,10 +1,11 @@
-CORREÇÃO DA TELA EM BRANCO — LAYOUT MODERNO V5
+CORREÇÃO DO ERRO “UNEXPECTED TOKEN )” — LAYOUT MODERNO V6
+
+O erro estava no arquivo app.js, na tela de carregamento: havia um parêntese excedente.
 
 1. Extraia o ZIP.
-2. Envie TODOS os arquivos que estão dentro dele diretamente para a mesma pasta do seu site no GitHub.
-3. O index.html, app.js, styles.css, sw.js e as abas precisam ficar juntos na raiz publicada.
-4. Não envie uma pasta chamada "layout-moderno-corrigido" para dentro do repositório; envie o conteúdo dela.
-5. Mantenha também no repositório as imagens favicon.png, icon-192.png e icon-512.png.
-6. Após publicar, abra o site e atualize a página. Esta versão limpa automaticamente o cache antigo na primeira abertura.
+2. Envie todos os arquivos diretamente para a raiz do repositório registrodevendas.
+3. Substitua principalmente app.js, index.html e sw.js.
+4. Aguarde o GitHub Pages publicar a alteração.
+5. Feche o sistema e abra novamente. A versão V6 força a atualização do cache.
 
-A versão V5 também mostra uma mensagem de erro na tela caso algum arquivo esteja faltando, em vez de permanecer totalmente branca.
+Todos os arquivos JavaScript deste pacote foram validados após a correção.

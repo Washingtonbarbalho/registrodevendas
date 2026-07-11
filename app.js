@@ -875,7 +875,7 @@ function App() {
         return () => unsubscribe();
     }, []);
 
-    if (loadingAuth) return React.createElement('div', { className: "min-h-screen flex flex-col gap-3 items-center justify-center bg-slate-950 text-white" }, React.createElement('div', { className: "app-loading-dot w-12 h-12 rounded-2xl bg-amber-400 text-slate-900 grid place-items-center" }, React.createElement(Store, { size: 23 })), React.createElement('span', { className: "text-sm font-bold text-slate-300" }, "Carregando sistema...")));
+    if (loadingAuth) return React.createElement('div', { className: "min-h-screen flex flex-col gap-3 items-center justify-center bg-slate-950 text-white" }, React.createElement('div', { className: "app-loading-dot w-12 h-12 rounded-2xl bg-amber-400 text-slate-900 grid place-items-center" }, React.createElement(Store, { size: 23 })), React.createElement('span', { className: "text-sm font-bold text-slate-300" }, "Carregando sistema..."));
     
     if (accessDenied) return React.createElement('div', { className: "min-h-screen flex flex-col items-center justify-center bg-red-50 p-6 text-center" },
         React.createElement(Lock, { size: 48, className: "text-red-500 mb-4" }),
