@@ -1,26 +1,18 @@
-const CACHE_NAME = 'registro-vendas-modern-v4';
-const LOCAL_ASSETS = [
+const CACHE_NAME = 'registro-vendas-modern-v5';
+const APP_SHELL = [
   './',
   './index.html',
-  './styles.css?v=4',
-  './app.js?v=4',
-  './components.js',
-  './aba-visao-geral.js',
-  './aba-vendas-prazo.js',
-  './aba-vendas-caixa.js?v=4',
-  './aba-produtos.js',
-  './aba-clientes.js',
-  './auth-admin.js',
-  './nova-venda.js?v=4',
-  './modals.js?v=4',
-  './utils.js',
-  './firebase-config.js',
+  './styles.css?v=5',
   './manifest.json'
 ];
 
 self.addEventListener('install', event => {
   self.skipWaiting();
-  event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(LOCAL_ASSETS)));
+  event.waitUntil(
+    caches.open(CACHE_NAME).then(cache =>
+      Promise.allSettled(APP_SHELL.map(asset => cache.add(asset)))
+    )
+  );
 });
 
 self.addEventListener('activate', event => {
@@ -36,34 +28,36 @@ self.addEventListener('fetch', event => {
 
   const url = new URL(event.request.url);
   const isLocal = url.origin === self.location.origin;
-  const isFreshnessSensitive = isLocal && (
-    event.request.mode === 'navigate' ||
-    url.pathname.endsWith('.js') ||
-    url.pathname.endsWith('.css') ||
-    url.pathname.endsWith('.html')
-  );
 
-  if (isFreshnessSensitive) {
+  if (!isLocal) {
+    event.respondWith(fetch(event.request));
+    return;
+  }
+
+  if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request)
         .then(response => {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
+          if (response.ok) {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then(cache => cache.put('./index.html', copy));
+          }
           return response;
         })
-        .catch(() => caches.match(event.request).then(cached => cached || caches.match('./index.html')))
+        .catch(() => caches.match('./index.html'))
     );
     return;
   }
 
   event.respondWith(
-    caches.match(event.request).then(cached => {
-      if (cached) return cached;
-      return fetch(event.request).then(response => {
-        const copy = response.clone();
-        caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
+    fetch(event.request)
+      .then(response => {
+        if (response.ok) {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
+        }
         return response;
-      });
-    })
+      })
+      .catch(() => caches.match(event.request))
   );
 });
