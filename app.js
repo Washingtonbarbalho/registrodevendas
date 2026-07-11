@@ -15,16 +15,16 @@ import {
     UserProfileModal, CustomerFormModal, ProductDetailsModal, EditInstallmentModal, 
     SaleDetailsModal, PixCodeModal, InstallmentListModal, PaymentConfirmationModal, 
     ConfirmModal, WhatsAppChooserModal, ProductModal, StockMovementModal
-} from './modals.js';
+} from './modals.js?v=3';
 
 // Telas Secundárias
 import { AuthScreen, AdminUsersPanel } from './auth-admin.js';
-import { NewSaleScreen } from './nova-venda.js';
+import { NewSaleScreen } from './nova-venda.js?v=3';
 
 // Abas do Dashboard
 import { AbaVisaoGeral } from './aba-visao-geral.js';
 import { AbaVendasPrazo } from './aba-vendas-prazo.js';
-import { AbaVendasCaixa } from './aba-vendas-caixa.js';
+import { AbaVendasCaixa } from './aba-vendas-caixa.js?v=3';
 import { AbaProdutos } from './aba-produtos.js';
 import { AbaClientes } from './aba-clientes.js';
 
@@ -167,9 +167,13 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         const fromCents = (value) => value / 100;
         const isPrazoSale = (sale) => sale.saleType === 'prazo' || !sale.saleType;
         const getDirectNetAmount = (sale) => {
-            let netDirect = sale.totalPrice || 0;
+            const hasSavedNetAmount = sale.netReceived !== undefined && sale.netReceived !== null && sale.netReceived !== '';
+            const savedNetAmount = Number(sale.netReceived);
+            if (hasSavedNetAmount && Number.isFinite(savedNetAmount)) return savedNetAmount;
+
+            let netDirect = Number(sale.totalPrice) || 0;
             if (sale.feeConfig && (sale.feeConfig.type === 'sem_juros' || sale.feeConfig.type === 'com_juros')) {
-                netDirect -= (sale.feeConfig.value || 0);
+                netDirect -= Number(sale.feeConfig.value) || 0;
             }
             return netDirect;
         };
@@ -289,9 +293,11 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         const totalUpcoming = upcomingList.reduce((acc, i) => acc + i.amount, 0);
 
         const estimatedProfit = periodSales.reduce((acc, s) => {
-            let profit = s.totalPrice - (s.totalCost || 0);
-            if (s.feeConfig && s.feeConfig.type === 'sem_juros') profit -= (s.feeConfig.value || 0);
-            return acc + profit;
+            if (s.saleType === 'direct') {
+                return acc + (getDirectNetAmount(s) - (s.totalCost || 0));
+            }
+
+            return acc + ((s.totalPrice || 0) - (s.totalCost || 0));
         }, 0);
         
         return { 

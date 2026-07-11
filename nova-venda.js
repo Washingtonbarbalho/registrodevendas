@@ -104,6 +104,11 @@ export const NewSaleScreen = ({ mode, onClose, customers, products, sales, onSav
     const totalCartValue = cart.reduce((acc, item) => acc + item.price, 0);
     const entryValue = parseMoney(entryAmount) || 0;
     const totalRemaining = Math.max(0, totalCartValue - entryValue);
+    const isCardPayment = saleType === 'direct' && (directMethod === 'credit' || directMethod === 'debit');
+    const currentFeePercent = isCardPayment ? parseMoney(feePercent) : 0;
+    const currentFeeValue = isCardPayment ? totalRemaining * (currentFeePercent / 100) : 0;
+    const totalCustomerPays = totalCartValue + (isCardPayment && feeType === 'com_juros' ? currentFeeValue : 0);
+    const netAmountToCompany = totalCustomerPays - currentFeeValue;
 
     const handleSaveInlineCustomer = async () => {
         if (!newCustName.trim()) return alert("Digite o nome do cliente.");
@@ -240,18 +245,42 @@ export const NewSaleScreen = ({ mode, onClose, customers, products, sales, onSav
             let finalSalePrice = totalCartValue;
             let feeObj = null;
 
+            let feeVal = 0;
+
             if (directMethod === 'credit' || directMethod === 'debit') {
                 const feeP = parseMoney(feePercent);
-                const feeVal = totalRemaining * (feeP / 100);
-                feeObj = { applied: feeP > 0, percent: feeP, value: feeVal, type: feeType, mode: cardMode, brand: cardBrand };
-                if (feeType === 'com_juros') finalSalePrice += feeVal; 
+                feeVal = totalRemaining * (feeP / 100);
+                if (feeType === 'com_juros') finalSalePrice += feeVal;
+
+                const grossCardAmount = finalSalePrice - entryValue;
+                const netCardAmount = grossCardAmount - feeVal;
+                feeObj = {
+                    applied: feeP > 0,
+                    percent: feeP,
+                    value: feeVal,
+                    type: feeType,
+                    mode: cardMode,
+                    brand: cardBrand,
+                    baseAmount: totalRemaining,
+                    grossCardAmount,
+                    netCardAmount
+                };
             }
 
+            const netReceived = finalSalePrice - feeVal;
+
             saleData = { 
-                ...saleData, 
-                paymentMethod: directMethod, entryAmount: entryValue, cardAmount: finalSalePrice - entryValue, 
-                cardInstallments: directMethod === 'credit' ? parseInt(cardInstallments) : 1, installments: [], 
-                status: 'completed', totalPrice: finalSalePrice, feeConfig: feeObj
+                ...saleData,
+                productsTotal: totalCartValue,
+                paymentMethod: directMethod,
+                entryAmount: entryValue,
+                cardAmount: finalSalePrice - entryValue,
+                netReceived,
+                cardInstallments: directMethod === 'credit' ? parseInt(cardInstallments) : 1,
+                installments: [],
+                status: 'completed',
+                totalPrice: finalSalePrice,
+                feeConfig: feeObj
             };
             
             onSaveSale(saleData); 
@@ -463,9 +492,13 @@ export const NewSaleScreen = ({ mode, onClose, customers, products, sales, onSav
                                     React.createElement('div', null, React.createElement('label', { className: "block text-[10px] font-bold text-orange-600 uppercase mb-1" }, "Repasse"), React.createElement('select', { className: "w-full p-2 border border-orange-200 rounded text-sm outline-none text-slate-700 font-bold", value: feeType, onChange: e => setFeeType(e.target.value) }, React.createElement('option', { value: "sem_juros" }, "Sem Juros (Loja Paga)"), React.createElement('option', { value: "com_juros" }, "Com Juros (Cliente Paga)"))),
                                     React.createElement('div', null, React.createElement('label', { className: "block text-[10px] font-bold text-orange-600 uppercase mb-1" }, "Taxa Aplicada (%)"), React.createElement('div', { className: "relative" }, React.createElement('input', { type: "text", className: "w-full p-2 pr-6 border border-orange-200 rounded text-sm outline-none font-bold text-slate-700", value: feePercent, onChange: e => setFeePercent(e.target.value) }), React.createElement('span', { className: "absolute right-2 top-2 text-slate-400 text-sm" }, "%")))
                                 ),
-                                React.createElement('div', { className: "text-[10px] bg-orange-100 p-2 rounded text-orange-800 leading-tight" }, 
-                                    `Valor da transação: ${formatCurrency(totalRemaining)}`, React.createElement('br'),
-                                    feeType === 'sem_juros' ? React.createElement('strong', null, `A loja pagará ${formatCurrency(totalRemaining * (parseMoney(feePercent)/100))} de taxa.`) : React.createElement('strong', null, `O cliente pagará ${formatCurrency(totalRemaining * (parseMoney(feePercent)/100))} a mais na venda.`)
+                                React.createElement('div', { className: "text-[10px] bg-orange-100 p-2 rounded text-orange-800 leading-tight space-y-1" },
+                                    React.createElement('div', null, `Valor base no cartão: ${formatCurrency(totalRemaining)}`),
+                                    feeType === 'sem_juros'
+                                        ? React.createElement('strong', { className: "block" }, `A loja pagará ${formatCurrency(currentFeeValue)} de taxa.`)
+                                        : React.createElement('strong', { className: "block" }, `O cliente pagará ${formatCurrency(currentFeeValue)} a mais.`),
+                                    React.createElement('div', { className: "pt-1 border-t border-orange-200" }, `Total passado no cartão: ${formatCurrency(totalRemaining + (feeType === 'com_juros' ? currentFeeValue : 0))}`),
+                                    React.createElement('div', null, `Valor líquido para a empresa: ${formatCurrency(netAmountToCompany)}`)
                                 )
                             )
                         )
@@ -478,7 +511,7 @@ export const NewSaleScreen = ({ mode, onClose, customers, products, sales, onSav
             React.createElement('div', { className: "max-w-2xl mx-auto flex items-center justify-between gap-4" },
                 React.createElement('div', { className: "hidden md:block flex-1" }, 
                     React.createElement('p', { className: "text-xs font-bold text-slate-400 uppercase" }, "Total a Pagar"),
-                    React.createElement('p', { className: "text-2xl font-black text-slate-800" }, formatCurrency(totalCartValue))
+                    React.createElement('p', { className: "text-2xl font-black text-slate-800" }, formatCurrency(totalCustomerPays))
                 ),
                 React.createElement('button', { 
                     onClick: handleFinish, 

@@ -757,10 +757,16 @@ export const SaleDetailsModal = ({ isOpen, onClose, sale, onPay, onEdit, onDelet
     const paidInstallments = sale.installments ? sale.installments.filter(i => i.paid).length : 0;
     const totalInst = sale.installmentsCount || 0;
 
-    let profit = sale.totalPrice - (sale.totalCost || 0);
-    if (sale.feeConfig && sale.feeConfig.type === 'sem_juros') {
-        profit -= sale.feeConfig.value;
-    }
+    const feeAmount = Number(sale.feeConfig?.value) || 0;
+    const hasSavedNetAmount = sale.netReceived !== undefined && sale.netReceived !== null && sale.netReceived !== '';
+    const savedNetAmount = Number(sale.netReceived);
+    const directNetAmount = hasSavedNetAmount && Number.isFinite(savedNetAmount)
+        ? savedNetAmount
+        : (Number(sale.totalPrice) || 0) - feeAmount;
+
+    const profit = sale.saleType === 'direct'
+        ? directNetAmount - (sale.totalCost || 0)
+        : (sale.totalPrice || 0) - (sale.totalCost || 0);
 
     const waType = sale.saleType === 'direct' ? 'comprovante' : (sale.status === 'completed' ? 'quitacao' : 'registro');
     const waTitle = sale.saleType === 'direct' ? 'Enviar Comprovante' : (sale.status === 'completed' ? 'Enviar Quitação' : 'Enviar Resumo da Venda');
@@ -826,6 +832,8 @@ export const SaleDetailsModal = ({ isOpen, onClose, sale, onPay, onEdit, onDelet
                     React.createElement('div', { className: "flex justify-between text-sm" }, React.createElement('span', { className: "text-slate-500" }, "Valor dos Produtos:"), React.createElement('span', { className: "text-slate-800 font-bold" }, formatCurrency((sale.totalPrice + (sale.totalDiscount||0)) - (sale.feeConfig?.type === 'com_juros' ? sale.feeConfig.value : 0)))),
                     sale.totalDiscount > 0 && React.createElement('div', { className: "flex justify-between text-sm text-emerald-600" }, React.createElement('span', null, "Descontos Aplicados:"), React.createElement('span', { className: "font-bold" }, `- ${formatCurrency(sale.totalDiscount)}`)),
                     sale.feeConfig && React.createElement('div', { className: "flex justify-between text-sm text-orange-600" }, React.createElement('span', null, sale.feeConfig.type === 'sem_juros' ? "Taxa Maquininha (Loja Paga):" : "Taxa Repassada (Cliente Paga):"), React.createElement('span', { className: "font-bold" }, `${sale.feeConfig.type === 'sem_juros' ? '-' : '+'} ${formatCurrency(sale.feeConfig.value)}`)),
+                    sale.saleType === 'direct' && React.createElement('div', { className: "flex justify-between text-sm" }, React.createElement('span', { className: "text-slate-500" }, "Total Cobrado do Cliente:"), React.createElement('span', { className: "text-slate-800 font-bold" }, formatCurrency(sale.totalPrice || 0))),
+                    sale.saleType === 'direct' && React.createElement('div', { className: "flex justify-between text-sm bg-emerald-50 p-2 rounded-lg" }, React.createElement('span', { className: "text-emerald-700 font-bold" }, "Líquido que Entra no Caixa:"), React.createElement('span', { className: "text-emerald-700 font-bold" }, formatCurrency(directNetAmount))),
                     React.createElement('div', { className: "flex justify-between text-sm" }, React.createElement('span', { className: "text-slate-500" }, "Custo Total:"), React.createElement('span', { className: "text-slate-800" }, formatCurrency(sale.totalCost || 0))),
                     
                     React.createElement('div', { className: "flex justify-between text-sm font-bold text-emerald-600 pt-2 border-t border-slate-100 mt-1" }, 
@@ -838,7 +846,11 @@ export const SaleDetailsModal = ({ isOpen, onClose, sale, onPay, onEdit, onDelet
                     (sale.paymentMethod === 'credit' || sale.paymentMethod === 'debit') && React.createElement('div', { className: "bg-emerald-50 p-4 rounded-xl border border-emerald-100 space-y-3 relative z-10" },
                         sale.entryAmount > 0 && React.createElement('div', { className: "flex justify-between items-center text-sm" }, React.createElement('span', { className: "text-emerald-800" }, "Entrada (Dinheiro/Pix):"), React.createElement('span', { className: "font-bold text-emerald-800" }, formatCurrency(sale.entryAmount))),
                         React.createElement('div', { className: "flex justify-between items-center text-sm" }, React.createElement('span', { className: "text-emerald-800 flex items-center gap-1" }, React.createElement(Receipt, { size: 14 }), `Passado no Cartão (${sale.cardInstallments}x):`), React.createElement('span', { className: "font-bold text-emerald-800" }, formatCurrency(sale.cardAmount || sale.totalPrice))),
-                        sale.feeConfig && React.createElement('div', { className: "text-[10px] text-emerald-700 bg-emerald-100 p-2 rounded" }, `${sale.feeConfig.mode === 'link' ? 'Link Web' : 'Presencial'} - ${sale.feeConfig.brand === 'visa_master' ? 'Visa/Master' : 'Outras Bandeiras'} (${sale.feeConfig.percent}%)`)
+                        sale.feeConfig && React.createElement('div', { className: "text-[10px] text-emerald-700 bg-emerald-100 p-2 rounded space-y-1" },
+                            React.createElement('div', null, `${sale.feeConfig.mode === 'link' ? 'Link Web' : 'Presencial'} - ${sale.feeConfig.brand === 'visa_master' ? 'Visa/Master' : 'Outras Bandeiras'} (${sale.feeConfig.percent}%)`),
+                            React.createElement('div', null, `Taxa da administradora: ${formatCurrency(feeAmount)}`),
+                            React.createElement('div', { className: "font-bold" }, `Líquido da venda: ${formatCurrency(directNetAmount)}`)
+                        )
                     )
                 ),
 
