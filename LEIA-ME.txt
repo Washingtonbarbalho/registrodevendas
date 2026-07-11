@@ -1,0 +1,10 @@
+CORREÇÃO DA TELA EM BRANCO — LAYOUT MODERNO V5
+
+1. Extraia o ZIP.
+2. Envie TODOS os arquivos que estão dentro dele diretamente para a mesma pasta do seu site no GitHub.
+3. O index.html, app.js, styles.css, sw.js e as abas precisam ficar juntos na raiz publicada.
+4. Não envie uma pasta chamada "layout-moderno-corrigido" para dentro do repositório; envie o conteúdo dela.
+5. Mantenha também no repositório as imagens favicon.png, icon-192.png e icon-512.png.
+6. Após publicar, abra o site e atualize a página. Esta versão limpa automaticamente o cache antigo na primeira abertura.
+
+A versão V5 também mostra uma mensagem de erro na tela caso algum arquivo esteja faltando, em vez de permanecer totalmente branca.
