@@ -10,18 +10,18 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Vendas App">
 
-    <link rel="manifest" href="./manifest.json">
-    <link rel="icon" type="image/png" href="./favicon.png">
-    <link rel="apple-touch-icon" href="./icon-192.png">
+    <link rel="manifest" href="./manifest.json?v=15">
+    <link rel="icon" type="image/svg+xml" href="./app-icon.svg?v=15">
+    <link rel="apple-touch-icon" href="./app-icon.svg?v=15">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="./styles.css?v=14">
+    <link rel="stylesheet" href="./styles.css?v=15">
     <link rel="stylesheet" href="./modals-theme.css?v=3">
     <link rel="stylesheet" href="./ui-refinements.css?v=3">
-    <link rel="stylesheet" href="./final-tweaks.css?v=4">
+    <link rel="stylesheet" href="./final-tweaks.css?v=5">
 </head>
 <body>
     <div id="root"></div>
@@ -43,7 +43,7 @@
         };
 
         try {
-            const cleanupKey = 'registro-vendas-cleanup-v14';
+            const cleanupKey = 'registro-vendas-cleanup-v15';
             if (sessionStorage.getItem(cleanupKey) !== 'ok') {
                 if ('serviceWorker' in navigator) {
                     const registrations = await navigator.serviceWorker.getRegistrations();
@@ -61,7 +61,7 @@
                 }
             }
 
-            const version = '14';
+            const version = '15';
             const appResponse = await fetch(`./app.js?v=${version}`, { cache: 'no-store' });
             if (!appResponse.ok) throw new Error(`Falha ao carregar app.js (${appResponse.status})`);
 
