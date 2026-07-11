@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title description">
+  <title id="title">Registro de Vendas</title>
+  <desc id="description">Ícone azul-marinho e dourado com uma sacola e um símbolo de confirmação.</desc>
+  <defs>
+    <linearGradient id="background" x1="64" y1="48" x2="448" y2="464" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1e293b"/>
+      <stop offset="1" stop-color="#020617"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="168" y1="136" x2="350" y2="414" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffd45a"/>
+      <stop offset="1" stop-color="#f4b400"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="170%">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#000000" flood-opacity="0.32"/>
+    </filter>
+  </defs>
+
+  <rect width="512" height="512" rx="112" fill="url(#background)"/>
+  <circle cx="256" cy="256" r="174" fill="#ffffff" fill-opacity="0.035" stroke="#ffffff" stroke-opacity="0.08" stroke-width="2"/>
+
+  <g filter="url(#shadow)">
+    <path d="M156 202c-2-20 14-38 34-38h132c20 0 36 18 34 38l-18 180c-2 24-22 42-46 42h-72c-24 0-44-18-46-42l-18-180Z" fill="url(#gold)"/>
+    <path d="M206 188v-20c0-28 22-50 50-50s50 22 50 50v20" fill="none" stroke="#f8fafc" stroke-width="24" stroke-linecap="round"/>
+    <path d="m208 302 34 34 70-76" fill="none" stroke="#0f172a" stroke-width="30" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <circle cx="383" cy="127" r="25" fill="#f8fafc" fill-opacity="0.12"/>
+  <circle cx="119" cy="374" r="17" fill="#f4b400" fill-opacity="0.22"/>
+</svg>
