@@ -39,6 +39,12 @@
     z-index: 1 !important;
 }
 
+/* O modal de confirmação do pagamento é aberto a partir de outros modais.
+   Ele precisa permanecer acima da lista de parcelas (z-80). */
+.app-modal-overlay[class*="z-[75]"] {
+    z-index: 10020 !important;
+}
+
 @media (max-width: 640px) {
     .app-topbar {
         min-height: 62px !important;
