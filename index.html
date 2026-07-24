@@ -18,7 +18,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="./styles.css?v=16">
+    <link rel="stylesheet" href="./styles.css?v=17">
     <link rel="stylesheet" href="./modals-theme.css?v=3">
     <link rel="stylesheet" href="./ui-refinements.css?v=3">
     <link rel="stylesheet" href="./final-tweaks.css?v=5">
@@ -43,7 +43,7 @@
         };
 
         try {
-            const cleanupKey = 'registro-vendas-cleanup-v16';
+            const cleanupKey = 'registro-vendas-cleanup-v17';
             if (sessionStorage.getItem(cleanupKey) !== 'ok') {
                 if ('serviceWorker' in navigator) {
                     const registrations = await navigator.serviceWorker.getRegistrations();
@@ -61,7 +61,7 @@
                 }
             }
 
-            const version = '16';
+            const version = '17';
             const appResponse = await fetch(`./app.js?v=${version}`, { cache: 'no-store' });
             if (!appResponse.ok) throw new Error(`Falha ao carregar app.js (${appResponse.status})`);
 
@@ -71,12 +71,16 @@
                 'aba-vendas-prazo', 'aba-vendas-caixa', 'aba-produtos', 'aba-clientes',
                 'utils'
             ];
+            const fixedModulePaths = {
+                'modals': './modals-fixed.js',
+                'nova-venda': './nova-venda-fixed.js'
+            };
 
             appSource = appSource.replace(
                 /(['"])(\.\/[^'"]+?\.js)(?:\?[^'"]*)?\1/g,
                 (match, quote, modulePath) => {
                     const moduleName = modulePath.split('/').pop().replace(/\.js$/, '');
-                    const resolvedModulePath = moduleName === 'modals' ? './modals-fixed.js' : modulePath;
+                    const resolvedModulePath = fixedModulePaths[moduleName] || modulePath;
                     const moduleUrl = new URL(resolvedModulePath, location.href);
                     if (freshModules.includes(moduleName)) moduleUrl.search = `?v=${version}`;
                     return `'${moduleUrl.href}'`;
