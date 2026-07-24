@@ -63,16 +63,16 @@ export const AbaClientes = ({ customerSearch, setCustomerSearch, setCustomerModa
                 'aria-modal': "true",
                 'aria-label': `Configurações de crédito de ${creditModal.customer.name}`
             },
-                React.createElement('div', { className: "credit-settings-modal-panel app-modal-panel bg-white rounded-2xl w-full max-w-md shadow-2xl animate-fade-in flex flex-col max-h-[92vh]" },
-                    React.createElement('div', { className: "p-4 border-b border-slate-100 flex justify-between items-center" },
+                React.createElement('div', { className: "credit-settings-modal-panel app-modal-panel desktop-modal desktop-modal-credit bg-white rounded-2xl w-full max-w-md shadow-2xl animate-fade-in flex flex-col max-h-[92vh]" },
+                    React.createElement('div', { className: "desktop-modal-header p-4 border-b border-slate-100 flex justify-between items-center" },
                         React.createElement('div', null,
                             React.createElement('h3', { className: "font-bold text-lg text-slate-800 flex items-center gap-2" }, React.createElement(ShieldCheck, { className: "text-yellow-500" }), "Crédito a prazo"),
                             React.createElement('p', { className: "text-xs text-slate-400 mt-1" }, creditModal.customer.name)
                         ),
                         React.createElement('button', { onClick: closeCreditSettings, className: "p-2 hover:bg-slate-100 rounded-full", 'aria-label': "Fechar" }, React.createElement(X, { size: 20 }))
                     ),
-                    React.createElement('div', { className: "flex-1 overflow-y-auto p-4 space-y-4" },
-                        React.createElement('div', { className: `p-4 rounded-xl border ${creditEnabled ? 'bg-emerald-50 border-emerald-100' : 'bg-slate-50 border-slate-200'}` },
+                    React.createElement('div', { className: "desktop-modal-body credit-settings-grid flex-1 overflow-y-auto p-4 space-y-4" },
+                        React.createElement('div', { className: `credit-status-card desktop-span-full p-4 rounded-xl border ${creditEnabled ? 'bg-emerald-50 border-emerald-100' : 'bg-slate-50 border-slate-200'}` },
                             React.createElement('div', { className: "flex items-center justify-between gap-4" },
                                 React.createElement('div', null,
                                     React.createElement('p', { className: `font-bold text-sm ${creditEnabled ? 'text-emerald-800' : 'text-slate-600'}` }, creditEnabled ? "Cliente ativo para compras a prazo" : "Cliente inativo para compras a prazo"),
@@ -84,7 +84,7 @@ export const AbaClientes = ({ customerSearch, setCustomerSearch, setCustomerModa
                                 }, React.createElement(creditEnabled ? ShieldCheck : Lock, { size: 15 }), creditEnabled ? "Ativo" : "Inativo")
                             )
                         ),
-                        React.createElement('div', { className: "bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3" },
+                        React.createElement('div', { className: "credit-limit-card bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3" },
                             React.createElement('p', { className: "text-xs font-bold text-slate-500 uppercase" }, "Definição do limite"),
                             React.createElement('div', { className: "grid grid-cols-2 gap-2" },
                                 React.createElement('button', { onClick: () => setLimitMode('automatic'), className: `p-3 rounded-xl border text-xs font-bold ${limitMode === 'automatic' ? 'border-yellow-400 bg-yellow-50 text-yellow-800' : 'border-slate-200 bg-white text-slate-500'}` }, "Automático"),
@@ -107,7 +107,7 @@ export const AbaClientes = ({ customerSearch, setCustomerSearch, setCustomerModa
                                 )
                             )
                         ),
-                        React.createElement('div', { className: "grid grid-cols-2 gap-3" },
+                        React.createElement('div', { className: "credit-summary-card grid grid-cols-2 gap-3" },
                             React.createElement('div', { className: "bg-white border border-slate-200 rounded-xl p-3" },
                                 React.createElement('span', { className: "text-[10px] font-bold text-slate-400 uppercase block" }, "Dívida atual"),
                                 React.createElement('strong', { className: "text-sm text-orange-600 mt-1 block" }, formatCurrency(selectedCreditInfo?.currentDebt || 0))
@@ -118,7 +118,7 @@ export const AbaClientes = ({ customerSearch, setCustomerSearch, setCustomerModa
                             )
                         )
                     ),
-                    React.createElement('div', { className: "p-4 border-t border-slate-100 flex gap-3" },
+                    React.createElement('div', { className: "desktop-modal-footer p-4 border-t border-slate-100 flex gap-3" },
                         React.createElement('button', { onClick: closeCreditSettings, className: "flex-1 p-3 bg-slate-100 text-slate-600 font-bold rounded-xl" }, "Cancelar"),
                         React.createElement('button', { onClick: saveCreditSettings, disabled: savingCredit, className: "flex-1 p-3 bg-slate-900 text-white font-bold rounded-xl disabled:opacity-50" }, savingCredit ? "Salvando..." : "Salvar crédito")
                     )

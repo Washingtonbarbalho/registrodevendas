@@ -173,11 +173,11 @@ export const AdminUsersPanel = ({ onClose }) => {
             React.createElement('h2', { className: "text-xl font-bold flex items-center gap-2" }, React.createElement(Shield, { className: "text-yellow-400" }), "Gerenciar Usuários"),
             React.createElement('button', { onClick: onClose, className: "p-2 hover:bg-slate-800 rounded-full" }, React.createElement(X, { size: 24 }))
         ),
-        React.createElement('div', { className: "p-4 border-b border-slate-100 bg-slate-50" },
+        React.createElement('div', { className: "admin-toolbar p-4 border-b border-slate-100 bg-slate-50" },
             React.createElement('div', { className: "relative max-w-lg mx-auto" }, React.createElement(Search, { className: "absolute left-3 top-3 text-slate-400", size: 18 }), React.createElement('input', { className: "w-full p-3 pl-10 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900 outline-none", placeholder: "Buscar por nome ou e-mail...", value: searchTerm, onChange: e => setSearchTerm(e.target.value) }))
         ),
-        React.createElement('div', { className: "flex-1 overflow-y-auto p-4 md:p-6 bg-transparent" },
-            React.createElement('div', { className: "max-w-5xl mx-auto list-shell" },
+        React.createElement('div', { className: "admin-content flex-1 overflow-y-auto p-4 md:p-6 bg-transparent" },
+            React.createElement('div', { className: "admin-users-table max-w-5xl mx-auto list-shell" },
                 paginatedUsers.map(u => {
                     const isMe = u.email === ADMIN_EMAIL;
                     return React.createElement('div', { key: u.id, className: "admin-user-row flex flex-col md:flex-row justify-between items-start md:items-center gap-4" },
@@ -193,13 +193,13 @@ export const AdminUsersPanel = ({ onClose }) => {
             )
         ),
         editingUser && React.createElement('div', { className: "app-modal-overlay fixed inset-0 flex items-center justify-center p-4 z-[60]" },
-            React.createElement('div', { className: "app-modal-panel bg-white p-6 rounded-2xl w-full max-w-sm max-h-[90vh] overflow-y-auto animate-fade-in" },
-                React.createElement('h3', { className: "font-bold text-lg mb-4" }, "Editar Usuário"),
+            React.createElement('div', { className: "app-modal-panel desktop-modal desktop-modal-user-edit bg-white p-6 rounded-2xl w-full max-w-sm max-h-[90vh] overflow-y-auto animate-fade-in" },
+                React.createElement('h3', { className: "user-edit-title font-bold text-lg mb-4" }, "Editar Usuário"),
                 React.createElement('input', { className: "w-full p-2 mb-2 border rounded", value: editingUser.name, onChange: e => setEditingUser({...editingUser, name: e.target.value}), placeholder: "Nome" }),
                 React.createElement('input', { className: "w-full p-2 mb-2 border rounded", value: editingUser.storeName, onChange: e => setEditingUser({...editingUser, storeName: e.target.value}), placeholder: "Loja" }),
                 React.createElement('input', { className: "w-full p-2 mb-4 border rounded", value: editingUser.phone, onChange: e => setEditingUser({...editingUser, phone: maskPhone(e.target.value)}), placeholder: "Telefone" }),
                 
-                React.createElement('div', { className: "bg-slate-50 p-3 rounded-lg mb-4 space-y-2 border border-slate-100" },
+                React.createElement('div', { className: "user-edit-pix bg-slate-50 p-3 rounded-lg mb-4 space-y-2 border border-slate-100" },
                     React.createElement('p', { className: "text-xs font-bold text-slate-500 uppercase" }, "Chave PIX"),
                     React.createElement('select', { className: "w-full p-2 border rounded text-sm", value: editingUser.pixType, onChange: e => setEditingUser({...editingUser, pixType: e.target.value, pixKey: ''}) },
                         React.createElement('option', { value: "" }, "Selecione o Tipo..."),
@@ -213,7 +213,7 @@ export const AdminUsersPanel = ({ onClose }) => {
                     React.createElement('input', { className: "w-full p-2 border rounded text-sm", value: editingUser.pixName, onChange: e => setEditingUser({...editingUser, pixName: e.target.value}), placeholder: "Titular" })
                 ),
 
-                React.createElement('div', { className: "flex gap-2" }, React.createElement('button', { onClick: () => setEditingUser(null), className: "flex-1 p-2 text-slate-500 font-bold" }, "Cancelar"), React.createElement('button', { onClick: handleSaveEdit, className: "flex-1 p-2 bg-slate-900 text-white font-bold rounded" }, "Salvar"))
+                React.createElement('div', { className: "desktop-modal-footer user-edit-actions flex gap-2" }, React.createElement('button', { onClick: () => setEditingUser(null), className: "flex-1 p-2 text-slate-500 font-bold" }, "Cancelar"), React.createElement('button', { onClick: handleSaveEdit, className: "flex-1 p-2 bg-slate-900 text-white font-bold rounded" }, "Salvar"))
             )
         )
     );

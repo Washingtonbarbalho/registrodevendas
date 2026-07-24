@@ -86,6 +86,409 @@
     z-index: 10020 !important;
 }
 
+/* Janelas amplas apenas em computadores.
+   As classes são aplicadas somente aos fluxos solicitados para que
+   confirmações, PIX, pagamentos e alertas continuem compactos. */
+@media (min-width: 1024px) {
+    .desktop-modal {
+        display: flex !important;
+        flex-direction: column !important;
+        width: 88vw !important;
+        max-width: 1120px !important;
+        max-height: min(90vh, 900px) !important;
+        min-height: 0 !important;
+        border-radius: 14px !important;
+        border: 1px solid rgba(203, 213, 225, .92) !important;
+        box-shadow:
+            0 34px 90px rgba(15, 23, 42, .28),
+            0 10px 30px rgba(15, 23, 42, .13) !important;
+        overflow: hidden !important;
+    }
+
+    .desktop-modal-profile {
+        width: 86vw !important;
+        max-width: 1040px !important;
+    }
+
+    .desktop-modal-installments,
+    .desktop-modal-credit {
+        width: 88vw !important;
+        max-width: 1080px !important;
+    }
+
+    .desktop-modal-customer-form,
+    .desktop-modal-sale-details {
+        width: 92vw !important;
+        max-width: 1180px !important;
+    }
+
+    .desktop-modal-product {
+        width: 90vw !important;
+        max-width: 1140px !important;
+    }
+
+    .desktop-modal-header {
+        position: relative;
+        z-index: 4;
+        flex: 0 0 auto !important;
+        min-height: 70px !important;
+        padding: 17px 24px !important;
+        border-radius: 0 !important;
+        border-bottom: 1px solid #e2e8f0 !important;
+        background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
+    }
+
+    .desktop-modal-body {
+        flex: 1 1 auto !important;
+        min-height: 0 !important;
+        padding: 22px 24px !important;
+        overflow-x: hidden !important;
+        overflow-y: auto !important;
+        overscroll-behavior: contain;
+        scrollbar-gutter: stable;
+        background: #f8fafc;
+    }
+
+    .desktop-modal-footer {
+        position: relative;
+        z-index: 4;
+        flex: 0 0 auto !important;
+        padding: 15px 24px !important;
+        border-radius: 0 !important;
+        border-top: 1px solid #e2e8f0 !important;
+        background: #ffffff !important;
+        box-shadow: 0 -8px 24px rgba(15, 23, 42, .045);
+    }
+
+    .desktop-profile-grid,
+    .customer-form-grid,
+    .installment-groups-grid,
+    .sale-details-grid,
+    .credit-settings-grid {
+        display: grid !important;
+        align-items: start;
+        gap: 18px !important;
+    }
+
+    .desktop-profile-grid,
+    .customer-form-grid,
+    .installment-groups-grid,
+    .sale-details-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .desktop-profile-grid > *,
+    .customer-form-grid > *,
+    .installment-groups-grid > *,
+    .sale-details-grid > *,
+    .credit-settings-grid > * {
+        min-width: 0;
+        margin-top: 0 !important;
+    }
+
+    .desktop-profile-grid > div,
+    .customer-form-grid > div {
+        height: auto;
+        padding: 20px !important;
+    }
+
+    .installment-groups-grid > p:only-child {
+        grid-column: 1 / -1;
+    }
+
+    .desktop-span-full {
+        grid-column: 1 / -1 !important;
+    }
+
+    .sale-details-summary {
+        min-height: 76px;
+        padding: 16px 18px;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        background: #ffffff;
+    }
+
+    .sale-details-items,
+    .sale-details-finance,
+    .sale-details-payment,
+    .sale-details-entry {
+        align-self: stretch;
+        border-radius: 12px !important;
+    }
+
+    .sale-details-installments {
+        display: grid !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        align-items: start;
+        gap: 12px !important;
+    }
+
+    .sale-details-installments > * {
+        min-width: 0;
+        margin-top: 0 !important;
+    }
+
+    .sale-details-installments > p:first-child {
+        grid-column: 1 / -1;
+    }
+
+    .desktop-modal-sale-details .desktop-modal-footer {
+        display: flex !important;
+        flex-direction: row !important;
+        justify-content: flex-end;
+        gap: 12px !important;
+    }
+
+    .desktop-modal-sale-details .desktop-modal-footer > button {
+        width: auto !important;
+        min-width: 260px;
+        flex: 1 1 0;
+    }
+
+    .credit-settings-grid {
+        grid-template-columns: minmax(0, 1.35fr) minmax(280px, .65fr);
+    }
+
+    .credit-status-card {
+        padding: 18px 20px !important;
+    }
+
+    .credit-limit-card,
+    .credit-summary-card {
+        align-self: stretch;
+        padding: 18px !important;
+    }
+
+    .credit-summary-card {
+        grid-template-columns: 1fr !important;
+        align-content: start;
+    }
+
+    .desktop-modal-product .desktop-modal-header {
+        border-color: #263244 !important;
+        background: #0f172a !important;
+    }
+
+    .desktop-modal-product .desktop-modal-header h3 {
+        color: #ffffff !important;
+    }
+
+    .desktop-modal-product .desktop-modal-header button {
+        border-color: rgba(255, 255, 255, .12) !important;
+        background: rgba(255, 255, 255, .06) !important;
+        color: #cbd5e1 !important;
+    }
+
+    .product-modal-tabs {
+        padding: 0 24px;
+    }
+
+    .product-modal-tabs > button {
+        max-width: 220px;
+    }
+
+    .product-info-layout,
+    .product-history-layout {
+        display: grid !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        align-items: start;
+        gap: 16px !important;
+    }
+
+    .product-info-layout > *,
+    .product-history-layout > * {
+        min-width: 0;
+        margin-top: 0 !important;
+    }
+
+    .product-history-layout > p:only-child {
+        grid-column: 1 / -1;
+    }
+
+    .product-metrics-grid,
+    .product-price-card {
+        align-self: stretch;
+    }
+
+    .product-actions {
+        justify-self: stretch;
+    }
+
+    .desktop-modal-product .desktop-modal-footer {
+        display: flex !important;
+        justify-content: flex-end;
+    }
+
+    .desktop-modal-product .desktop-modal-footer > button {
+        width: auto !important;
+        min-width: 310px;
+    }
+
+    /* Nova venda: a própria tela passa a funcionar como uma janela central. */
+    .sale-screen {
+        inset: 5vh 3vw !important;
+        width: min(94vw, 1280px) !important;
+        height: min(90vh, 920px) !important;
+        margin: auto !important;
+        border: 1px solid rgba(203, 213, 225, .92);
+        border-radius: 14px;
+        box-shadow:
+            0 0 0 100vmax rgba(15, 23, 42, .62),
+            0 36px 100px rgba(15, 23, 42, .34) !important;
+        isolation: isolate;
+        overflow: hidden;
+    }
+
+    .sale-screen-header {
+        position: relative !important;
+        top: auto !important;
+        z-index: 3;
+        flex: 0 0 auto;
+        min-height: 70px;
+        padding: 14px 22px !important;
+    }
+
+    .sale-screen > div[class*="overflow-y-auto"] {
+        min-height: 0 !important;
+        padding: 22px 24px !important;
+    }
+
+    .sale-screen > div[class*="overflow-y-auto"] > div[class*="max-w-2xl"] {
+        width: 100%;
+        max-width: 1232px !important;
+        grid-template-columns: minmax(0, 1.25fr) minmax(340px, .75fr);
+        gap: 20px !important;
+    }
+
+    .sale-screen > div[class*="overflow-y-auto"] > div[class*="max-w-2xl"] > .sale-section:first-child {
+        grid-column: 1 / -1;
+    }
+
+    .sale-section {
+        align-self: start;
+        padding: 20px !important;
+        border-radius: 13px !important;
+    }
+
+    .sale-bottom-bar {
+        position: relative !important;
+        inset: auto !important;
+        z-index: 3;
+        flex: 0 0 auto;
+        width: 100% !important;
+        padding: 13px 24px !important;
+    }
+
+    .sale-bottom-bar > div {
+        max-width: 1232px !important;
+    }
+
+    /* Gerenciamento de usuários em formato de painel de sistema. */
+    .admin-screen {
+        inset: 5vh 4vw !important;
+        width: min(92vw, 1200px) !important;
+        height: min(90vh, 900px) !important;
+        margin: auto !important;
+        border: 1px solid rgba(203, 213, 225, .92);
+        border-radius: 14px;
+        box-shadow:
+            0 0 0 100vmax rgba(15, 23, 42, .62),
+            0 36px 100px rgba(15, 23, 42, .34) !important;
+        isolation: isolate;
+        overflow: hidden;
+    }
+
+    .admin-header {
+        position: relative !important;
+        top: auto !important;
+        z-index: 3;
+        flex: 0 0 auto;
+        min-height: 70px;
+        padding: 14px 22px !important;
+    }
+
+    .admin-toolbar {
+        flex: 0 0 auto;
+        padding: 14px 22px !important;
+    }
+
+    .admin-toolbar > div,
+    .admin-content > div,
+    .admin-users-table {
+        width: 100%;
+        max-width: none !important;
+    }
+
+    .admin-content {
+        min-height: 0 !important;
+        padding: 20px 22px !important;
+    }
+
+    .admin-users-table {
+        overflow: hidden;
+        border: 1px solid #e2e8f0;
+        border-radius: 13px !important;
+        background: #ffffff;
+    }
+
+    .admin-user-row {
+        grid-template-columns: minmax(0, 1fr) auto !important;
+        min-height: 82px;
+        padding: 15px 18px !important;
+    }
+
+    .desktop-modal-user-edit {
+        display: grid !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        align-items: start;
+        gap: 14px !important;
+        width: 82vw !important;
+        max-width: 900px !important;
+        padding: 24px !important;
+        overflow-y: auto !important;
+    }
+
+    .desktop-modal-user-edit > * {
+        min-width: 0;
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
+    }
+
+    .desktop-modal-user-edit > .user-edit-title,
+    .desktop-modal-user-edit > .user-edit-pix,
+    .desktop-modal-user-edit > .user-edit-actions {
+        grid-column: 1 / -1;
+    }
+
+    .user-edit-title {
+        padding-bottom: 14px;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .user-edit-pix {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px !important;
+        padding: 18px !important;
+    }
+
+    .user-edit-pix > p {
+        grid-column: 1 / -1;
+    }
+
+    .user-edit-actions {
+        justify-content: flex-end;
+        padding: 15px 0 0 !important;
+        border-top: 1px solid #e2e8f0 !important;
+        box-shadow: none;
+    }
+
+    .user-edit-actions > button {
+        max-width: 240px;
+        min-height: 43px;
+    }
+}
+
 @media (max-width: 640px) {
     .app-topbar {
         min-height: 62px !important;

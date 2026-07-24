@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'https://esm.sh/react@18.2.0';
 import { X, Tag, Trash2, Edit2, ArrowUpCircle, ArrowDownCircle } from 'https://esm.sh/lucide-react@0.292.0';
-import { formatCurrency, getBrazilDateString } from './utils.js?v=16';
+import { formatCurrency, getBrazilDateString } from './utils.js?v=18';
 
 export {
     UserProfileModal,
@@ -14,7 +14,7 @@ export {
     WhatsAppChooserModal,
     ProductModal,
     StockMovementModal
-} from './modals.js?v=16';
+} from './modals.js?v=18';
 
 const formatDateTime = dateStr => {
     if (!dateStr) return '--/--/---- --:--';
@@ -109,21 +109,21 @@ export const ProductDetailsModal = ({ isOpen, onClose, product, salesHistory, on
     const isPromoActive = product.isPromo && today >= product.promoStart && today <= product.promoEnd;
 
     return React.createElement('div', { className: "app-modal-overlay fixed inset-0 flex items-center justify-center p-4 z-[60] backdrop-blur-sm" },
-        React.createElement('div', { className: "app-modal-panel bg-white rounded-2xl w-full max-w-md max-h-[95vh] flex flex-col shadow-2xl animate-fade-in" },
-            React.createElement('div', { className: "p-5 border-b border-slate-100 flex justify-between items-start bg-slate-900 text-white rounded-t-2xl shrink-0" },
+        React.createElement('div', { className: "app-modal-panel desktop-modal desktop-modal-product bg-white rounded-2xl w-full max-w-md max-h-[95vh] flex flex-col shadow-2xl animate-fade-in" },
+            React.createElement('div', { className: "desktop-modal-header p-5 border-b border-slate-100 flex justify-between items-start bg-slate-900 text-white rounded-t-2xl shrink-0" },
                 React.createElement('div', null,
                     React.createElement('span', { className: "text-[10px] font-mono bg-slate-800 text-yellow-400 px-2 py-0.5 rounded" }, `CÓD: #${product.code}`),
                     React.createElement('h3', { className: "text-xl font-bold mt-2 leading-tight" }, product.name)
                 ),
                 React.createElement('button', { onClick: onClose, className: "p-2 hover:bg-slate-800 rounded-full text-slate-300 transition-colors" }, React.createElement(X, { size: 20 }))
             ),
-            React.createElement('div', { className: "flex border-b border-slate-100 shrink-0 bg-slate-50" },
+            React.createElement('div', { className: "product-modal-tabs flex border-b border-slate-100 shrink-0 bg-slate-50" },
                 React.createElement('button', { onClick: () => setTab('info'), className: `flex-1 py-3 text-sm font-bold border-b-2 transition-colors ${tab === 'info' ? 'border-yellow-500 text-slate-800' : 'border-transparent text-slate-400 hover:text-slate-600'}` }, "Detalhes"),
                 React.createElement('button', { onClick: () => setTab('history'), className: `flex-1 py-3 text-sm font-bold border-b-2 transition-colors ${tab === 'history' ? 'border-yellow-500 text-slate-800' : 'border-transparent text-slate-400 hover:text-slate-600'}` }, "Histórico")
             ),
-            React.createElement('div', { className: "flex-1 overflow-y-auto p-5 space-y-4 no-scrollbar" },
-                tab === 'info' && React.createElement('div', { className: "space-y-4 animate-fade-in" },
-                    React.createElement('div', { className: "grid grid-cols-2 gap-4" },
+            React.createElement('div', { className: "desktop-modal-body product-modal-body flex-1 overflow-y-auto p-5 space-y-4 no-scrollbar" },
+                tab === 'info' && React.createElement('div', { className: "product-info-layout space-y-4 animate-fade-in" },
+                    React.createElement('div', { className: "product-metrics-grid grid grid-cols-2 gap-4" },
                         React.createElement('div', { className: "bg-slate-50 p-4 rounded-xl border border-slate-100" },
                             React.createElement('p', { className: "text-[10px] uppercase font-bold text-slate-400 mb-1" }, "Custo Médio"),
                             React.createElement('p', { className: "font-bold text-slate-800 text-lg" }, formatCurrency(product.costPrice))
@@ -133,7 +133,7 @@ export const ProductDetailsModal = ({ isOpen, onClose, product, salesHistory, on
                             React.createElement('p', { className: `font-bold text-lg ${product.quantity <= 0 ? 'text-red-500' : 'text-slate-800'}` }, `${product.quantity} un.`)
                         )
                     ),
-                    React.createElement('div', { className: "bg-white p-4 rounded-xl border border-slate-200 shadow-sm" },
+                    React.createElement('div', { className: "product-price-card bg-white p-4 rounded-xl border border-slate-200 shadow-sm" },
                         React.createElement('div', { className: "flex justify-between items-center mb-2" },
                             React.createElement('p', { className: "text-[10px] uppercase font-bold text-slate-400" }, "Preço de Venda"),
                             isPromoActive && React.createElement('span', { className: "bg-purple-100 text-purple-700 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase" }, "Promoção Ativa")
@@ -145,11 +145,11 @@ export const ProductDetailsModal = ({ isOpen, onClose, product, salesHistory, on
                             )
                             : React.createElement('p', { className: "text-2xl font-bold text-slate-800" }, formatCurrency(product.salePrice))
                     ),
-                    product.description && React.createElement('div', { className: "bg-slate-50 p-4 rounded-xl border border-slate-100" },
+                    product.description && React.createElement('div', { className: "product-description-card desktop-span-full bg-slate-50 p-4 rounded-xl border border-slate-100" },
                         React.createElement('p', { className: "text-[10px] uppercase font-bold text-slate-400 mb-1" }, "Descrição"),
                         React.createElement('p', { className: "text-sm text-slate-600 whitespace-pre-wrap" }, product.description)
                     ),
-                    React.createElement('div', { className: "grid grid-cols-2 gap-3 pt-2" },
+                    React.createElement('div', { className: "product-actions desktop-span-full grid grid-cols-2 gap-3 pt-2" },
                         React.createElement('button', { onClick: () => onMovementRequest(product), className: "p-3 bg-emerald-500 text-white font-bold rounded-xl shadow-lg shadow-emerald-200 flex items-center justify-center gap-2 hover:bg-emerald-600 transition-colors" },
                             React.createElement(ArrowUpCircle, { size: 18 }), " Movimentar"
                         ),
@@ -158,7 +158,7 @@ export const ProductDetailsModal = ({ isOpen, onClose, product, salesHistory, on
                         )
                     )
                 ),
-                tab === 'history' && React.createElement('div', { className: "space-y-3 animate-fade-in relative" },
+                tab === 'history' && React.createElement('div', { className: "product-history-layout space-y-3 animate-fade-in relative" },
                     combinedHistory.length === 0
                         ? React.createElement('p', { className: "text-center text-slate-400 py-10 italic text-sm" }, "Nenhuma movimentação registrada.")
                         : combinedHistory.map(historyItem => React.createElement('div', { key: historyItem.id, className: "bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex items-center gap-3" },
@@ -181,7 +181,7 @@ export const ProductDetailsModal = ({ isOpen, onClose, product, salesHistory, on
                         ))
                 )
             ),
-            React.createElement('div', { className: "p-4 border-t border-slate-100 bg-white rounded-b-2xl shrink-0 flex flex-col gap-2" },
+            React.createElement('div', { className: "desktop-modal-footer p-4 border-t border-slate-100 bg-white rounded-b-2xl shrink-0 flex flex-col gap-2" },
                 React.createElement('button', { onClick: () => onDeleteRequest('product', product.id), className: "w-full py-3 text-red-400 hover:text-red-600 text-sm font-bold bg-white hover:bg-red-50 rounded-xl transition-colors border border-transparent flex items-center justify-center gap-2" },
                     React.createElement(Trash2, { size: 16 }), " Excluir Produto Permanentemente"
                 )

@@ -117,12 +117,12 @@ export const UserProfileModal = ({ isOpen, onClose, userProfile, onSave }) => {
 
     if (!isOpen) return null;
     return React.createElement('div', { className: "app-modal-overlay fixed inset-0 flex items-center justify-center p-4 z-[80] backdrop-blur-sm" },
-        React.createElement('div', { className: "app-modal-panel bg-white rounded-2xl w-full max-w-md max-h-[90vh] flex flex-col shadow-2xl animate-fade-in" },
-            React.createElement('div', { className: "p-4 border-b border-slate-100 flex justify-between items-center" },
+        React.createElement('div', { className: "app-modal-panel desktop-modal desktop-modal-profile bg-white rounded-2xl w-full max-w-md max-h-[90vh] flex flex-col shadow-2xl animate-fade-in" },
+            React.createElement('div', { className: "desktop-modal-header p-4 border-b border-slate-100 flex justify-between items-center" },
                 React.createElement('h3', { className: "font-bold text-lg text-slate-800 flex items-center gap-2" }, React.createElement(User, { className: "text-yellow-500" }), "Meu Perfil"),
                 React.createElement('button', { onClick: onClose, className: "p-2 hover:bg-slate-100 rounded-full" }, React.createElement(X, { size: 20 }))
             ),
-            React.createElement('div', { className: "flex-1 overflow-y-auto p-4 space-y-4" },
+            React.createElement('div', { className: "desktop-modal-body desktop-profile-grid flex-1 overflow-y-auto p-4 space-y-4" },
                 React.createElement('div', { className: "space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-100" },
                     React.createElement('p', { className: "text-xs font-bold text-slate-400 uppercase" }, "Dados da Loja"),
                     React.createElement('input', { className: "w-full p-3 border border-slate-200 rounded-lg", value: name, onChange: e => setName(e.target.value), placeholder: "Seu Nome" }),
@@ -143,7 +143,7 @@ export const UserProfileModal = ({ isOpen, onClose, userProfile, onSave }) => {
                     React.createElement('input', { className: "w-full p-3 border border-slate-200 rounded-lg bg-white", value: pixName, onChange: e => setPixName(e.target.value), placeholder: "Nome Completo do Titular" })
                 )
             ),
-            React.createElement('div', { className: "p-4 border-t border-slate-100 flex gap-2" },
+            React.createElement('div', { className: "desktop-modal-footer p-4 border-t border-slate-100 flex gap-2" },
                 React.createElement('button', { onClick: onClose, className: "flex-1 p-3 text-slate-500 font-bold rounded-lg hover:bg-slate-50" }, "Cancelar"),
                 React.createElement('button', { onClick: handleSave, className: "flex-1 p-3 bg-slate-900 text-white font-bold rounded-lg shadow-sm" }, "Salvar Alterações")
             )
@@ -209,12 +209,12 @@ export const InstallmentListModal = ({ isOpen, onClose, title, items, onPay, onO
     }, {});
 
     return React.createElement('div', { className: "app-modal-overlay fixed inset-0 flex items-center justify-center p-4 z-[80] backdrop-blur-sm" },
-        React.createElement('div', { className: "app-modal-panel bg-white rounded-2xl w-full max-w-md max-h-[90vh] flex flex-col shadow-2xl animate-fade-in" },
-            React.createElement('div', { className: "p-4 border-b border-slate-100 flex justify-between items-center" },
+        React.createElement('div', { className: "app-modal-panel desktop-modal desktop-modal-installments bg-white rounded-2xl w-full max-w-md max-h-[90vh] flex flex-col shadow-2xl animate-fade-in" },
+            React.createElement('div', { className: "desktop-modal-header p-4 border-b border-slate-100 flex justify-between items-center" },
                 React.createElement('h3', { className: "font-bold text-lg text-slate-800 flex items-center gap-2" }, React.createElement(Clock, { className: "text-yellow-600", size: 20 }), title),
                 React.createElement('button', { onClick: onClose, className: "p-2 hover:bg-slate-100 rounded-full" }, React.createElement(X, { size: 20 }))
             ),
-            React.createElement('div', { className: "flex-1 overflow-y-auto p-4 space-y-4" },
+            React.createElement('div', { className: "desktop-modal-body installment-groups-grid flex-1 overflow-y-auto p-4 space-y-4" },
                 items.length === 0 ? React.createElement('p', { className: "text-center text-slate-400 py-4" }, "Nenhuma parcela encontrada.") :
                 Object.keys(groupedItems).map(customerName => (
                     React.createElement('div', { key: customerName, className: "space-y-2" },
@@ -666,12 +666,12 @@ export const CustomerFormModal = ({ isOpen, onClose, onSave, initialData }) => {
     if (!isOpen) return null;
 
     return React.createElement('div', { className: "app-modal-overlay fixed inset-0 flex items-center justify-center p-4 z-[90]" },
-        React.createElement('div', { className: "app-modal-panel bg-white rounded-2xl w-full max-w-lg shadow-2xl animate-fade-in flex flex-col max-h-[95vh]" },
-            React.createElement('div', { className: "p-6 border-b border-slate-100 flex justify-between items-center shrink-0" },
+        React.createElement('div', { className: "app-modal-panel desktop-modal desktop-modal-customer-form bg-white rounded-2xl w-full max-w-lg shadow-2xl animate-fade-in flex flex-col max-h-[95vh]" },
+            React.createElement('div', { className: "desktop-modal-header p-6 border-b border-slate-100 flex justify-between items-center shrink-0" },
                 React.createElement('h3', { className: "text-xl font-bold text-slate-800 flex items-center gap-2" }, React.createElement(User, { className: "text-yellow-500" }), initialData ? 'Editar Cliente' : 'Novo Cliente'),
                 React.createElement('button', { onClick: onClose, className: "p-2 bg-slate-100 rounded-full hover:bg-slate-200" }, React.createElement(X, { size: 20 }))
             ),
-            React.createElement('div', { className: "p-6 overflow-y-auto flex-1 space-y-4 no-scrollbar" },
+            React.createElement('div', { className: "desktop-modal-body customer-form-grid p-6 overflow-y-auto flex-1 space-y-4 no-scrollbar" },
                 React.createElement('div', { className: "bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3" },
                     React.createElement('p', { className: "text-xs font-bold text-slate-400 uppercase" }, "Dados Pessoais & Financeiros"),
                     React.createElement('div', null,
@@ -742,7 +742,7 @@ export const CustomerFormModal = ({ isOpen, onClose, onSave, initialData }) => {
                     )
                 )
             ),
-            React.createElement('div', { className: "p-6 border-t border-slate-100 flex gap-3 shrink-0 bg-white rounded-b-2xl" },
+            React.createElement('div', { className: "desktop-modal-footer p-6 border-t border-slate-100 flex gap-3 shrink-0 bg-white rounded-b-2xl" },
                 React.createElement('button', { onClick: onClose, className: "flex-1 p-3 text-slate-500 font-bold bg-slate-100 rounded-xl hover:bg-slate-200" }, "Cancelar"),
                 React.createElement('button', { onClick: handleSubmit, className: "flex-1 p-3 bg-slate-900 text-yellow-400 font-bold rounded-xl hover:bg-slate-800 shadow-lg" }, "Salvar Cliente")
             )
@@ -772,8 +772,8 @@ export const SaleDetailsModal = ({ isOpen, onClose, sale, onPay, onEdit, onDelet
     const waTitle = sale.saleType === 'direct' ? 'Enviar Comprovante' : (sale.status === 'completed' ? 'Enviar Quitação' : 'Enviar Resumo da Venda');
 
     return React.createElement('div', { className: "app-modal-overlay fixed inset-0 flex items-center justify-center p-4 z-[55] backdrop-blur-sm" },
-        React.createElement('div', { className: "app-modal-panel bg-white rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col shadow-2xl animate-fade-in" },
-            React.createElement('div', { className: "p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-2xl shrink-0" },
+        React.createElement('div', { className: "app-modal-panel desktop-modal desktop-modal-sale-details bg-white rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col shadow-2xl animate-fade-in" },
+            React.createElement('div', { className: "desktop-modal-header p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-2xl shrink-0" },
                 React.createElement('div', null,
                     React.createElement('h3', { className: "font-bold text-lg text-slate-800 flex items-center gap-2" }, 
                         "Detalhes da " + (sale.saleType === 'direct' ? "Venda" : "Cobrança"),
@@ -787,18 +787,18 @@ export const SaleDetailsModal = ({ isOpen, onClose, sale, onPay, onEdit, onDelet
                 )
             ),
             
-            React.createElement('div', { className: "flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar relative" },
+            React.createElement('div', { className: "desktop-modal-body sale-details-grid flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar relative" },
                 sale.status === 'canceled' && React.createElement('div', { className: "absolute inset-0 z-0 flex items-center justify-center pointer-events-none opacity-10" }, 
                     React.createElement('div', { className: "transform -rotate-45 text-red-600 font-black text-6xl border-4 border-red-600 p-4 rounded-xl uppercase tracking-widest" }, "Cancelado")
                 ),
 
-                sale.creditAnalysis?.approvedBySystem === false && sale.status !== 'canceled' && React.createElement('div', { className: "bg-red-50 p-3 rounded-lg border border-red-100 relative z-10 text-sm" },
+                sale.creditAnalysis?.approvedBySystem === false && sale.status !== 'canceled' && React.createElement('div', { className: "desktop-span-full bg-red-50 p-3 rounded-lg border border-red-100 relative z-10 text-sm" },
                     React.createElement('p', { className: "text-[10px] uppercase font-bold text-red-600 mb-1 flex items-center gap-1" }, React.createElement(ShieldAlert, { size: 14 }), "Exceção de Crédito"),
                     React.createElement('p', { className: "text-red-800 mb-1" }, React.createElement('strong', null, "Motivo da Reprovação: "), sale.creditAnalysis.result?.reason),
                     React.createElement('p', { className: "text-red-800 italic" }, React.createElement('strong', null, "Liberação Manual: "), `"${sale.creditAnalysis.manualApprovalReason}"`)
                 ),
 
-                React.createElement('div', { className: "flex justify-between items-center relative z-10" },
+                React.createElement('div', { className: "sale-details-summary desktop-span-full flex justify-between items-center relative z-10" },
                     React.createElement('div', null,
                         React.createElement('p', { className: `font-bold text-2xl ${sale.status === 'canceled' ? 'text-red-500 line-through' : 'text-slate-800'}` }, formatCurrency(sale.totalPrice)),
                         React.createElement('p', { className: "text-sm text-slate-500" }, formatDate(sale.saleDate))
@@ -806,17 +806,17 @@ export const SaleDetailsModal = ({ isOpen, onClose, sale, onPay, onEdit, onDelet
                     React.createElement('span', { className: `px-3 py-1 rounded-full text-xs font-bold ${sale.status === 'canceled' ? 'bg-red-100 text-red-700' : sale.status === 'completed' ? 'bg-emerald-100 text-emerald-700' : 'bg-yellow-100 text-yellow-700'}` }, sale.status === 'canceled' ? 'Cancelado' : sale.status === 'completed' ? 'Quitado' : 'Aberto')
                 ),
 
-                sale.status === 'canceled' && sale.cancelReason && React.createElement('div', { className: "bg-red-50 p-3 rounded-lg border border-red-100 relative z-10" },
+                sale.status === 'canceled' && sale.cancelReason && React.createElement('div', { className: "desktop-span-full bg-red-50 p-3 rounded-lg border border-red-100 relative z-10" },
                     React.createElement('p', { className: "text-[10px] uppercase font-bold text-red-500 mb-1" }, "Motivo do Cancelamento:"),
                     React.createElement('p', { className: "text-sm text-red-700 italic" }, `"${sale.cancelReason}"`)
                 ),
 
-                sale.saleType === 'prazo' && React.createElement('div', { className: "flex justify-between items-center text-sm text-slate-500 bg-slate-50 p-3 rounded-lg border border-slate-100 relative z-10" },
+                sale.saleType === 'prazo' && React.createElement('div', { className: "sale-details-progress desktop-span-full flex justify-between items-center text-sm text-slate-500 bg-slate-50 p-3 rounded-lg border border-slate-100 relative z-10" },
                     React.createElement('span', { className: "flex items-center gap-1" }, React.createElement(CheckCircle, { size: 16, className: paidInstallments === totalInst && sale.status !== 'canceled' ? 'text-emerald-500' : 'text-slate-400' }), `Pagos: ${paidInstallments}/${totalInst}`),
                     React.createElement('span', { className: "font-bold" }, pendingAmount > 0 ? `Resta: ${formatCurrency(pendingAmount)}` : 'Concluído')
                 ),
 
-                React.createElement('div', { className: "bg-white p-4 rounded-xl border border-slate-200 relative z-10" },
+                React.createElement('div', { className: "sale-details-items bg-white p-4 rounded-xl border border-slate-200 relative z-10" },
                     React.createElement('p', { className: "text-xs font-bold text-slate-400 uppercase mb-3 flex items-center gap-2" }, React.createElement(Package, { size: 14 }), "Itens da Venda"),
                     sale.items.map((item, idx) => React.createElement('div', { key: idx, className: "flex justify-between text-sm py-2 border-b border-slate-50 last:border-0" },
                         React.createElement('div', null,
@@ -827,7 +827,7 @@ export const SaleDetailsModal = ({ isOpen, onClose, sale, onPay, onEdit, onDelet
                     ))
                 ),
 
-                React.createElement('div', { className: "bg-white p-4 rounded-xl border border-slate-200 space-y-3 relative z-10" },
+                React.createElement('div', { className: "sale-details-finance bg-white p-4 rounded-xl border border-slate-200 space-y-3 relative z-10" },
                     React.createElement('p', { className: "text-xs font-bold text-slate-400 uppercase mb-2 flex items-center gap-2" }, React.createElement(PieChart, { size: 14 }), "Resumo Financeiro"),
                     React.createElement('div', { className: "flex justify-between text-sm" }, React.createElement('span', { className: "text-slate-500" }, "Valor dos Produtos:"), React.createElement('span', { className: "text-slate-800 font-bold" }, formatCurrency((sale.totalPrice + (sale.totalDiscount||0)) - (sale.feeConfig?.type === 'com_juros' ? sale.feeConfig.value : 0)))),
                     sale.totalDiscount > 0 && React.createElement('div', { className: "flex justify-between text-sm text-emerald-600" }, React.createElement('span', null, "Descontos Aplicados:"), React.createElement('span', { className: "font-bold" }, `- ${formatCurrency(sale.totalDiscount)}`)),
@@ -843,7 +843,7 @@ export const SaleDetailsModal = ({ isOpen, onClose, sale, onPay, onEdit, onDelet
                 ),
 
                 sale.saleType === 'direct' && React.createElement(React.Fragment, null,
-                    (sale.paymentMethod === 'credit' || sale.paymentMethod === 'debit') && React.createElement('div', { className: "bg-emerald-50 p-4 rounded-xl border border-emerald-100 space-y-3 relative z-10" },
+                    (sale.paymentMethod === 'credit' || sale.paymentMethod === 'debit') && React.createElement('div', { className: "sale-details-payment bg-emerald-50 p-4 rounded-xl border border-emerald-100 space-y-3 relative z-10" },
                         sale.entryAmount > 0 && React.createElement('div', { className: "flex justify-between items-center text-sm" }, React.createElement('span', { className: "text-emerald-800" }, "Entrada (Dinheiro/Pix):"), React.createElement('span', { className: "font-bold text-emerald-800" }, formatCurrency(sale.entryAmount))),
                         React.createElement('div', { className: "flex justify-between items-center text-sm" }, React.createElement('span', { className: "text-emerald-800 flex items-center gap-1" }, React.createElement(Receipt, { size: 14 }), `Passado no Cartão (${sale.cardInstallments}x):`), React.createElement('span', { className: "font-bold text-emerald-800" }, formatCurrency(sale.cardAmount || sale.totalPrice))),
                         sale.feeConfig && React.createElement('div', { className: "text-[10px] text-emerald-700 bg-emerald-100 p-2 rounded space-y-1" },
@@ -854,12 +854,12 @@ export const SaleDetailsModal = ({ isOpen, onClose, sale, onPay, onEdit, onDelet
                     )
                 ),
 
-                (sale.saleType === 'prazo' || !sale.saleType) && sale.entryAmount > 0 && React.createElement('div', { className: "bg-emerald-50 p-4 rounded-xl border border-emerald-100 flex justify-between items-center relative z-10" },
+                (sale.saleType === 'prazo' || !sale.saleType) && sale.entryAmount > 0 && React.createElement('div', { className: "sale-details-entry bg-emerald-50 p-4 rounded-xl border border-emerald-100 flex justify-between items-center relative z-10" },
                     React.createElement('div', { className: "flex items-center gap-2" }, React.createElement(Wallet, { size: 18, className: "text-emerald-600" }), React.createElement('span', { className: "text-sm font-bold text-emerald-800" }, "Valor de Entrada")),
                     React.createElement('span', { className: "font-bold text-emerald-800 text-lg" }, formatCurrency(sale.entryAmount))
                 ),
 
-                (sale.saleType === 'prazo' || !sale.saleType) && React.createElement('div', { className: "space-y-3 relative z-10" },
+                (sale.saleType === 'prazo' || !sale.saleType) && React.createElement('div', { className: "sale-details-installments desktop-span-full space-y-3 relative z-10" },
                     React.createElement('p', { className: "text-xs font-bold text-slate-400 uppercase flex items-center gap-2" }, React.createElement(Calendar, { size: 14 }), "Parcelamento"),
                     sale.installments && sale.installments.map((inst, idx) => {
                         const isOverdue = !inst.paid && inst.dueDate < getBrazilDateString();
@@ -902,7 +902,7 @@ export const SaleDetailsModal = ({ isOpen, onClose, sale, onPay, onEdit, onDelet
                     })
                 )
             ),
-            React.createElement('div', { className: "p-4 border-t border-slate-100 bg-white rounded-b-2xl shrink-0 flex flex-col gap-2" },
+            React.createElement('div', { className: "desktop-modal-footer p-4 border-t border-slate-100 bg-white rounded-b-2xl shrink-0 flex flex-col gap-2" },
                 sale.status !== 'canceled' && React.createElement('button', { onClick: () => onCancelSale(sale.id), className: "w-full py-3 text-orange-600 text-sm font-bold bg-orange-50 hover:bg-orange-100 rounded-xl transition-colors border border-orange-100 flex items-center justify-center gap-2" }, React.createElement(PackageMinus, { size: 16 }), "Cancelar Venda e Voltar Estoque"),
                 React.createElement('button', { onClick: () => { onDeleteSale('sale', sale.id); onClose(); }, className: "w-full py-3 text-red-400 hover:text-red-600 text-sm font-bold bg-white hover:bg-red-50 rounded-xl transition-colors border border-transparent flex items-center justify-center gap-2" }, React.createElement(Trash2, { size: 16 }), "Excluir Registro Permanentemente")
             )
