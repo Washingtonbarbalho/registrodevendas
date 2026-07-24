@@ -521,15 +521,15 @@ export const NewSaleScreen = ({ mode, onClose, customers, products, sales, onSav
         ),
 
         creditModal.open && React.createElement('div', { className: "app-modal-overlay fixed inset-0 z-[100] flex items-center justify-center p-4" },
-            React.createElement('div', { className: "app-modal-panel bg-white w-full max-w-md rounded-3xl p-6 animate-fade-in flex flex-col max-h-[90vh]" },
-                React.createElement('div', { className: "w-16 h-16 bg-red-100 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4" },
+            React.createElement('div', { className: "app-modal-panel desktop-modal desktop-modal-credit-denied bg-white w-full max-w-md rounded-3xl p-6 animate-fade-in flex flex-col max-h-[90vh]" },
+                React.createElement('div', { className: "credit-denied-icon w-16 h-16 bg-red-100 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4" },
                     React.createElement(ShieldAlert, { size: 32 })
                 ),
-                React.createElement('h2', { className: "text-xl font-black text-slate-800 text-center uppercase tracking-tight mb-1" }, "Venda Reprovada"),
-                React.createElement('p', { className: "text-center text-red-600 text-sm font-bold bg-red-50 p-2 rounded-lg mb-6 border border-red-100" }, creditModal.result?.reason),
+                React.createElement('h2', { className: "credit-denied-title text-xl font-black text-slate-800 text-center uppercase tracking-tight mb-1" }, "Venda Reprovada"),
+                React.createElement('p', { className: "credit-denied-reason text-center text-red-600 text-sm font-bold bg-red-50 p-2 rounded-lg mb-6 border border-red-100" }, creditModal.result?.reason),
                 
-                React.createElement('div', { className: "overflow-y-auto space-y-4 px-1" },
-                    React.createElement('div', { className: "bg-slate-50 p-4 rounded-xl border border-slate-100" },
+                React.createElement('div', { className: `desktop-modal-body credit-denied-body ${creditModal.result?.suggestedEntry > 0 ? 'credit-denied-has-suggestion' : ''} overflow-y-auto space-y-4 px-1` },
+                    React.createElement('div', { className: "credit-denied-metrics bg-slate-50 p-4 rounded-xl border border-slate-100" },
                         React.createElement('p', { className: "text-[10px] font-bold text-slate-400 uppercase mb-2" }, "Métricas do Cliente"),
                         React.createElement('div', { className: "space-y-2 text-sm" },
                             React.createElement('div', { className: "flex justify-between" }, React.createElement('span', { className: "text-slate-500" }, "Limite Total Calculado:"), React.createElement('span', { className: "font-bold text-slate-800" }, formatCurrency(creditModal.result?.calculatedLimit))),
@@ -539,11 +539,11 @@ export const NewSaleScreen = ({ mode, onClose, customers, products, sales, onSav
                         )
                     ),
 
-                    creditModal.result?.suggestedEntry > 0 && React.createElement('div', { className: "bg-blue-50 p-3 rounded-xl border border-blue-100" },
+                    creditModal.result?.suggestedEntry > 0 && React.createElement('div', { className: "credit-denied-suggestion bg-blue-50 p-3 rounded-xl border border-blue-100" },
                         React.createElement('p', { className: "text-xs text-blue-700 font-medium" }, "💡 Para o sistema aprovar, o cliente precisa dar uma entrada de ", React.createElement('strong', null, formatCurrency(creditModal.result.suggestedEntry)), " nesta compra.")
                     ),
 
-                    React.createElement('div', null,
+                    React.createElement('div', { className: "credit-denied-manual" },
                         React.createElement('label', { className: "block text-[10px] font-bold text-slate-500 uppercase mb-1" }, "Motivo da Liberação Manual (Obrigatório)"),
                         React.createElement('textarea', {
                             className: "w-full p-3 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-yellow-500 text-sm",
@@ -555,7 +555,7 @@ export const NewSaleScreen = ({ mode, onClose, customers, products, sales, onSav
                     )
                 ),
 
-                React.createElement('div', { className: "mt-6 flex flex-col gap-3" },
+                React.createElement('div', { className: "desktop-modal-footer credit-denied-footer mt-6 flex flex-col gap-3" },
                     React.createElement('button', { 
                         onClick: handleManualApprove, 
                         disabled: !creditModal.manualReason.trim(),

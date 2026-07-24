@@ -1,4 +1,4 @@
-const VERSION = '18';
+const VERSION = '19';
 
 const response = await fetch(`./nova-venda.js?v=${VERSION}`, { cache: 'no-store' });
 if (!response.ok) {

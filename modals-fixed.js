@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'https://esm.sh/react@18.2.0';
 import { X, Tag, Trash2, Edit2, ArrowUpCircle, ArrowDownCircle } from 'https://esm.sh/lucide-react@0.292.0';
-import { formatCurrency, getBrazilDateString } from './utils.js?v=18';
+import { formatCurrency, getBrazilDateString } from './utils.js?v=19';
 
 export {
     UserProfileModal,
@@ -14,7 +14,7 @@ export {
     WhatsAppChooserModal,
     ProductModal,
     StockMovementModal
-} from './modals.js?v=18';
+} from './modals.js?v=19';
 
 const formatDateTime = dateStr => {
     if (!dateStr) return '--/--/---- --:--';
@@ -107,9 +107,12 @@ export const ProductDetailsModal = ({ isOpen, onClose, product, salesHistory, on
 
     const today = getBrazilDateString();
     const isPromoActive = product.isPromo && today >= product.promoStart && today <= product.promoEnd;
+    const productLayoutClass = tab === 'history' && combinedHistory.length <= 2
+        ? 'desktop-modal-product-compact'
+        : 'desktop-modal-product-expanded';
 
     return React.createElement('div', { className: "app-modal-overlay fixed inset-0 flex items-center justify-center p-4 z-[60] backdrop-blur-sm" },
-        React.createElement('div', { className: "app-modal-panel desktop-modal desktop-modal-product bg-white rounded-2xl w-full max-w-md max-h-[95vh] flex flex-col shadow-2xl animate-fade-in" },
+        React.createElement('div', { className: `app-modal-panel desktop-modal desktop-modal-product ${productLayoutClass} bg-white rounded-2xl w-full max-w-md max-h-[95vh] flex flex-col shadow-2xl animate-fade-in` },
             React.createElement('div', { className: "desktop-modal-header p-5 border-b border-slate-100 flex justify-between items-start bg-slate-900 text-white rounded-t-2xl shrink-0" },
                 React.createElement('div', null,
                     React.createElement('span', { className: "text-[10px] font-mono bg-slate-800 text-yellow-400 px-2 py-0.5 rounded" }, `CÓD: #${product.code}`),

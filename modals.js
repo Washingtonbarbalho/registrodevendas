@@ -207,9 +207,12 @@ export const InstallmentListModal = ({ isOpen, onClose, title, items, onPay, onO
         acc[item.customerName].push(item);
         return acc;
     }, {});
+    const installmentLayoutClass = Object.keys(groupedItems).length <= 1
+        ? 'desktop-modal-installments-compact'
+        : 'desktop-modal-installments-multiple';
 
     return React.createElement('div', { className: "app-modal-overlay fixed inset-0 flex items-center justify-center p-4 z-[80] backdrop-blur-sm" },
-        React.createElement('div', { className: "app-modal-panel desktop-modal desktop-modal-installments bg-white rounded-2xl w-full max-w-md max-h-[90vh] flex flex-col shadow-2xl animate-fade-in" },
+        React.createElement('div', { className: `app-modal-panel desktop-modal desktop-modal-installments ${installmentLayoutClass} bg-white rounded-2xl w-full max-w-md max-h-[90vh] flex flex-col shadow-2xl animate-fade-in` },
             React.createElement('div', { className: "desktop-modal-header p-4 border-b border-slate-100 flex justify-between items-center" },
                 React.createElement('h3', { className: "font-bold text-lg text-slate-800 flex items-center gap-2" }, React.createElement(Clock, { className: "text-yellow-600", size: 20 }), title),
                 React.createElement('button', { onClick: onClose, className: "p-2 hover:bg-slate-100 rounded-full" }, React.createElement(X, { size: 20 }))
@@ -770,9 +773,12 @@ export const SaleDetailsModal = ({ isOpen, onClose, sale, onPay, onEdit, onDelet
 
     const waType = sale.saleType === 'direct' ? 'comprovante' : (sale.status === 'completed' ? 'quitacao' : 'registro');
     const waTitle = sale.saleType === 'direct' ? 'Enviar Comprovante' : (sale.status === 'completed' ? 'Enviar Quitação' : 'Enviar Resumo da Venda');
+    const saleDetailsLayoutClass = (sale.items?.length || 0) <= 2 && (sale.installments?.length || 0) <= 2
+        ? 'desktop-modal-sale-details-compact'
+        : 'desktop-modal-sale-details-expanded';
 
     return React.createElement('div', { className: "app-modal-overlay fixed inset-0 flex items-center justify-center p-4 z-[55] backdrop-blur-sm" },
-        React.createElement('div', { className: "app-modal-panel desktop-modal desktop-modal-sale-details bg-white rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col shadow-2xl animate-fade-in" },
+        React.createElement('div', { className: `app-modal-panel desktop-modal desktop-modal-sale-details ${saleDetailsLayoutClass} bg-white rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col shadow-2xl animate-fade-in` },
             React.createElement('div', { className: "desktop-modal-header p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-2xl shrink-0" },
                 React.createElement('div', null,
                     React.createElement('h3', { className: "font-bold text-lg text-slate-800 flex items-center gap-2" }, 

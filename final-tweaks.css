@@ -93,8 +93,8 @@
     .desktop-modal {
         display: flex !important;
         flex-direction: column !important;
-        width: 88vw !important;
-        max-width: 1120px !important;
+        width: calc(100vw - 64px) !important;
+        max-width: 1040px !important;
         max-height: min(90vh, 900px) !important;
         min-height: 0 !important;
         border-radius: 14px !important;
@@ -106,25 +106,43 @@
     }
 
     .desktop-modal-profile {
-        width: 86vw !important;
+        max-width: 900px !important;
+    }
+
+    .desktop-modal-installments {
+        max-width: 980px !important;
+    }
+
+    .desktop-modal-installments-compact {
+        max-width: 720px !important;
+    }
+
+    .desktop-modal-credit {
+        max-width: 920px !important;
+    }
+
+    .desktop-modal-customer-form {
         max-width: 1040px !important;
     }
 
-    .desktop-modal-installments,
-    .desktop-modal-credit {
-        width: 88vw !important;
+    .desktop-modal-sale-details {
         max-width: 1080px !important;
     }
 
-    .desktop-modal-customer-form,
-    .desktop-modal-sale-details {
-        width: 92vw !important;
-        max-width: 1180px !important;
+    .desktop-modal-sale-details-compact {
+        max-width: 900px !important;
     }
 
     .desktop-modal-product {
-        width: 90vw !important;
-        max-width: 1140px !important;
+        max-width: 960px !important;
+    }
+
+    .desktop-modal-product-compact {
+        max-width: 780px !important;
+    }
+
+    .desktop-modal-credit-denied {
+        max-width: 920px !important;
     }
 
     .desktop-modal-header {
@@ -145,7 +163,7 @@
         overflow-x: hidden !important;
         overflow-y: auto !important;
         overscroll-behavior: contain;
-        scrollbar-gutter: stable;
+        scrollbar-gutter: auto;
         background: #f8fafc;
     }
 
@@ -192,6 +210,14 @@
         padding: 20px !important;
     }
 
+    .installment-groups-grid {
+        grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)) !important;
+    }
+
+    .desktop-modal-installments-compact .installment-groups-grid {
+        grid-template-columns: minmax(0, 1fr) !important;
+    }
+
     .installment-groups-grid > p:only-child {
         grid-column: 1 / -1;
     }
@@ -212,13 +238,18 @@
     .sale-details-finance,
     .sale-details-payment,
     .sale-details-entry {
-        align-self: stretch;
+        align-self: start;
         border-radius: 12px !important;
+    }
+
+    .sale-details-payment,
+    .sale-details-entry {
+        grid-column: 1 / -1;
     }
 
     .sale-details-installments {
         display: grid !important;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
         align-items: start;
         gap: 12px !important;
     }
@@ -255,13 +286,14 @@
 
     .credit-limit-card,
     .credit-summary-card {
-        align-self: stretch;
+        align-self: start;
         padding: 18px !important;
     }
 
     .credit-summary-card {
         grid-template-columns: 1fr !important;
         align-content: start;
+        padding: 0 !important;
     }
 
     .desktop-modal-product .desktop-modal-header {
@@ -290,7 +322,7 @@
     .product-info-layout,
     .product-history-layout {
         display: grid !important;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
         align-items: start;
         gap: 16px !important;
     }
@@ -307,7 +339,7 @@
 
     .product-metrics-grid,
     .product-price-card {
-        align-self: stretch;
+        align-self: start;
     }
 
     .product-actions {
@@ -322,6 +354,102 @@
     .desktop-modal-product .desktop-modal-footer > button {
         width: auto !important;
         min-width: 310px;
+    }
+
+    /* Reprovação de crédito: mantém o conteúdo curto proporcional e
+       separa análise, justificativa e ações como uma janela de sistema. */
+    .desktop-modal-credit-denied {
+        display: grid !important;
+        grid-template-columns: 80px minmax(0, 1fr);
+        grid-template-areas:
+            "denied-icon denied-title"
+            "denied-icon denied-reason"
+            "denied-body denied-body"
+            "denied-footer denied-footer";
+        grid-template-rows: auto auto minmax(0, 1fr) auto;
+        padding: 0 !important;
+    }
+
+    .credit-denied-icon {
+        grid-area: denied-icon;
+        align-self: center;
+        width: 54px !important;
+        height: 54px !important;
+        margin: 18px 0 16px 24px !important;
+    }
+
+    .credit-denied-title {
+        grid-area: denied-title;
+        align-self: end;
+        margin: 0 !important;
+        padding: 18px 24px 2px 0;
+        text-align: left !important;
+    }
+
+    .credit-denied-reason {
+        grid-area: denied-reason;
+        align-self: start;
+        margin: 0 !important;
+        padding: 0 24px 18px 0 !important;
+        border: 0 !important;
+        background: transparent !important;
+        text-align: left !important;
+    }
+
+    .credit-denied-body {
+        grid-area: denied-body;
+        display: grid !important;
+        grid-template-columns: minmax(300px, .9fr) minmax(360px, 1.1fr);
+        align-items: start;
+        gap: 16px !important;
+        padding: 20px 24px !important;
+        border-top: 1px solid #e2e8f0;
+    }
+
+    .credit-denied-body > * {
+        min-width: 0;
+        margin-top: 0 !important;
+    }
+
+    .credit-denied-metrics {
+        grid-column: 1;
+        grid-row: 1 / span 2;
+        align-self: start;
+        padding: 18px !important;
+    }
+
+    .credit-denied-suggestion {
+        grid-column: 2;
+        grid-row: 1;
+        align-self: start;
+        padding: 14px 16px !important;
+    }
+
+    .credit-denied-manual {
+        grid-column: 2;
+        grid-row: 1;
+        padding: 18px;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        background: #ffffff;
+    }
+
+    .credit-denied-has-suggestion .credit-denied-manual {
+        grid-row: 2;
+    }
+
+    .credit-denied-footer {
+        grid-area: denied-footer;
+        display: flex !important;
+        flex-direction: row-reverse !important;
+        gap: 12px !important;
+        margin-top: 0 !important;
+    }
+
+    .credit-denied-footer > button {
+        width: auto !important;
+        min-width: 0;
+        flex: 1 1 0;
     }
 
     /* Nova venda: a própria tela passa a funcionar como uma janela central. */
@@ -442,8 +570,8 @@
         grid-template-columns: repeat(2, minmax(0, 1fr));
         align-items: start;
         gap: 14px !important;
-        width: 82vw !important;
-        max-width: 900px !important;
+        width: calc(100vw - 64px) !important;
+        max-width: 780px !important;
         padding: 24px !important;
         overflow-y: auto !important;
     }
