@@ -220,23 +220,27 @@ export const InstallmentListModal = ({ isOpen, onClose, title, items, onPay, onO
             React.createElement('div', { className: "desktop-modal-body installment-groups-grid flex-1 overflow-y-auto p-4 space-y-4" },
                 items.length === 0 ? React.createElement('p', { className: "text-center text-slate-400 py-4" }, "Nenhuma parcela encontrada.") :
                 Object.keys(groupedItems).map(customerName => (
-                    React.createElement('div', { key: customerName, className: "space-y-2" },
-                        React.createElement('div', { className: "flex items-center gap-2 px-1" },
+                    React.createElement('section', { key: customerName, className: "installment-record-group space-y-2" },
+                        React.createElement('div', { className: "installment-record-customer flex items-center gap-2 px-1" },
                             React.createElement(Users, { size: 14, className: "text-slate-400" }),
                             React.createElement('h4', { className: "text-xs font-bold text-slate-500 uppercase" }, customerName)
                         ),
+                        React.createElement('div', { className: "installment-record-header", 'aria-hidden': "true" },
+                            React.createElement('span', null, "Parcela e vencimento"),
+                            React.createElement('span', null, "Valor e ações")
+                        ),
                         groupedItems[customerName].map((item, idx) => (
-                            React.createElement('div', { key: `${item.saleId}-${item.installmentIndex}`, className: "bg-slate-50 p-3 rounded-xl border border-slate-100 flex justify-between items-center gap-2" },
-                                React.createElement('div', null,
-                                    React.createElement('div', { className: "flex items-center gap-2" },
-                                        React.createElement('p', { className: "font-bold text-slate-800" }, formatCurrency(item.amount)),
-                                        React.createElement('span', { className: "text-[10px] bg-white border border-slate-200 px-1.5 rounded text-slate-500" }, `Parcela ${item.number}`)
-                                    ),
+                            React.createElement('div', { key: `${item.saleId}-${item.installmentIndex}`, className: "installment-record-row bg-slate-50 p-3 rounded-xl border border-slate-100 flex justify-between items-center gap-2" },
+                                React.createElement('div', { className: "installment-record-main min-w-0 flex-1" },
+                                    React.createElement('span', { className: "text-[10px] bg-white border border-slate-200 px-1.5 rounded text-slate-500" }, `Parcela ${item.number}`),
                                     React.createElement('p', { className: `text-xs ${item.isOverdue ? 'text-red-500 font-bold' : 'text-slate-400'}` }, item.isOverdue ? `Venceu ${formatDate(item.dueDate)}` : `Vence ${formatDate(item.dueDate)}`)
                                 ),
-                                React.createElement('div', { className: "flex gap-2" },
-                                    item.customerPhone && React.createElement('button', { onClick: () => onOpenWA('cobranca', item.sale, item, null), className: "p-2 bg-green-500 text-white rounded-lg shadow-sm hover:bg-green-600 transition-colors" }, React.createElement(MessageCircle, { size: 16 })),
-                                    React.createElement('button', { onClick: () => onPay(item), className: "p-2 bg-slate-800 text-white rounded-lg shadow-sm hover:bg-slate-700 transition-colors" }, React.createElement(CheckCircle, { size: 16 }))
+                                React.createElement('div', { className: "installment-record-end flex items-center justify-end gap-2" },
+                                    React.createElement('p', { className: "installment-record-value font-bold text-slate-800" }, formatCurrency(item.amount)),
+                                    React.createElement('div', { className: "installment-record-actions flex gap-2" },
+                                        item.customerPhone && React.createElement('button', { onClick: () => onOpenWA('cobranca', item.sale, item, null), className: "p-2 bg-green-500 text-white rounded-lg shadow-sm hover:bg-green-600 transition-colors", title: "Enviar cobrança" }, React.createElement(MessageCircle, { size: 16 })),
+                                        React.createElement('button', { onClick: () => onPay(item), className: "p-2 bg-slate-800 text-white rounded-lg shadow-sm hover:bg-slate-700 transition-colors", title: "Registrar pagamento" }, React.createElement(CheckCircle, { size: 16 }))
+                                    )
                                 )
                             )
                         ))
@@ -766,6 +770,13 @@ export const SaleDetailsModal = ({ isOpen, onClose, sale, onPay, onEdit, onDelet
     const directNetAmount = hasSavedNetAmount && Number.isFinite(savedNetAmount)
         ? savedNetAmount
         : (Number(sale.totalPrice) || 0) - feeAmount;
+    const installmentInterestAmount = Number(sale.installmentInterest?.value) || 0;
+    const passedCardFee = sale.feeConfig?.type === 'com_juros' ? feeAmount : 0;
+    const savedProductsTotal = Number(sale.productsTotal);
+    const productsAfterDiscount = Number.isFinite(savedProductsTotal) && sale.productsTotal !== undefined && sale.productsTotal !== null
+        ? savedProductsTotal
+        : Math.max(0, (Number(sale.totalPrice) || 0) - passedCardFee - installmentInterestAmount);
+    const productsBeforeDiscount = productsAfterDiscount + (Number(sale.totalDiscount) || 0);
 
     const profit = sale.saleType === 'direct'
         ? directNetAmount - (sale.totalCost || 0)
@@ -824,7 +835,7 @@ export const SaleDetailsModal = ({ isOpen, onClose, sale, onPay, onEdit, onDelet
 
                 React.createElement('div', { className: "sale-details-items bg-white p-4 rounded-xl border border-slate-200 relative z-10" },
                     React.createElement('p', { className: "text-xs font-bold text-slate-400 uppercase mb-3 flex items-center gap-2" }, React.createElement(Package, { size: 14 }), "Itens da Venda"),
-                    sale.items.map((item, idx) => React.createElement('div', { key: idx, className: "flex justify-between text-sm py-2 border-b border-slate-50 last:border-0" },
+                    sale.items.map((item, idx) => React.createElement('div', { key: idx, className: "sale-item-record flex justify-between text-sm py-2 border-b border-slate-50 last:border-0" },
                         React.createElement('div', null,
                             React.createElement('span', { className: "text-slate-700" }, item.quantity ? `${item.quantity}x ${item.productName}` : item.productName),
                             item.unitDiscount > 0 && React.createElement('span', { className: "ml-2 text-[10px] bg-emerald-100 text-emerald-700 px-1 rounded font-bold" }, `Desconto: ${formatCurrency(item.unitDiscount * item.quantity)}`)
@@ -835,9 +846,11 @@ export const SaleDetailsModal = ({ isOpen, onClose, sale, onPay, onEdit, onDelet
 
                 React.createElement('div', { className: "sale-details-finance bg-white p-4 rounded-xl border border-slate-200 space-y-3 relative z-10" },
                     React.createElement('p', { className: "text-xs font-bold text-slate-400 uppercase mb-2 flex items-center gap-2" }, React.createElement(PieChart, { size: 14 }), "Resumo Financeiro"),
-                    React.createElement('div', { className: "flex justify-between text-sm" }, React.createElement('span', { className: "text-slate-500" }, "Valor dos Produtos:"), React.createElement('span', { className: "text-slate-800 font-bold" }, formatCurrency((sale.totalPrice + (sale.totalDiscount||0)) - (sale.feeConfig?.type === 'com_juros' ? sale.feeConfig.value : 0)))),
+                    React.createElement('div', { className: "flex justify-between text-sm" }, React.createElement('span', { className: "text-slate-500" }, "Valor dos Produtos:"), React.createElement('span', { className: "text-slate-800 font-bold" }, formatCurrency(productsBeforeDiscount))),
                     sale.totalDiscount > 0 && React.createElement('div', { className: "flex justify-between text-sm text-emerald-600" }, React.createElement('span', null, "Descontos Aplicados:"), React.createElement('span', { className: "font-bold" }, `- ${formatCurrency(sale.totalDiscount)}`)),
                     sale.feeConfig && React.createElement('div', { className: "flex justify-between text-sm text-orange-600" }, React.createElement('span', null, sale.feeConfig.type === 'sem_juros' ? "Taxa Maquininha (Loja Paga):" : "Taxa Repassada (Cliente Paga):"), React.createElement('span', { className: "font-bold" }, `${sale.feeConfig.type === 'sem_juros' ? '-' : '+'} ${formatCurrency(sale.feeConfig.value)}`)),
+                    installmentInterestAmount > 0 && React.createElement('div', { className: "flex justify-between text-sm text-amber-700" }, React.createElement('span', null, `Juros do Carnê (${sale.installmentInterest?.percent || 0}%):`), React.createElement('span', { className: "font-bold" }, `+ ${formatCurrency(installmentInterestAmount)}`)),
+                    (sale.saleType === 'prazo' || !sale.saleType) && React.createElement('div', { className: "flex justify-between text-sm" }, React.createElement('span', { className: "text-slate-500" }, "Total Cobrado do Cliente:"), React.createElement('span', { className: "text-slate-800 font-bold" }, formatCurrency(sale.totalPrice || 0))),
                     sale.saleType === 'direct' && React.createElement('div', { className: "flex justify-between text-sm" }, React.createElement('span', { className: "text-slate-500" }, "Total Cobrado do Cliente:"), React.createElement('span', { className: "text-slate-800 font-bold" }, formatCurrency(sale.totalPrice || 0))),
                     sale.saleType === 'direct' && React.createElement('div', { className: "flex justify-between text-sm bg-emerald-50 p-2 rounded-lg" }, React.createElement('span', { className: "text-emerald-700 font-bold" }, "Líquido que Entra no Caixa:"), React.createElement('span', { className: "text-emerald-700 font-bold" }, formatCurrency(directNetAmount))),
                     React.createElement('div', { className: "flex justify-between text-sm" }, React.createElement('span', { className: "text-slate-500" }, "Custo Total:"), React.createElement('span', { className: "text-slate-800" }, formatCurrency(sale.totalCost || 0))),
@@ -872,7 +885,7 @@ export const SaleDetailsModal = ({ isOpen, onClose, sale, onPay, onEdit, onDelet
                         let paidDisplayDate = '';
                         if (inst.paid && inst.paidAt) paidDisplayDate = formatDate(inst.paidAt);
                         
-                        return React.createElement('div', { key: idx, className: "bg-white p-4 rounded-xl border border-slate-200 flex flex-col gap-3 shadow-sm" },
+                        return React.createElement('div', { key: idx, className: "sale-installment-record bg-white p-4 rounded-xl border border-slate-200 flex flex-col gap-3 shadow-sm" },
                             React.createElement('div', { className: "flex justify-between items-center" },
                                 React.createElement('div', { className: "flex items-center gap-3" },
                                     sale.status !== 'canceled' && React.createElement('button', { onClick: () => onPay(sale, idx), className: `rounded-full p-2 transition-colors shadow-sm ${inst.paid ? 'bg-emerald-500 text-white cursor-default' : 'bg-slate-100 text-slate-400 hover:bg-emerald-100 hover:text-emerald-600'}` }, React.createElement(CheckCircle, { size: 20 })),
@@ -886,9 +899,9 @@ export const SaleDetailsModal = ({ isOpen, onClose, sale, onPay, onEdit, onDelet
                                 ),
                                 React.createElement('p', { className: `font-bold text-lg ${sale.status === 'canceled' ? 'text-slate-400 line-through' : 'text-slate-800'}` }, formatCurrency(inst.amount))
                             ),
-                            inst.history && inst.history.length > 0 && React.createElement('div', { className: "mt-1 pt-3 border-t border-slate-100 text-xs bg-slate-50 -mx-4 px-4 pb-2" },
+                            inst.history && inst.history.length > 0 && React.createElement('div', { className: "sale-payment-history mt-1 pt-3 border-t border-slate-100 text-xs bg-slate-50 -mx-4 px-4 pb-2" },
                                 React.createElement('p', { className: "text-[10px] uppercase font-bold text-slate-400 mb-2 flex items-center gap-1" }, React.createElement(History, { size: 12 }), "Histórico de Pagamentos"),
-                                inst.history.map((h, hIdx) => React.createElement('div', { key: hIdx, className: "flex justify-between items-center text-slate-600 py-1.5 border-b border-slate-100 last:border-0" },
+                                inst.history.map((h, hIdx) => React.createElement('div', { key: hIdx, className: "sale-payment-history-row flex justify-between items-center text-slate-600 py-1.5 border-b border-slate-100 last:border-0" },
                                     React.createElement('div', { className: "flex items-center gap-1" },
                                         React.createElement('span', null, h.type === 'abatement' ? 'Abatimento autom.' : formatDate(h.date)),
                                         h.type !== 'abatement' && sale.status !== 'canceled' && React.createElement('button', { onClick: (e) => { e.stopPropagation(); onOpenWA('recibo', sale, inst, h); }, className: "text-green-500 hover:text-green-600 bg-green-50 p-1 rounded transition-colors ml-1", title: "Enviar Recibo" }, React.createElement(MessageCircle, { size: 12 })),

@@ -18,10 +18,10 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="./styles.css?v=19">
-    <link rel="stylesheet" href="./modals-theme.css?v=19">
-    <link rel="stylesheet" href="./ui-refinements.css?v=19">
-    <link rel="stylesheet" href="./final-tweaks.css?v=19">
+    <link rel="stylesheet" href="./styles.css?v=20">
+    <link rel="stylesheet" href="./modals-theme.css?v=20">
+    <link rel="stylesheet" href="./ui-refinements.css?v=20">
+    <link rel="stylesheet" href="./final-tweaks.css?v=20">
 </head>
 <body>
     <div id="root"></div>
@@ -43,7 +43,7 @@
         };
 
         try {
-            const cleanupKey = 'registro-vendas-cleanup-v19';
+            const cleanupKey = 'registro-vendas-cleanup-v20';
             if (sessionStorage.getItem(cleanupKey) !== 'ok') {
                 if ('serviceWorker' in navigator) {
                     const registrations = await navigator.serviceWorker.getRegistrations();
@@ -61,7 +61,7 @@
                 }
             }
 
-            const version = '19';
+            const version = '20';
             const appResponse = await fetch(`./app.js?v=${version}`, { cache: 'no-store' });
             if (!appResponse.ok) throw new Error(`Falha ao carregar app.js (${appResponse.status})`);
 
@@ -69,7 +69,7 @@
             const freshModules = [
                 'modals', 'auth-admin', 'nova-venda', 'aba-visao-geral',
                 'aba-vendas-prazo', 'aba-vendas-caixa', 'aba-produtos', 'aba-clientes',
-                'utils'
+                'aba-taxas', 'payment-settings', 'utils'
             ];
             const fixedModulePaths = {
                 'modals': './modals-fixed.js',
@@ -90,7 +90,7 @@
             const appBlobUrl = URL.createObjectURL(new Blob([appSource], { type: 'text/javascript' }));
             try {
                 await import(appBlobUrl);
-                await import('./tab-persistence.js?v=3');
+                await import('./tab-persistence.js?v=20');
             } finally {
                 URL.revokeObjectURL(appBlobUrl);
             }

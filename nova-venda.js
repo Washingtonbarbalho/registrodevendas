@@ -4,8 +4,9 @@ import { db, APP_ID } from './firebase-config.js';
 import { collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
 import { formatCurrency, parseMoney, maskPhone, getBrazilDateString, addDays, generatePixPayload, analyzeCustomerCredit } from './utils.js';
 import { MoneyInput } from './components.js';
+import { getCardRate, getCarnetRate, normalizePaymentSettings } from './payment-settings.js';
 
-export const NewSaleScreen = ({ mode, onClose, customers, products, sales, onSaveSale, userProfile, user }) => {
+export const NewSaleScreen = ({ mode, onClose, customers, products, sales, onSaveSale, userProfile, user, paymentSettings }) => {
     useEffect(() => { window.scrollTo(0, 0); }, []);
 
     const [customerId, setCustomerId] = useState('');
@@ -63,40 +64,14 @@ export const NewSaleScreen = ({ mode, onClose, customers, products, sales, onSav
 
     useEffect(() => {
         if(saleType !== 'direct' || (directMethod !== 'credit' && directMethod !== 'debit')) return;
-        const TAXAS = {
-            presencial: {
-                debito: { visa_master: 1.37, outras: 2.58 },
-                credito: {
-                    visa_master: [0, 3.15, 5.39, 6.12, 6.85, 7.57, 8.28, 8.99, 9.69, 10.38, 11.06, 11.74, 12.40],
-                    outras:      [0, 4.91, 6.47, 7.20, 7.92, 8.63, 9.33, 10.03, 10.72, 11.41, 12.08, 12.75, 13.41]
-                }
-            },
-            link: {
-                debito: 4.20,
-                credito: [0, 4.20, 6.09, 7.01, 7.91, 8.80, 9.67, 12.59, 13.42, 14.25, 15.06, 15.87, 16.66]
-            }
-        };
-
-        let percent = 0;
-        if(cardMode === 'presencial') {
-            if(directMethod === 'debit') {
-                percent = cardBrand === 'visa_master' ? TAXAS.presencial.debito.visa_master : TAXAS.presencial.debito.outras;
-            } else {
-                const inst = parseInt(cardInstallments) || 1;
-                const safeInst = Math.min(Math.max(inst, 1), 12);
-                percent = cardBrand === 'visa_master' ? TAXAS.presencial.credito.visa_master[safeInst] : TAXAS.presencial.credito.outras[safeInst];
-            }
-        } else { 
-            if(directMethod === 'debit') {
-                percent = TAXAS.link.debito;
-            } else {
-                const inst = parseInt(cardInstallments) || 1;
-                const safeInst = Math.min(Math.max(inst, 1), 12);
-                percent = TAXAS.link.credito[safeInst];
-            }
-        }
+        const percent = getCardRate(paymentSettings, {
+            mode: cardMode,
+            method: directMethod,
+            brand: cardBrand,
+            installments: cardInstallments
+        });
         setFeePercent(percent.toFixed(2).replace('.', ','));
-    }, [directMethod, cardMode, cardBrand, cardInstallments, saleType]);
+    }, [directMethod, cardMode, cardBrand, cardInstallments, saleType, paymentSettings]);
 
     const filteredCustomers = customers.filter(c => c.name.toLowerCase().includes(customerSearch.toLowerCase()));
     const filteredProducts = products.filter(p => p.name.toLowerCase().includes(productSearch.toLowerCase()) || p.code.includes(productSearch));
@@ -104,10 +79,20 @@ export const NewSaleScreen = ({ mode, onClose, customers, products, sales, onSav
     const totalCartValue = cart.reduce((acc, item) => acc + item.price, 0);
     const entryValue = parseMoney(entryAmount) || 0;
     const totalRemaining = Math.max(0, totalCartValue - entryValue);
+    const normalizedPaymentSettings = normalizePaymentSettings(paymentSettings);
+    const selectedInstallmentsCount = Math.min(12, Math.max(1, parseInt(installmentsCount, 10) || 1));
+    const carnetInterestPercent = saleType === 'prazo'
+        ? getCarnetRate(normalizedPaymentSettings, frequency, selectedInstallmentsCount)
+        : 0;
+    const carnetInterestValue = saleType === 'prazo' ? totalRemaining * (carnetInterestPercent / 100) : 0;
+    const totalFinancedAmount = totalRemaining + carnetInterestValue;
+    const carnetInterestLabel = carnetInterestPercent.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
     const isCardPayment = saleType === 'direct' && (directMethod === 'credit' || directMethod === 'debit');
     const currentFeePercent = isCardPayment ? parseMoney(feePercent) : 0;
     const currentFeeValue = isCardPayment ? totalRemaining * (currentFeePercent / 100) : 0;
-    const totalCustomerPays = totalCartValue + (isCardPayment && feeType === 'com_juros' ? currentFeeValue : 0);
+    const totalCustomerPays = saleType === 'prazo'
+        ? totalCartValue + carnetInterestValue
+        : totalCartValue + (isCardPayment && feeType === 'com_juros' ? currentFeeValue : 0);
     const netAmountToCompany = totalCustomerPays - currentFeeValue;
 
     const handleSaveInlineCustomer = async () => {
@@ -184,7 +169,7 @@ export const NewSaleScreen = ({ mode, onClose, customers, products, sales, onSav
     const handleRemoveItem = (tempId) => { setCart(cart.filter(item => item.tempId !== tempId)); };
     
     const calculateInstallments = () => {
-        const total = totalRemaining;
+        const total = totalFinancedAmount;
         const count = parseInt(installmentsCount) || 1;
         if (total <= 0) return [];
         const amountPerInstallment = total / count;
@@ -216,21 +201,38 @@ export const NewSaleScreen = ({ mode, onClose, customers, products, sales, onSav
         };
 
         if (saleType === 'prazo') {
+            const prazoSaleData = {
+                ...saleData,
+                productsTotal: totalCartValue,
+                totalPrice: totalCartValue + carnetInterestValue,
+                installmentInterest: {
+                    applied: carnetInterestPercent > 0 && carnetInterestValue > 0,
+                    percent: carnetInterestPercent,
+                    value: carnetInterestValue,
+                    baseAmount: totalRemaining,
+                    frequency,
+                    installmentsCount: selectedInstallmentsCount
+                }
+            };
             setIsAnalyzingCredit(true); 
 
             setTimeout(() => {
-                const requestedAmount = totalRemaining;
-                const analysis = analyzeCustomerCredit(customer, requestedAmount, sales);
+                const requestedAmount = totalFinancedAmount;
+                const initialAnalysis = analyzeCustomerCredit(customer, requestedAmount, sales);
+                const interestMultiplier = 1 + (carnetInterestPercent / 100);
+                const analysis = initialAnalysis.suggestedEntry > 0 && interestMultiplier > 1
+                    ? { ...initialAnalysis, suggestedEntry: initialAnalysis.suggestedEntry / interestMultiplier }
+                    : initialAnalysis;
 
                 if (!analysis.approved) {
                     setIsAnalyzingCredit(false);
-                    setCreditModal({ open: true, result: analysis, pendingSaleData: saleData, manualReason: '' });
+                    setCreditModal({ open: true, result: analysis, pendingSaleData: prazoSaleData, manualReason: '' });
                     return;
                 }
 
                 const finalInstallments = calculateInstallments();
                 const finalSaleDataToSave = { 
-                    ...saleData, 
+                    ...prazoSaleData,
                     entryAmount: entryValue, frequency, installmentsCount: finalInstallments.length, installments: finalInstallments, 
                     status: finalInstallments.length === 0 && entryValue >= totalCartValue ? 'completed' : 'active',
                     creditAnalysis: { approvedBySystem: true, result: analysis }
@@ -261,6 +263,7 @@ export const NewSaleScreen = ({ mode, onClose, customers, products, sales, onSav
                     type: feeType,
                     mode: cardMode,
                     brand: cardBrand,
+                    rateTableName: normalizedPaymentSettings.card.machineName,
                     baseAmount: totalRemaining,
                     grossCardAmount,
                     netCardAmount
@@ -454,6 +457,24 @@ export const NewSaleScreen = ({ mode, onClose, customers, products, sales, onSav
                             React.createElement('div', { className: "grid grid-cols-2 gap-4" },
                                 React.createElement('div', null, React.createElement('label', { className: "block text-xs font-bold text-slate-500 uppercase mb-1" }, "Qtd Parcelas"), React.createElement('select', { className: "w-full p-3 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-yellow-500", value: installmentsCount, onChange: e => setInstallmentsCount(e.target.value) }, Array.from({length: 12}, (_, i) => i + 1).map(n => React.createElement('option', { key: n, value: n }, `${n}x`)))),
                                 React.createElement('div', null, React.createElement('label', { className: "block text-xs font-bold text-slate-500 uppercase mb-1" }, "1º Vencimento"), React.createElement('input', { type: "date", className: "w-full p-3 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-yellow-500", value: firstDueDate, onChange: e => setFirstDueDate(e.target.value) }))
+                            ),
+                            React.createElement('div', { className: `carnet-interest-summary p-3 rounded-xl border space-y-2 ${carnetInterestPercent > 0 ? 'bg-amber-50 border-amber-200' : 'bg-slate-50 border-slate-100'}` },
+                                React.createElement('div', { className: "flex items-center justify-between gap-3" },
+                                    React.createElement('p', { className: "text-xs font-bold text-slate-700 flex items-center gap-1.5" }, React.createElement(BadgePercent, { size: 14, className: carnetInterestPercent > 0 ? 'text-amber-600' : 'text-slate-400' }), "Juros configurados para este plano"),
+                                    React.createElement('span', { className: `text-xs font-black ${carnetInterestPercent > 0 ? 'text-amber-700' : 'text-slate-500'}` }, `${carnetInterestLabel}%`)
+                                ),
+                                React.createElement('div', { className: "grid grid-cols-2 gap-x-4 gap-y-1 text-[11px]" },
+                                    React.createElement('span', { className: "text-slate-500" }, "Saldo sem juros"),
+                                    React.createElement('strong', { className: "text-right text-slate-700" }, formatCurrency(totalRemaining)),
+                                    React.createElement('span', { className: "text-slate-500" }, "Acréscimo"),
+                                    React.createElement('strong', { className: carnetInterestValue > 0 ? 'text-right text-amber-700' : 'text-right text-slate-500' }, `+ ${formatCurrency(carnetInterestValue)}`),
+                                    React.createElement('span', { className: "text-slate-700 font-bold pt-1 border-t border-slate-200" }, "Total parcelado"),
+                                    React.createElement('strong', { className: "text-right text-slate-800 pt-1 border-t border-slate-200" }, formatCurrency(totalFinancedAmount))
+                                ),
+                                React.createElement('p', { className: "text-[10px] text-slate-500" }, carnetInterestPercent > 0
+                                    ? `O saldo será dividido em ${selectedInstallmentsCount} parcela${selectedInstallmentsCount === 1 ? '' : 's'} de aproximadamente ${formatCurrency(totalFinancedAmount / selectedInstallmentsCount)}.`
+                                    : "Este plano está configurado sem acréscimo na aba Taxas e juros."
+                                )
                             )
                         )
                     ),
@@ -483,7 +504,7 @@ export const NewSaleScreen = ({ mode, onClose, customers, products, sales, onSav
                             directMethod === 'credit' && React.createElement('div', null, React.createElement('label', { className: "block text-xs font-bold text-slate-500 uppercase mb-1" }, "Parcelas no Cartão"), React.createElement('select', { className: "w-full p-3 border border-slate-200 rounded-lg outline-none", value: cardInstallments, onChange: e => setCardInstallments(e.target.value) }, React.createElement('option', { value: "1" }, "1x (À Vista)"), Array.from({length: 11}, (_, i) => i + 2).map(n => React.createElement('option', { key: n, value: n }, `${n}x`)))),
                             
                             React.createElement('div', { className: "bg-orange-50 p-4 rounded-xl border border-orange-100 space-y-3" },
-                                React.createElement('p', { className: "text-xs font-bold text-orange-700 uppercase flex items-center gap-1" }, React.createElement(BadgePercent, { size: 14 }), "Configuração de Taxas"),
+                                React.createElement('p', { className: "text-xs font-bold text-orange-700 uppercase flex items-center gap-1" }, React.createElement(BadgePercent, { size: 14 }), `Taxas · ${normalizedPaymentSettings.card.machineName}`),
                                 React.createElement('div', { className: "grid grid-cols-2 gap-3" },
                                     React.createElement('div', null, React.createElement('label', { className: "block text-[10px] font-bold text-orange-600 uppercase mb-1" }, "Modalidade"), React.createElement('select', { className: "w-full p-2 border border-orange-200 rounded text-sm outline-none text-slate-700", value: cardMode, onChange: e => setCardMode(e.target.value) }, React.createElement('option', { value: "presencial" }, "Presencial"), React.createElement('option', { value: "link" }, "Link Web"))),
                                     cardMode === 'presencial' ? React.createElement('div', null, React.createElement('label', { className: "block text-[10px] font-bold text-orange-600 uppercase mb-1" }, "Bandeira"), React.createElement('select', { className: "w-full p-2 border border-orange-200 rounded text-sm outline-none text-slate-700", value: cardBrand, onChange: e => setCardBrand(e.target.value) }, React.createElement('option', { value: "visa_master" }, "Visa/Mastercard"), React.createElement('option', { value: "outras" }, "Outras (Elo/Amex...)"))) : React.createElement('div', null)
@@ -535,7 +556,7 @@ export const NewSaleScreen = ({ mode, onClose, customers, products, sales, onSav
                             React.createElement('div', { className: "flex justify-between" }, React.createElement('span', { className: "text-slate-500" }, "Limite Total Calculado:"), React.createElement('span', { className: "font-bold text-slate-800" }, formatCurrency(creditModal.result?.calculatedLimit))),
                             React.createElement('div', { className: "flex justify-between" }, React.createElement('span', { className: "text-slate-500" }, "Limite Comprometido:"), React.createElement('span', { className: "font-bold text-orange-600" }, `- ${formatCurrency(creditModal.result?.currentDebt)}`)),
                             React.createElement('div', { className: "flex justify-between pt-2 border-t border-slate-200" }, React.createElement('span', { className: "text-slate-500 font-bold" }, "Limite Disponível:"), React.createElement('span', { className: "font-black text-emerald-600" }, formatCurrency(creditModal.result?.availableLimit))),
-                            React.createElement('div', { className: "flex justify-between" }, React.createElement('span', { className: "text-slate-500" }, "Valor desta Compra:"), React.createElement('span', { className: "font-bold text-slate-800" }, formatCurrency(totalRemaining)))
+                            React.createElement('div', { className: "flex justify-between" }, React.createElement('span', { className: "text-slate-500" }, "Saldo com juros:"), React.createElement('span', { className: "font-bold text-slate-800" }, formatCurrency(totalFinancedAmount)))
                         )
                     ),
 

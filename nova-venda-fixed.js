@@ -1,4 +1,4 @@
-const VERSION = '19';
+const VERSION = '20';
 
 const response = await fetch(`./nova-venda.js?v=${VERSION}`, { cache: 'no-store' });
 if (!response.ok) {
@@ -10,7 +10,7 @@ let source = await response.text();
 const calculationPattern = /    const calculateInstallments = \(\) => \{[\s\S]*?\n    \};\s*\n    const handleFinish/;
 
 const correctedCalculation = `    const calculateInstallments = () => {
-        const total = totalRemaining;
+        const total = totalFinancedAmount;
         const count = parseInt(installmentsCount) || 1;
         if (total <= 0) return [];
 

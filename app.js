@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'https://esm.sh/react@18.2.0';
 import { createRoot } from 'https://esm.sh/react-dom@18.2.0/client';
-import { Users, User, LogOut, Lock, LayoutDashboard, Receipt, WalletCards, Package, Contact, Store, ShieldCheck } from 'https://esm.sh/lucide-react@0.292.0';
+import { Users, User, LogOut, Lock, LayoutDashboard, Receipt, WalletCards, Package, Contact, Store, ShieldCheck, BadgePercent } from 'https://esm.sh/lucide-react@0.292.0';
 
 // Firebase
 import { app, db, auth, APP_ID } from './firebase-config.js';
@@ -27,6 +27,8 @@ import { AbaVendasPrazo } from './aba-vendas-prazo.js';
 import { AbaVendasCaixa } from './aba-vendas-caixa.js?v=4';
 import { AbaProdutos } from './aba-produtos.js';
 import { AbaClientes } from './aba-clientes.js';
+import { AbaTaxas } from './aba-taxas.js';
+import { normalizePaymentSettings } from './payment-settings.js';
 
 const Dashboard = ({ user, userProfile, onLogout }) => {
     const [view, setView] = useState('dashboard');
@@ -34,6 +36,7 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
     const [customers, setCustomers] = useState([]);
     const [products, setProducts] = useState([]);
     const [sales, setSales] = useState([]);
+    const [paymentSettings, setPaymentSettings] = useState(() => normalizePaymentSettings(userProfile?.paymentSettings));
     const [loadingData, setLoadingData] = useState(true);
     
     const [newSaleMode, setNewSaleMode] = useState(null);
@@ -86,11 +89,20 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         const customersRef = collection(db, 'artifacts', APP_ID, 'users', user.uid, 'customers');
         const productsRef = collection(db, 'artifacts', APP_ID, 'users', user.uid, 'products');
         const salesRef = collection(db, 'artifacts', APP_ID, 'users', user.uid, 'sales');
+        const profileRef = doc(db, 'artifacts', APP_ID, 'users', user.uid, 'profile', 'info');
         
         const unsubC = onSnapshot(query(customersRef), s => setCustomers(s.docs.map(d => ({id:d.id, ...d.data()}))));
         const unsubP = onSnapshot(query(productsRef), s => setProducts(s.docs.map(d => ({id:d.id, ...d.data()}))));
         const unsubS = onSnapshot(query(salesRef), s => { setSales(s.docs.map(d => ({id:d.id, ...d.data()}))); setLoadingData(false); });
-        return () => { unsubC(); unsubP(); unsubS(); };
+        const unsubSettings = onSnapshot(
+            profileRef,
+            snapshot => setPaymentSettings(normalizePaymentSettings(snapshot.data()?.paymentSettings)),
+            error => {
+                console.error('Erro ao carregar taxas e juros:', error);
+                setPaymentSettings(normalizePaymentSettings());
+            }
+        );
+        return () => { unsubC(); unsubP(); unsubS(); unsubSettings(); };
     }, [user.uid]);
 
     useEffect(() => { if (dashPeriod === 'month') { setDashStartDate(getCurrentMonthStart()); setDashEndDate(getCurrentMonthEnd()); } }, [dashPeriod]);
@@ -433,9 +445,24 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
     };
 
     const handleUpdateProfile = async (updatedData) => {
-        await updateDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'profile', 'info'), updatedData);
-        await updateDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'all_users', user.uid), updatedData);
+        const { paymentSettings: ignoredSettings, paymentSettingsUpdatedAt: ignoredSettingsDate, ...profileData } = updatedData;
+        await updateDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'profile', 'info'), profileData);
+        await updateDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'all_users', user.uid), profileData);
         setProfileModalOpen(false);
+    };
+
+    const handleSavePaymentSettings = async settings => {
+        const normalized = normalizePaymentSettings(settings);
+        await setDoc(
+            doc(db, 'artifacts', APP_ID, 'users', user.uid, 'profile', 'info'),
+            {
+                paymentSettings: normalized,
+                paymentSettingsUpdatedAt: serverTimestamp()
+            },
+            { merge: true }
+        );
+        setPaymentSettings(normalized);
+        return normalized;
     };
 
     const handleClickPay = (sale, index) => {
@@ -687,7 +714,8 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
             sales: sales, 
             onSaveSale: handleAddSale, 
             userProfile: userProfile,
-            user: user
+            user: user,
+            paymentSettings: paymentSettings
         });
     }
 
@@ -703,7 +731,8 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         { id: 'sales', label: 'Vendas a prazo', shortLabel: 'A prazo', icon: Receipt },
         { id: 'cashier', label: 'Vendas no caixa', shortLabel: 'Caixa', icon: WalletCards },
         { id: 'products', label: 'Produtos', shortLabel: 'Produtos', icon: Package },
-        { id: 'customers', label: 'Clientes', shortLabel: 'Clientes', icon: Contact }
+        { id: 'customers', label: 'Clientes', shortLabel: 'Clientes', icon: Contact },
+        { id: 'rates', label: 'Taxas e juros', shortLabel: 'Taxas', icon: BadgePercent }
     ];
     const currentNav = navItems.find(item => item.id === view) || navItems[0];
 
@@ -780,8 +809,12 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
                     : view === 'products' ? React.createElement(AbaProdutos, {
                         productSearch, setProductSearch, paginatedProducts, sortedProducts, productsPage, setProductsPage, setProductDetailsData, setProductModalData, ITEMS_PER_PAGE
                     })
-                    : React.createElement(AbaClientes, {
+                    : view === 'customers' ? React.createElement(AbaClientes, {
                         customerSearch, setCustomerSearch, setCustomerModalData, paginatedCustomers, sales, requestDelete, sortedCustomers, customersPage, setCustomersPage, ITEMS_PER_PAGE
+                    })
+                    : React.createElement(AbaTaxas, {
+                        settings: paymentSettings,
+                        onSave: handleSavePaymentSettings
                     })
             )
         ),
@@ -854,7 +887,8 @@ function App() {
                     const profileSnap = await getDoc(profileRef);
                     const publicSnap = await getDoc(publicRef);
                     if (profileSnap.exists() && !publicSnap.exists()) {
-                        await setDoc(publicRef, profileSnap.data());
+                        const { paymentSettings: ignoredSettings, paymentSettingsUpdatedAt: ignoredSettingsDate, ...publicProfile } = profileSnap.data();
+                        await setDoc(publicRef, publicProfile);
                     }
 
                     if (profileSnap.exists()) {

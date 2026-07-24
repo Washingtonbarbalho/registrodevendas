@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'https://esm.sh/react@18.2.0';
 import { X, Tag, Trash2, Edit2, ArrowUpCircle, ArrowDownCircle } from 'https://esm.sh/lucide-react@0.292.0';
-import { formatCurrency, getBrazilDateString } from './utils.js?v=19';
+import { formatCurrency, getBrazilDateString } from './utils.js?v=20';
 
 export {
     UserProfileModal,
@@ -14,7 +14,7 @@ export {
     WhatsAppChooserModal,
     ProductModal,
     StockMovementModal
-} from './modals.js?v=19';
+} from './modals.js?v=20';
 
 const formatDateTime = dateStr => {
     if (!dateStr) return '--/--/---- --:--';
@@ -164,24 +164,32 @@ export const ProductDetailsModal = ({ isOpen, onClose, product, salesHistory, on
                 tab === 'history' && React.createElement('div', { className: "product-history-layout space-y-3 animate-fade-in relative" },
                     combinedHistory.length === 0
                         ? React.createElement('p', { className: "text-center text-slate-400 py-10 italic text-sm" }, "Nenhuma movimentação registrada.")
-                        : combinedHistory.map(historyItem => React.createElement('div', { key: historyItem.id, className: "bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex items-center gap-3" },
-                            React.createElement('div', { className: `p-2 rounded-lg shrink-0 ${historyItem.isEntry ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500'}` },
-                                historyItem.isEntry ? React.createElement(ArrowUpCircle, { size: 20 }) : React.createElement(ArrowDownCircle, { size: 20 })
+                        : React.createElement(React.Fragment, null,
+                            React.createElement('div', { className: "product-history-header", 'aria-hidden': "true" },
+                                React.createElement('span', null, "Movimentação"),
+                                React.createElement('span', null, "Data"),
+                                React.createElement('span', null, "Quantidade"),
+                                React.createElement('span', null, "Valor")
                             ),
-                            React.createElement('div', { className: "flex-1" },
-                                React.createElement('div', { className: "flex justify-between items-start" },
-                                    React.createElement('p', { className: "text-xs font-bold text-slate-800 uppercase leading-tight" }, historyItem.type.replace('_', ' ')),
-                                    React.createElement('div', { className: "text-right" },
-                                        React.createElement('p', { className: `font-bold text-sm ${historyItem.isEntry ? 'text-emerald-600' : 'text-red-500'}` }, `${historyItem.isEntry ? '+' : '-'}${historyItem.qty} un.`)
-                                    )
+                            combinedHistory.map(historyItem => React.createElement('div', { key: historyItem.id, className: "product-history-record bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex items-center gap-3" },
+                                React.createElement('div', { className: `product-history-icon p-2 rounded-lg shrink-0 ${historyItem.isEntry ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500'}` },
+                                    historyItem.isEntry ? React.createElement(ArrowUpCircle, { size: 20 }) : React.createElement(ArrowDownCircle, { size: 20 })
                                 ),
-                                React.createElement('div', { className: "flex justify-between items-center mt-1" },
-                                    React.createElement('p', { className: "text-[10px] text-slate-400" }, formatDateTime(historyItem.date)),
-                                    historyItem.totalValue > 0 && React.createElement('p', { className: "text-xs font-bold text-slate-600" }, formatCurrency(historyItem.totalValue))
-                                ),
-                                historyItem.notes && React.createElement('p', { className: "text-[10px] text-slate-500 mt-1 italic" }, `"${historyItem.notes}"`)
-                            )
-                        ))
+                                React.createElement('div', { className: "product-history-main flex-1" },
+                                    React.createElement('div', { className: "product-history-primary flex justify-between items-start" },
+                                        React.createElement('p', { className: "product-history-type text-xs font-bold text-slate-800 uppercase leading-tight" }, historyItem.type.replace('_', ' ')),
+                                        React.createElement('div', { className: "product-history-quantity text-right" },
+                                            React.createElement('p', { className: `font-bold text-sm ${historyItem.isEntry ? 'text-emerald-600' : 'text-red-500'}` }, `${historyItem.isEntry ? '+' : '-'}${historyItem.qty} un.`)
+                                        )
+                                    ),
+                                    React.createElement('div', { className: "product-history-secondary flex justify-between items-center mt-1" },
+                                        React.createElement('p', { className: "product-history-date text-[10px] text-slate-400" }, formatDateTime(historyItem.date)),
+                                        React.createElement('p', { className: "product-history-value text-xs font-bold text-slate-600" }, historyItem.totalValue > 0 ? formatCurrency(historyItem.totalValue) : "—")
+                                    ),
+                                    historyItem.notes && React.createElement('p', { className: "product-history-notes text-[10px] text-slate-500 mt-1 italic" }, `"${historyItem.notes}"`)
+                                )
+                            ))
+                        )
                 )
             ),
             React.createElement('div', { className: "desktop-modal-footer p-4 border-t border-slate-100 bg-white rounded-b-2xl shrink-0 flex flex-col gap-2" },

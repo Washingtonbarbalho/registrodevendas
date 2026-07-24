@@ -192,7 +192,7 @@ input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-app
     bottom: max(10px, env(safe-area-inset-bottom));
     z-index: 50;
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(6, 1fr);
     padding: 7px;
     border: 1px solid rgba(226, 232, 240, .9);
     border-radius: 20px;
@@ -384,7 +384,233 @@ input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-app
 .app-modal-overlay { background: rgba(15, 23, 42, .58) !important; backdrop-filter: blur(10px); }
 .app-modal-panel { border: 1px solid rgba(255, 255, 255, .65); box-shadow: var(--shadow-lg) !important; }
 .app-modal-panel input, .app-modal-panel select, .app-modal-panel textarea { border-radius: 11px !important; }
+.installment-record-header,
+.product-history-header { display: none; }
 
+/* Taxas e juros */
+.page-primary-action:disabled { opacity: .58; cursor: default; box-shadow: none; }
+.rates-page { width: 100%; max-width: 1240px; margin: 0 auto; }
+.rates-tabs {
+    display: inline-flex;
+    align-self: flex-start;
+    gap: 5px;
+    padding: 5px;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: #fff;
+    box-shadow: var(--shadow-sm);
+}
+.rates-tabs button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-width: 132px;
+    min-height: 42px;
+    padding: 0 17px;
+    border-radius: 10px;
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 800;
+}
+.rates-tabs button.is-active { color: #92400e; background: #fff7d6; }
+.rates-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    padding: 20px;
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    background: #fff;
+    box-shadow: var(--shadow-sm);
+}
+.rates-panel-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 22px;
+    padding-bottom: 18px;
+    border-bottom: 1px solid #eef2f7;
+}
+.rates-panel-heading h2 { margin: 0; color: #172033; font-size: 18px; font-weight: 830; letter-spacing: -.02em; }
+.rates-panel-heading p { max-width: 670px; margin: 5px 0 0; color: #64748b; font-size: 12px; line-height: 1.55; }
+.rates-table-name { width: min(100%, 330px); flex: 0 0 330px; }
+.rates-table-name > span,
+.rate-input-mobile-label {
+    display: block;
+    margin-bottom: 5px;
+    color: #64748b;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+}
+.rates-table-name input {
+    width: 100%;
+    min-height: 42px;
+    padding: 0 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: #fff;
+    color: #172033;
+    font-size: 12px;
+    font-weight: 700;
+}
+.rates-group {
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: #fff;
+}
+.rates-group-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    min-height: 52px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    background: #f8fafc;
+}
+.rates-group-title h3 { margin: 0; color: #334155; font-size: 13px; font-weight: 820; }
+.rates-group-title span { color: #94a3b8; font-size: 10px; font-weight: 650; text-align: right; }
+.debit-rate-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+    padding: 16px;
+}
+.rate-input-field { display: block; min-width: 0; }
+.rate-input-control {
+    display: flex;
+    align-items: center;
+    min-height: 38px;
+    overflow: hidden;
+    border: 1px solid #dbe2ea;
+    border-radius: 9px;
+    background: #fff;
+}
+.rate-input-control:focus-within { border-color: rgba(244, 180, 0, .8); box-shadow: 0 0 0 3px rgba(244, 180, 0, .12); }
+.rate-input-control input {
+    width: 100%;
+    min-width: 0;
+    height: 36px;
+    padding: 0 8px 0 11px;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    color: #172033;
+    background: transparent;
+    font-size: 12px;
+    font-weight: 800;
+    text-align: right;
+}
+.rate-input-control > span { padding-right: 10px; color: #94a3b8; font-size: 11px; font-weight: 800; }
+.rate-table-scroll { overflow-x: auto; }
+.rate-table { min-width: 0; }
+.rate-table-header,
+.rate-table-row {
+    display: grid;
+    align-items: center;
+    gap: 14px;
+}
+.card-rate-table .rate-table-header,
+.card-rate-table .rate-table-row { grid-template-columns: 90px repeat(3, minmax(150px, 1fr)); }
+.carnet-rate-table .rate-table-header,
+.carnet-rate-table .rate-table-row { grid-template-columns: 100px minmax(180px, 260px) minmax(180px, 1fr); }
+.rate-table-header {
+    min-height: 38px;
+    padding: 0 16px;
+    color: #64748b;
+    background: #f8fafc;
+    border-bottom: 1px solid var(--border);
+    font-size: 9px;
+    font-weight: 820;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+}
+.rate-table-row {
+    min-height: 54px;
+    padding: 8px 16px;
+    border-bottom: 1px solid #eef2f7;
+}
+.rate-table-row:last-child { border-bottom: 0; }
+.rate-table-row:hover { background: #fbfcfe; }
+.rate-table-row > strong { color: #334155; font-size: 12px; }
+.rate-table-row .rate-input-mobile-label { display: none; }
+.rate-status { color: #94a3b8; font-size: 11px; font-weight: 700; }
+.rate-status.is-configured { color: #b45309; }
+.rates-info-card,
+.rates-message {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 13px 15px;
+    border: 1px solid #bfdbfe;
+    border-radius: 13px;
+    color: #1e40af;
+    background: #eff6ff;
+    font-size: 12px;
+    line-height: 1.5;
+}
+.rates-info-card svg,
+.rates-message svg { flex: 0 0 auto; margin-top: 1px; }
+.rates-info-card p { margin: 0; }
+.rates-message.is-success { color: #047857; border-color: #a7f3d0; background: #ecfdf5; }
+.rates-message.is-error { color: #b91c1c; border-color: #fecaca; background: #fef2f2; }
+.rates-message.is-info { color: #1d4ed8; border-color: #bfdbfe; background: #eff6ff; }
+.frequency-tabs {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+    padding: 5px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: #f8fafc;
+}
+.frequency-tabs button {
+    min-height: 39px;
+    border-radius: 9px;
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 800;
+}
+.frequency-tabs button.is-active { color: #fff; background: #0f172a; box-shadow: 0 6px 14px rgba(15, 23, 42, .14); }
+.rates-summary-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    flex: 0 0 auto;
+    min-height: 36px;
+    padding: 0 11px;
+    border-radius: 10px;
+    color: #a16207;
+    background: #fef9c3;
+    font-size: 10px;
+    font-weight: 800;
+}
+.rates-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 14px 2px 2px;
+}
+.rates-footer p { margin: 0; color: #94a3b8; font-size: 10px; text-align: right; }
+.rates-reset-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    min-height: 38px;
+    padding: 0 12px;
+    border-radius: 10px;
+    color: #64748b;
+    background: #fff;
+    border: 1px solid var(--border);
+    font-size: 11px;
+    font-weight: 780;
+}
+.rates-reset-button:hover { color: #0f172a; border-color: #cbd5e1; background: #f8fafc; }
 
 .admin-user-row {
     padding: 15px 16px;
@@ -450,4 +676,32 @@ input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-app
     .metric-label { margin-top: 13px; }
     .dashboard-profit { grid-template-columns: 1fr; }
     .list-row { border-radius: 0; }
+    .mobile-bottom-nav { grid-template-columns: repeat(6, 1fr); }
+    .mobile-nav-button { font-size: 8px; }
+    .rates-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-self: stretch; }
+    .rates-tabs button { min-width: 0; padding: 0 10px; }
+    .rates-panel { padding: 14px; border-radius: 16px; }
+    .rates-panel-heading { flex-direction: column; gap: 14px; }
+    .rates-table-name { width: 100%; flex-basis: auto; }
+    .rates-group-title { align-items: flex-start; flex-direction: column; gap: 3px; }
+    .rates-group-title span { text-align: left; }
+    .debit-rate-grid { grid-template-columns: 1fr; }
+    .rate-table-header { display: none; }
+    .card-rate-table .rate-table-row {
+        grid-template-columns: 46px minmax(0, 1fr);
+        align-items: start;
+        gap: 9px 12px;
+        padding: 12px;
+    }
+    .card-rate-table .rate-table-row > strong { grid-row: 1 / span 3; padding-top: 26px; }
+    .rate-table-row .rate-input-mobile-label { display: block; }
+    .carnet-rate-table .rate-table-row {
+        grid-template-columns: 46px minmax(0, 1fr);
+        gap: 8px 12px;
+        padding: 12px;
+    }
+    .carnet-rate-table .rate-status { grid-column: 2; }
+    .rates-footer { align-items: stretch; flex-direction: column; }
+    .rates-reset-button { justify-content: center; width: 100%; }
+    .rates-footer p { text-align: center; }
 }
