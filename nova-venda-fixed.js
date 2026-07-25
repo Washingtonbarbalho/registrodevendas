@@ -1,4 +1,4 @@
-const VERSION = '20';
+const VERSION = '21';
 
 const response = await fetch(`./nova-venda.js?v=${VERSION}`, { cache: 'no-store' });
 if (!response.ok) {
@@ -76,6 +76,78 @@ if (!calculationPattern.test(source)) {
 }
 
 source = source.replace(calculationPattern, correctedCalculation);
+
+const financialMarker = '    const netAmountToCompany = totalCustomerPays - currentFeeValue;';
+if (!source.includes(financialMarker)) {
+    throw new Error('Não foi possível preparar o novo resumo de pagamento.');
+}
+
+source = source.replace(financialMarker, `${financialMarker}
+    const summaryInstallmentsCount = saleType === 'prazo'
+        ? selectedInstallmentsCount
+        : directMethod === 'credit'
+            ? Math.min(12, Math.max(1, parseInt(cardInstallments, 10) || 1))
+            : 1;
+    const summaryEntryValue = Math.min(Math.max(0, entryValue), Math.max(0, totalCustomerPays));
+    const summaryFinancedValue = Math.max(0, totalCustomerPays - summaryEntryValue);
+    const summaryInstallmentValue = summaryInstallmentsCount > 0
+        ? summaryFinancedValue / summaryInstallmentsCount
+        : 0;`);
+
+source = source.replace(
+    /className: `carnet-interest-summary /,
+    'className: `legacy-payment-calculation carnet-interest-summary '
+);
+
+source = source.replace(
+    'className: "text-[10px] bg-orange-100 p-2 rounded text-orange-800 leading-tight space-y-1"',
+    'className: "legacy-payment-calculation text-[10px] bg-orange-100 p-2 rounded text-orange-800 leading-tight space-y-1"'
+);
+
+const paymentSectionTail = `                    )
+                )
+            )
+        ),
+
+        React.createElement('div', { className: "sale-bottom-bar fixed bottom-0 w-full p-4 z-40" },`;
+
+const paymentSummary = `                    ),
+                    React.createElement('div', { className: "payment-standard-summary mt-5 rounded-xl border border-slate-200 bg-slate-50 overflow-hidden" },
+                        React.createElement('div', { className: "payment-standard-summary-title px-4 py-3 border-b border-slate-200 bg-white" },
+                            React.createElement('p', { className: "text-xs font-black text-slate-700 uppercase tracking-wide" }, "Resumo do pagamento")
+                        ),
+                        React.createElement('div', { className: "payment-standard-summary-grid p-4" },
+                            React.createElement('div', { className: "payment-summary-row" },
+                                React.createElement('span', null, "Valor total da venda"),
+                                React.createElement('strong', null, formatCurrency(totalCustomerPays))
+                            ),
+                            React.createElement('div', { className: "payment-summary-row" },
+                                React.createElement('span', null, "Valor da entrada"),
+                                React.createElement('strong', null, formatCurrency(summaryEntryValue))
+                            ),
+                            React.createElement('div', { className: "payment-summary-row" },
+                                React.createElement('span', null, "Valor parcelado"),
+                                React.createElement('strong', null, formatCurrency(summaryFinancedValue))
+                            ),
+                            React.createElement('div', { className: "payment-summary-row payment-summary-installments" },
+                                React.createElement('span', null, "Parcelamento"),
+                                React.createElement('strong', null, summaryFinancedValue > 0
+                                    ? \`${summaryInstallmentsCount}x de ${formatCurrency(summaryInstallmentValue)}\`
+                                    : "Sem valor parcelado")
+                            )
+                        )
+                    )
+                )
+            )
+        ),
+
+        React.createElement('div', { className: "sale-bottom-bar fixed bottom-0 w-full p-4 z-40" },`;
+
+if (!source.includes(paymentSectionTail)) {
+    throw new Error('Não foi possível inserir o resumo padronizado de pagamento.');
+}
+
+source = source.replace(paymentSectionTail, paymentSummary);
 
 source = source.replace(
     /(['"])(\.\/[^'"]+?\.js)(?:\?[^'"]*)?\1/g,
