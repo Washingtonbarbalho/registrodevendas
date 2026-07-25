@@ -18,14 +18,15 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="./styles.css?v=26">
-    <link rel="stylesheet" href="./modals-theme.css?v=26">
-    <link rel="stylesheet" href="./ui-refinements.css?v=26">
-    <link rel="stylesheet" href="./final-tweaks.css?v=26">
-    <link rel="stylesheet" href="./v21-improvements.css?v=26">
-    <link rel="stylesheet" href="./v23-fixes.css?v=26">
-    <link rel="stylesheet" href="./v25-fixes.css?v=26">
-    <link rel="stylesheet" href="./v26-fixes.css?v=26">
+    <link rel="stylesheet" href="./styles.css?v=27">
+    <link rel="stylesheet" href="./modals-theme.css?v=27">
+    <link rel="stylesheet" href="./ui-refinements.css?v=27">
+    <link rel="stylesheet" href="./final-tweaks.css?v=27">
+    <link rel="stylesheet" href="./v21-improvements.css?v=27">
+    <link rel="stylesheet" href="./v23-fixes.css?v=27">
+    <link rel="stylesheet" href="./v25-fixes.css?v=27">
+    <link rel="stylesheet" href="./v26-fixes.css?v=27">
+    <link rel="stylesheet" href="./v27-fixes.css?v=27">
 </head>
 <body>
     <div id="root"></div>
@@ -47,7 +48,7 @@
         };
 
         try {
-            const cleanupKey = 'registro-vendas-cleanup-v26';
+            const cleanupKey = 'registro-vendas-cleanup-v27';
             if (sessionStorage.getItem(cleanupKey) !== 'ok') {
                 if ('serviceWorker' in navigator) {
                     const registrations = await navigator.serviceWorker.getRegistrations();
@@ -65,7 +66,7 @@
                 }
             }
 
-            const version = '26';
+            const version = '27';
             const appResponse = await fetch(`./app.js?v=${version}`, { cache: 'no-store' });
             if (!appResponse.ok) throw new Error(`Falha ao carregar app.js (${appResponse.status})`);
 
@@ -95,7 +96,7 @@
             const appBlobUrl = URL.createObjectURL(new Blob([appSource], { type: 'text/javascript' }));
             try {
                 await import(appBlobUrl);
-                await import('./tab-persistence.js?v=26');
+                await import('./tab-persistence.js?v=27');
             } finally {
                 URL.revokeObjectURL(appBlobUrl);
             }
