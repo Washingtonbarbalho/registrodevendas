@@ -1,0 +1,22 @@
+/* V27 — rolagem das listas suspensas de clientes e produtos nas novas vendas */
+
+.sale-screen .sale-section div[class*="absolute"][class*="z-20"][class*="max-h-48"] {
+    max-height: min(19rem, 48vh) !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-gutter: stable;
+    z-index: 70 !important;
+}
+
+.sale-screen .sale-section div[class*="absolute"][class*="z-20"][class*="max-h-48"] > div {
+    min-height: 48px;
+}
+
+@media (max-width: 640px) {
+    .sale-screen .sale-section div[class*="absolute"][class*="z-20"][class*="max-h-48"] {
+        max-height: min(17rem, 42vh) !important;
+    }
+}
