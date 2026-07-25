@@ -1,4 +1,4 @@
-const VERSION = '23';
+const VERSION = '24';
 
 const response = await fetch(`./nova-venda.js?v=${VERSION}`, { cache: 'no-store' });
 if (!response.ok) {
@@ -78,7 +78,7 @@ source = source.replace(calculationPattern, correctedCalculation);
 
 const financialMarker = '    const netAmountToCompany = totalCustomerPays - currentFeeValue;';
 if (!source.includes(financialMarker)) {
-    throw new Error('Não foi possível preparar o novo resumo de pagamento.');
+    throw new Error('Não foi possível preparar o resumo de pagamento.');
 }
 
 source = source.replace(financialMarker, `${financialMarker}
@@ -103,43 +103,46 @@ source = source.replace(
     'className: "legacy-payment-calculation text-[10px] bg-orange-100 p-2 rounded text-orange-800 leading-tight space-y-1"'
 );
 
-const bottomBarPattern = /(\n\s*)React\.createElement\('div', \{ className: "sale-bottom-bar fixed bottom-0 w-full p-4 z-40" \},/;
-if (!bottomBarPattern.test(source)) {
-    throw new Error('Não foi possível localizar o rodapé da venda para inserir o resumo.');
+const paymentSectionEndMarker = `                    )
+                )
+            )
+        ),
+        
+        React.createElement('div', { className: "sale-bottom-bar fixed bottom-0 w-full p-4 z-40" },`;
+
+if (!source.includes(paymentSectionEndMarker)) {
+    throw new Error('Não foi possível localizar o final da seção de pagamento.');
 }
 
-const paymentSummary = `
-        React.createElement('div', { className: "sale-payment-summary-shell" },
-            React.createElement('div', { className: "payment-standard-summary rounded-xl border border-slate-200 bg-slate-50 overflow-hidden" },
-                React.createElement('div', { className: "payment-standard-summary-title px-4 py-3 border-b border-slate-200 bg-white" },
-                    React.createElement('p', { className: "text-xs font-black text-slate-700 uppercase tracking-wide" }, "Resumo do pagamento")
-                ),
-                React.createElement('div', { className: "payment-standard-summary-grid p-4" },
-                    React.createElement('div', { className: "payment-summary-row" },
-                        React.createElement('span', null, "Valor total da venda"),
-                        React.createElement('strong', null, formatCurrency(totalCustomerPays))
-                    ),
-                    React.createElement('div', { className: "payment-summary-row" },
-                        React.createElement('span', null, "Valor da entrada"),
-                        React.createElement('strong', null, formatCurrency(summaryEntryValue))
-                    ),
-                    React.createElement('div', { className: "payment-summary-row" },
-                        React.createElement('span', null, "Valor parcelado"),
-                        React.createElement('strong', null, formatCurrency(summaryFinancedValue))
-                    ),
-                    React.createElement('div', { className: "payment-summary-row payment-summary-installments" },
-                        React.createElement('span', null, "Parcelamento"),
-                        React.createElement('strong', null, summaryFinancedValue > 0
-                            ? summaryInstallmentsCount + "x de " + formatCurrency(summaryInstallmentValue)
-                            : "Sem valor parcelado")
+const paymentSectionWithSummary = `                    ),
+                    React.createElement('div', { className: "payment-inline-summary mt-5 pt-4 border-t border-slate-200" },
+                        React.createElement('p', { className: "payment-inline-summary-title text-[10px] font-black text-slate-400 uppercase tracking-wider mb-3" }, "Resumo do pagamento"),
+                        React.createElement('div', { className: "payment-inline-summary-grid" },
+                            React.createElement('div', { className: "payment-inline-summary-row" },
+                                React.createElement('span', null, "Valor total da venda"),
+                                React.createElement('strong', null, formatCurrency(totalCustomerPays))
+                            ),
+                            React.createElement('div', { className: "payment-inline-summary-row" },
+                                React.createElement('span', null, "Valor da entrada"),
+                                React.createElement('strong', null, formatCurrency(summaryEntryValue))
+                            ),
+                            React.createElement('div', { className: "payment-inline-summary-row" },
+                                React.createElement('span', null, "Valor parcelado"),
+                                React.createElement('strong', null, formatCurrency(summaryFinancedValue))
+                            ),
+                            React.createElement('div', { className: "payment-inline-summary-row payment-inline-summary-installments" },
+                                React.createElement('span', null, "Parcelamento"),
+                                React.createElement('strong', null, summaryInstallmentsCount + "x de " + formatCurrency(summaryInstallmentValue))
+                            )
+                        )
                     )
                 )
             )
-        ),`;
+        ),
+        
+        React.createElement('div', { className: "sale-bottom-bar fixed bottom-0 w-full p-4 z-40" },`;
 
-source = source.replace(bottomBarPattern, (match, spacing) => {
-    return paymentSummary + spacing + 'React.createElement(\'div\', { className: "sale-bottom-bar fixed bottom-0 w-full p-4 z-40" },';
-});
+source = source.replace(paymentSectionEndMarker, paymentSectionWithSummary);
 
 source = source.replace(
     /(['"])(\.\/[^'"]+?\.js)(?:\?[^'"]*)?\1/g,
