@@ -1,4 +1,4 @@
-const VERSION = '25';
+const VERSION = '26';
 
 const response = await fetch(`./nova-venda.js?v=${VERSION}`, { cache: 'no-store' });
 if (!response.ok) {
@@ -150,12 +150,21 @@ if (!analysisScreenPattern.test(source)) {
 }
 source = source.replace(analysisScreenPattern, '\n    if (approvedSaleData)');
 
+const approvedScreenPattern = /\n    if \(approvedSaleData\) \{[\s\S]*?\n    \}\n\n    return React\.createElement\('div', \{ className: "sale-screen fixed inset-0 z-50 flex flex-col animate-fade-in" \},/;
+if (!approvedScreenPattern.test(source)) {
+    throw new Error('Não foi possível converter a confirmação de venda aprovada para modal.');
+}
+source = source.replace(
+    approvedScreenPattern,
+    '\n    return React.createElement(\'div\', { className: "sale-screen fixed inset-0 z-50 flex flex-col animate-fade-in" },'
+);
+
 const creditDeniedMarker = `        creditModal.open && React.createElement('div', { className: "app-modal-overlay fixed inset-0 z-[100] flex items-center justify-center p-4" },`;
 if (!source.includes(creditDeniedMarker)) {
-    throw new Error('Não foi possível posicionar o modal de análise de crédito.');
+    throw new Error('Não foi possível posicionar os modais da análise de crédito.');
 }
 
-const analysisModal = `        isAnalyzingCredit && React.createElement('div', {
+const creditFlowModals = `        isAnalyzingCredit && React.createElement('div', {
             className: "app-modal-overlay credit-analysis-modal-overlay fixed inset-0 z-[110] flex items-center justify-center p-4 backdrop-blur-sm",
             role: "dialog",
             'aria-modal': "true",
@@ -173,9 +182,38 @@ const analysisModal = `        isAnalyzingCredit && React.createElement('div', {
             )
         ),
 
+        approvedSaleData && React.createElement('div', {
+            className: "app-modal-overlay sale-approved-modal-overlay fixed inset-0 z-[110] flex items-center justify-center p-4 backdrop-blur-sm",
+            role: "dialog",
+            'aria-modal': "true",
+            'aria-label': "Venda a prazo aprovada"
+        },
+            React.createElement('div', { className: "app-modal-panel sale-approved-modal bg-white w-full max-w-sm rounded-2xl p-6 shadow-2xl animate-fade-in text-center" },
+                React.createElement('div', { className: "sale-approved-icon w-16 h-16 mx-auto mb-5 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center" },
+                    React.createElement(ThumbsUp, { size: 30 })
+                ),
+                React.createElement('h2', { className: "text-xl font-black text-slate-800 mb-2" }, "Venda aprovada!"),
+                React.createElement('p', { className: "text-sm text-slate-500 leading-relaxed mb-5" }, "A análise de crédito foi concluída e o limite do cliente permite esta compra a prazo."),
+                React.createElement('div', { className: "sale-approved-summary mb-5" },
+                    React.createElement('div', null,
+                        React.createElement('span', null, "Total da venda"),
+                        React.createElement('strong', null, formatCurrency(approvedSaleData.totalPrice || totalCustomerPays))
+                    ),
+                    React.createElement('div', null,
+                        React.createElement('span', null, "Parcelamento"),
+                        React.createElement('strong', null, (approvedSaleData.installmentsCount || summaryInstallmentsCount) + "x de " + formatCurrency((approvedSaleData.totalPrice - (approvedSaleData.entryAmount || 0)) / Math.max(1, approvedSaleData.installmentsCount || summaryInstallmentsCount)))
+                    )
+                ),
+                React.createElement('button', {
+                    onClick: () => { onSaveSale(approvedSaleData); onClose(); },
+                    className: "w-full py-3.5 bg-slate-900 text-emerald-400 font-bold rounded-xl shadow-lg hover:bg-slate-800 transition-colors flex items-center justify-center gap-2"
+                }, React.createElement(CheckCircle, { size: 20 }), "Concluir e salvar venda")
+            )
+        ),
+
 ${creditDeniedMarker}`;
 
-source = source.replace(creditDeniedMarker, analysisModal);
+source = source.replace(creditDeniedMarker, creditFlowModals);
 
 source = source.replace(
     /(['"])(\.\/[^'"]+?\.js)(?:\?[^'"]*)?\1/g,
