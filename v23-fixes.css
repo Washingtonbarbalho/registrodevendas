@@ -1,0 +1,47 @@
+/* V23 — posicionamento seguro do resumo de pagamento */
+
+.sale-payment-summary-shell {
+    flex: 0 0 auto;
+    width: 100%;
+    padding: 8px 16px 0;
+    background: #f8fafc;
+}
+
+.sale-payment-summary-shell .payment-standard-summary {
+    width: 100%;
+    max-width: 1232px;
+    margin: 0 auto;
+}
+
+@media (max-width: 767px) {
+    .sale-payment-summary-shell {
+        padding: 8px 12px 0;
+    }
+
+    .sale-payment-summary-shell .payment-standard-summary-title {
+        padding: 9px 12px !important;
+    }
+
+    .sale-payment-summary-shell .payment-standard-summary-grid {
+        padding: 10px 12px !important;
+        gap: 7px;
+    }
+
+    .sale-payment-summary-shell .payment-summary-row {
+        font-size: 11px;
+    }
+
+    .sale-payment-summary-shell .payment-summary-row > strong {
+        font-size: 12px;
+    }
+
+    .sale-payment-summary-shell .payment-summary-installments > strong {
+        font-size: 13px;
+    }
+}
+
+@media (min-width: 1024px) {
+    .sale-payment-summary-shell {
+        padding: 10px 24px 0;
+    }
+}
