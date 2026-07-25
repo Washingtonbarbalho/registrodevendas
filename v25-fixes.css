@@ -1,0 +1,105 @@
+/* V25 — ações de clientes, histórico de compras e análise de crédito em modal */
+
+.customer-list-header > span:last-child {
+    text-align: right;
+}
+
+.customer-list-row-actions .list-actions {
+    min-width: 156px;
+}
+
+.customer-history-modal-overlay,
+.credit-analysis-modal-overlay {
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    margin: 0 !important;
+}
+
+.customer-history-summary {
+    align-items: stretch;
+}
+
+.customer-history-metric {
+    min-width: 0;
+    padding: 11px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 11px;
+    background: #ffffff;
+}
+
+.customer-history-metric span {
+    display: block;
+    color: #94a3b8;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+}
+
+.customer-history-metric strong {
+    display: block;
+    margin-top: 4px;
+    color: #334155;
+    font-size: 13px;
+    font-weight: 850;
+    overflow-wrap: anywhere;
+}
+
+.credit-analysis-modal {
+    position: relative;
+    overflow: hidden;
+}
+
+.credit-analysis-progress {
+    height: 6px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: #e2e8f0;
+}
+
+.credit-analysis-progress > span {
+    display: block;
+    width: 45%;
+    height: 100%;
+    border-radius: inherit;
+    background: #eab308;
+    animation: credit-analysis-progress 1.15s ease-in-out infinite alternate;
+}
+
+@keyframes credit-analysis-progress {
+    from { transform: translateX(-10%); }
+    to { transform: translateX(135%); }
+}
+
+@media (max-width: 767px) {
+    .customer-list-row-actions {
+        align-items: start;
+    }
+
+    .customer-list-row-actions .list-actions {
+        min-width: 44px;
+        flex-direction: column;
+    }
+
+    .customer-history-summary {
+        padding: 12px !important;
+        gap: 8px !important;
+    }
+}
+
+@media (min-width: 1024px) {
+    .desktop-modal-customer-history {
+        max-width: 1040px !important;
+    }
+
+    .desktop-modal-customer-history .desktop-modal-body {
+        padding: 20px 24px !important;
+    }
+
+    .customer-list-row-actions .list-actions {
+        justify-content: flex-end;
+    }
+}
