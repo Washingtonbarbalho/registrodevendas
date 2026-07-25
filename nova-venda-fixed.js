@@ -1,4 +1,4 @@
-const VERSION = '24';
+const VERSION = '25';
 
 const response = await fetch(`./nova-venda.js?v=${VERSION}`, { cache: 'no-store' });
 if (!response.ok) {
@@ -143,6 +143,39 @@ const paymentSectionWithSummary = `                    ),
         React.createElement('div', { className: "sale-bottom-bar fixed bottom-0 w-full p-4 z-40" },`;
 
 source = source.replace(paymentSectionEndMarker, paymentSectionWithSummary);
+
+const analysisScreenPattern = /\n    if \(isAnalyzingCredit\) \{[\s\S]*?\n    \}\n\n    if \(approvedSaleData\)/;
+if (!analysisScreenPattern.test(source)) {
+    throw new Error('Não foi possível converter a análise de crédito para modal.');
+}
+source = source.replace(analysisScreenPattern, '\n    if (approvedSaleData)');
+
+const creditDeniedMarker = `        creditModal.open && React.createElement('div', { className: "app-modal-overlay fixed inset-0 z-[100] flex items-center justify-center p-4" },`;
+if (!source.includes(creditDeniedMarker)) {
+    throw new Error('Não foi possível posicionar o modal de análise de crédito.');
+}
+
+const analysisModal = `        isAnalyzingCredit && React.createElement('div', {
+            className: "app-modal-overlay credit-analysis-modal-overlay fixed inset-0 z-[110] flex items-center justify-center p-4 backdrop-blur-sm",
+            role: "dialog",
+            'aria-modal': "true",
+            'aria-label': "Analisando crédito do cliente"
+        },
+            React.createElement('div', { className: "app-modal-panel credit-analysis-modal bg-white w-full max-w-sm rounded-2xl p-6 shadow-2xl animate-fade-in text-center" },
+                React.createElement('div', { className: "w-16 h-16 mx-auto mb-5 rounded-full bg-yellow-100 text-yellow-600 flex items-center justify-center" },
+                    React.createElement(RefreshCw, { size: 30, className: "animate-spin" })
+                ),
+                React.createElement('h2', { className: "text-xl font-black text-slate-800 mb-2" }, "Analisando crédito"),
+                React.createElement('p', { className: "text-sm text-slate-500 leading-relaxed" }, "Avaliando histórico, renda, limite disponível e pagamentos do cliente."),
+                React.createElement('div', { className: "credit-analysis-progress mt-5" },
+                    React.createElement('span', null)
+                )
+            )
+        ),
+
+${creditDeniedMarker}`;
+
+source = source.replace(creditDeniedMarker, analysisModal);
 
 source = source.replace(
     /(['"])(\.\/[^'"]+?\.js)(?:\?[^'"]*)?\1/g,
