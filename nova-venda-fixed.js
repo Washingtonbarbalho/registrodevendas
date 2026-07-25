@@ -132,7 +132,7 @@ const paymentSummary = `                    ),
                             React.createElement('div', { className: "payment-summary-row payment-summary-installments" },
                                 React.createElement('span', null, "Parcelamento"),
                                 React.createElement('strong', null, summaryFinancedValue > 0
-                                    ? \`${summaryInstallmentsCount}x de ${formatCurrency(summaryInstallmentValue)}\`
+                                    ? summaryInstallmentsCount + "x de " + formatCurrency(summaryInstallmentValue)
                                     : "Sem valor parcelado")
                             )
                         )
