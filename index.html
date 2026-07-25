@@ -18,12 +18,12 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="./styles.css?v=23">
-    <link rel="stylesheet" href="./modals-theme.css?v=23">
-    <link rel="stylesheet" href="./ui-refinements.css?v=23">
-    <link rel="stylesheet" href="./final-tweaks.css?v=23">
-    <link rel="stylesheet" href="./v21-improvements.css?v=23">
-    <link rel="stylesheet" href="./v23-fixes.css?v=23">
+    <link rel="stylesheet" href="./styles.css?v=24">
+    <link rel="stylesheet" href="./modals-theme.css?v=24">
+    <link rel="stylesheet" href="./ui-refinements.css?v=24">
+    <link rel="stylesheet" href="./final-tweaks.css?v=24">
+    <link rel="stylesheet" href="./v21-improvements.css?v=24">
+    <link rel="stylesheet" href="./v23-fixes.css?v=24">
 </head>
 <body>
     <div id="root"></div>
@@ -45,7 +45,7 @@
         };
 
         try {
-            const cleanupKey = 'registro-vendas-cleanup-v23';
+            const cleanupKey = 'registro-vendas-cleanup-v24';
             if (sessionStorage.getItem(cleanupKey) !== 'ok') {
                 if ('serviceWorker' in navigator) {
                     const registrations = await navigator.serviceWorker.getRegistrations();
@@ -63,7 +63,7 @@
                 }
             }
 
-            const version = '23';
+            const version = '24';
             const appResponse = await fetch(`./app.js?v=${version}`, { cache: 'no-store' });
             if (!appResponse.ok) throw new Error(`Falha ao carregar app.js (${appResponse.status})`);
 
@@ -93,7 +93,7 @@
             const appBlobUrl = URL.createObjectURL(new Blob([appSource], { type: 'text/javascript' }));
             try {
                 await import(appBlobUrl);
-                await import('./tab-persistence.js?v=23');
+                await import('./tab-persistence.js?v=24');
             } finally {
                 URL.revokeObjectURL(appBlobUrl);
             }
