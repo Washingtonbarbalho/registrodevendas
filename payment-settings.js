@@ -10,26 +10,13 @@ const DEFAULT_CARD_CREDIT_RATES = {
 
 const EMPTY_CARNET_RATES = Array.from({ length: CARD_INSTALLMENT_LIMIT + 1 }, () => 0);
 
-export const DEFAULT_TERM_SALES_RULES = Object.freeze({
+export const DEFAULT_TERM_ENTRY_RULES = Object.freeze({
     firstPurchaseCostEntry: {
         enabled: false
     },
-    progressiveInstallments: {
+    lateLastPurchaseCostEntry: {
         enabled: false,
-        firstPurchaseMax: 3,
-        levels: [
-            { minOnTimePayments: 1, maxInstallments: 4 },
-            { minOnTimePayments: 3, maxInstallments: 6 },
-            { minOnTimePayments: 6, maxInstallments: 9 },
-            { minOnTimePayments: 10, maxInstallments: 12 }
-        ]
-    },
-    minimumInstallment: {
-        enabled: false,
-        amount: 30
-    },
-    manualExceptions: {
-        enabled: true
+        daysLate: 5
     }
 });
 
@@ -54,7 +41,7 @@ export const DEFAULT_PAYMENT_SETTINGS = Object.freeze({
         biweekly: EMPTY_CARNET_RATES,
         monthly: EMPTY_CARNET_RATES
     },
-    termSalesRules: DEFAULT_TERM_SALES_RULES
+    termEntryRules: DEFAULT_TERM_ENTRY_RULES
 });
 
 export const parseRatePercent = (value, fallback = 0) => {
@@ -64,19 +51,13 @@ export const parseRatePercent = (value, fallback = 0) => {
 
     const raw = String(value ?? '').trim().replace('%', '').replace(/\s/g, '');
     if (!raw) return fallback;
-    const normalized = raw.includes(',') ? raw.replace(/\./g, '').replace(',', '.') : raw;
+
+    const normalized = raw.includes(',')
+        ? raw.replace(/\./g, '').replace(',', '.')
+        : raw;
     const parsed = Number(normalized);
     if (!Number.isFinite(parsed)) return fallback;
     return Math.min(100, Math.max(0, parsed));
-};
-
-const parseMoneySetting = (value, fallback = 0) => {
-    if (typeof value === 'number') return Number.isFinite(value) ? Math.max(0, value) : fallback;
-    const raw = String(value ?? '').trim().replace(/R\$/gi, '').replace(/\s/g, '');
-    if (!raw) return fallback;
-    const normalized = raw.includes(',') ? raw.replace(/\./g, '').replace(',', '.') : raw;
-    const parsed = Number(normalized);
-    return Number.isFinite(parsed) ? Math.max(0, parsed) : fallback;
 };
 
 const clampInteger = (value, minimum, maximum, fallback) => {
@@ -94,17 +75,6 @@ const normalizeRateArray = (values, defaults) => {
     });
 };
 
-const normalizeProgressiveLevels = levels => {
-    const source = Array.isArray(levels) ? levels : [];
-    return DEFAULT_TERM_SALES_RULES.progressiveInstallments.levels.map((defaultLevel, index) => {
-        const level = source[index] && typeof source[index] === 'object' ? source[index] : {};
-        return {
-            minOnTimePayments: clampInteger(level.minOnTimePayments, 0, 999, defaultLevel.minOnTimePayments),
-            maxInstallments: clampInteger(level.maxInstallments, 1, CARD_INSTALLMENT_LIMIT, defaultLevel.maxInstallments)
-        };
-    });
-};
-
 export const normalizePaymentSettings = (settings = {}) => {
     const source = settings && typeof settings === 'object' ? settings : {};
     const card = source.card && typeof source.card === 'object' ? source.card : {};
@@ -113,17 +83,14 @@ export const normalizePaymentSettings = (settings = {}) => {
     const presencialCredit = presencial.credito && typeof presencial.credito === 'object' ? presencial.credito : {};
     const link = card.link && typeof card.link === 'object' ? card.link : {};
     const carnet = source.carnet && typeof source.carnet === 'object' ? source.carnet : {};
-    const rules = source.termSalesRules && typeof source.termSalesRules === 'object'
-        ? source.termSalesRules
+    const entryRules = source.termEntryRules && typeof source.termEntryRules === 'object'
+        ? source.termEntryRules
         : {};
-    const firstPurchaseCostEntry = rules.firstPurchaseCostEntry && typeof rules.firstPurchaseCostEntry === 'object'
-        ? rules.firstPurchaseCostEntry
+    const firstPurchaseCostEntry = entryRules.firstPurchaseCostEntry && typeof entryRules.firstPurchaseCostEntry === 'object'
+        ? entryRules.firstPurchaseCostEntry
         : {};
-    const progressiveInstallments = rules.progressiveInstallments && typeof rules.progressiveInstallments === 'object'
-        ? rules.progressiveInstallments
-        : {};
-    const minimumInstallment = rules.minimumInstallment && typeof rules.minimumInstallment === 'object'
-        ? rules.minimumInstallment
+    const lateLastPurchaseCostEntry = entryRules.lateLastPurchaseCostEntry && typeof entryRules.lateLastPurchaseCostEntry === 'object'
+        ? entryRules.lateLastPurchaseCostEntry
         : {};
 
     return {
@@ -150,26 +117,18 @@ export const normalizePaymentSettings = (settings = {}) => {
             biweekly: normalizeRateArray(carnet.biweekly, DEFAULT_PAYMENT_SETTINGS.carnet.biweekly),
             monthly: normalizeRateArray(carnet.monthly, DEFAULT_PAYMENT_SETTINGS.carnet.monthly)
         },
-        termSalesRules: {
+        termEntryRules: {
             firstPurchaseCostEntry: {
                 enabled: firstPurchaseCostEntry.enabled === true
             },
-            progressiveInstallments: {
-                enabled: progressiveInstallments.enabled === true,
-                firstPurchaseMax: clampInteger(
-                    progressiveInstallments.firstPurchaseMax,
-                    1,
-                    CARD_INSTALLMENT_LIMIT,
-                    DEFAULT_TERM_SALES_RULES.progressiveInstallments.firstPurchaseMax
-                ),
-                levels: normalizeProgressiveLevels(progressiveInstallments.levels)
-            },
-            minimumInstallment: {
-                enabled: minimumInstallment.enabled === true,
-                amount: parseMoneySetting(minimumInstallment.amount, DEFAULT_TERM_SALES_RULES.minimumInstallment.amount)
-            },
-            manualExceptions: {
-                enabled: true
+            lateLastPurchaseCostEntry: {
+                enabled: lateLastPurchaseCostEntry.enabled === true,
+                daysLate: clampInteger(
+                    lateLastPurchaseCostEntry.daysLate,
+                    0,
+                    3650,
+                    DEFAULT_TERM_ENTRY_RULES.lateLastPurchaseCostEntry.daysLate
+                )
             }
         }
     };
@@ -208,141 +167,93 @@ export const getCarnetRate = (settings, frequency, installments) => {
 
 const cleanDate = value => String(value || '').split('T')[0];
 
-export const getCustomerTermRuleHistory = (customer, allSales = []) => {
-    if (!customer) {
-        return {
-            validPurchases: [],
-            validPurchaseCount: 0,
-            paidOnTimeCount: 0,
-            paidLateCount: 0,
-            isFirstPurchase: true
-        };
-    }
-
-    const validPurchases = (Array.isArray(allSales) ? allSales : []).filter(sale => {
-        const isSameCustomer = sale.customerId === customer.id;
-        const isTermSale = sale.saleType === 'prazo' || !sale.saleType;
-        return isSameCustomer && isTermSale && sale.status !== 'canceled';
-    });
-
-    let paidOnTimeCount = 0;
-    let paidLateCount = 0;
-
-    validPurchases.forEach(sale => {
-        (sale.installments || []).forEach(installment => {
-            if (!installment.paid) return;
-            const paidDate = cleanDate(installment.paidAt);
-            const dueDate = cleanDate(installment.dueDate);
-            if (paidDate && dueDate && paidDate > dueDate) paidLateCount += 1;
-            else paidOnTimeCount += 1;
-        });
-    });
-
-    return {
-        validPurchases,
-        validPurchaseCount: validPurchases.length,
-        paidOnTimeCount,
-        paidLateCount,
-        isFirstPurchase: validPurchases.length === 0
-    };
+const dateToUtcTimestamp = value => {
+    const [year, month, day] = cleanDate(value).split('-').map(Number);
+    if (!year || !month || !day) return null;
+    return Date.UTC(year, month - 1, day);
 };
 
-export const evaluateTermSaleRules = ({
+const calculateLateDays = (paidAt, dueDate) => {
+    const paidTimestamp = dateToUtcTimestamp(paidAt);
+    const dueTimestamp = dateToUtcTimestamp(dueDate);
+    if (paidTimestamp === null || dueTimestamp === null) return 0;
+    return Math.max(0, Math.floor((paidTimestamp - dueTimestamp) / 86400000));
+};
+
+const getValidCustomerTermSales = (customer, allSales = []) => {
+    if (!customer) return [];
+    return (Array.isArray(allSales) ? allSales : [])
+        .filter(sale => {
+            const isSameCustomer = sale.customerId === customer.id;
+            const isTermSale = sale.saleType === 'prazo' || !sale.saleType;
+            return isSameCustomer && isTermSale && sale.status !== 'canceled';
+        })
+        .sort((a, b) => {
+            const dateComparison = String(b.saleDate || '').localeCompare(String(a.saleDate || ''));
+            if (dateComparison !== 0) return dateComparison;
+            return String(b.id || '').localeCompare(String(a.id || ''));
+        });
+};
+
+export const evaluateTermEntryRules = ({
     settings,
     customer,
     sales = [],
     entryAmount = 0,
-    totalCost = 0,
-    financedAmount = 0,
-    installmentsCount = 1
+    totalCost = 0
 }) => {
     const normalized = normalizePaymentSettings(settings);
-    const rules = normalized.termSalesRules;
-    const history = getCustomerTermRuleHistory(customer, sales);
+    const rules = normalized.termEntryRules;
+    const validPurchases = getValidCustomerTermSales(customer, sales);
+    const isFirstPurchase = validPurchases.length === 0;
+    const lastPurchase = validPurchases[0] || null;
     const safeEntry = Math.max(0, Number(entryAmount) || 0);
     const safeCost = Math.max(0, Number(totalCost) || 0);
-    const safeFinanced = Math.max(0, Number(financedAmount) || 0);
-    const safeInstallments = safeInstallmentCount(installmentsCount);
-    const violations = [];
+    const lateDaysThreshold = rules.lateLastPurchaseCostEntry.daysLate;
 
-    let allowedMaxInstallments = CARD_INSTALLMENT_LIMIT;
-    if (rules.progressiveInstallments.enabled) {
-        allowedMaxInstallments = rules.progressiveInstallments.firstPurchaseMax;
-        [...rules.progressiveInstallments.levels]
-            .sort((a, b) => a.minOnTimePayments - b.minOnTimePayments)
-            .forEach(level => {
-                if (history.paidOnTimeCount >= level.minOnTimePayments) {
-                    allowedMaxInstallments = Math.max(allowedMaxInstallments, level.maxInstallments);
-                }
-            });
-        allowedMaxInstallments = Math.min(CARD_INSTALLMENT_LIMIT, Math.max(1, allowedMaxInstallments));
-    }
+    const latePaymentsInLastPurchase = lastPurchase
+        ? (lastPurchase.installments || [])
+            .filter(installment => installment.paid && installment.paidAt && installment.dueDate)
+            .map(installment => ({
+                installmentNumber: installment.number,
+                paidAt: installment.paidAt,
+                dueDate: installment.dueDate,
+                daysLate: calculateLateDays(installment.paidAt, installment.dueDate)
+            }))
+            .filter(payment => payment.daysLate > lateDaysThreshold)
+        : [];
 
-    const requiredEntry = rules.firstPurchaseCostEntry.enabled && history.isFirstPurchase
-        ? Math.min(safeCost, safeCost)
-        : 0;
+    const triggeredByFirstPurchase = rules.firstPurchaseCostEntry.enabled && isFirstPurchase;
+    const triggeredByLateLastPurchase = rules.lateLastPurchaseCostEntry.enabled && latePaymentsInLastPurchase.length > 0;
+    const ruleApplies = triggeredByFirstPurchase || triggeredByLateLastPurchase;
+    const requiredEntry = ruleApplies ? safeCost : 0;
+    const shortage = Math.max(0, requiredEntry - safeEntry);
+    const approved = !ruleApplies || shortage < 0.005;
 
-    if (requiredEntry > 0 && safeEntry + 0.005 < requiredEntry) {
-        violations.push({
-            code: 'first_purchase_cost_entry',
-            title: 'Entrada mínima da primeira compra',
-            message: `A primeira compra a prazo exige entrada de pelo menos o custo dos produtos.`,
-            requiredEntry,
-            currentEntry: safeEntry,
-            shortage: Math.max(0, requiredEntry - safeEntry)
-        });
-    }
-
-    if (rules.progressiveInstallments.enabled && safeInstallments > allowedMaxInstallments) {
-        violations.push({
-            code: 'progressive_installment_limit',
-            title: 'Limite progressivo de parcelas',
-            message: `O histórico atual deste cliente permite no máximo ${allowedMaxInstallments}x.`,
-            allowedMaxInstallments,
-            requestedInstallments: safeInstallments,
-            paidOnTimeCount: history.paidOnTimeCount
-        });
-    }
-
-    const installmentAmount = safeInstallments > 0 ? safeFinanced / safeInstallments : 0;
-    const minimumInstallmentAmount = rules.minimumInstallment.amount;
-    const maxInstallmentsByMinimumValue = minimumInstallmentAmount > 0 && safeFinanced > 0
-        ? Math.max(1, Math.min(CARD_INSTALLMENT_LIMIT, Math.floor(safeFinanced / minimumInstallmentAmount)))
-        : CARD_INSTALLMENT_LIMIT;
-
-    if (
-        rules.minimumInstallment.enabled
-        && safeFinanced > 0
-        && installmentAmount + 0.005 < minimumInstallmentAmount
-    ) {
-        violations.push({
-            code: 'minimum_installment_value',
-            title: 'Valor mínimo da parcela',
-            message: `Cada parcela deve ter valor mínimo configurado.`,
-            minimumInstallmentAmount,
-            installmentAmount,
-            maxInstallmentsByMinimumValue,
-            requestedInstallments: safeInstallments
-        });
+    const reasons = [];
+    if (triggeredByFirstPurchase) reasons.push('Primeira compra a prazo do cliente.');
+    if (triggeredByLateLastPurchase) {
+        const highestDelay = Math.max(...latePaymentsInLastPurchase.map(payment => payment.daysLate));
+        reasons.push(`A última compra teve parcela paga com ${highestDelay} dias de atraso, acima do limite de ${lateDaysThreshold} dias.`);
     }
 
     return {
-        approved: violations.length === 0,
-        violations,
-        history,
-        isFirstPurchase: history.isFirstPurchase,
-        paidOnTimeCount: history.paidOnTimeCount,
-        paidLateCount: history.paidLateCount,
-        allowedMaxInstallments,
+        approved,
+        ruleApplies,
         requiredEntry,
-        installmentAmount,
-        minimumInstallmentAmount,
-        maxInstallmentsByMinimumValue,
+        currentEntry: safeEntry,
+        shortage,
+        isFirstPurchase,
+        lastPurchaseId: lastPurchase?.id || null,
+        lastPurchaseDate: lastPurchase?.saleDate || null,
+        lateDaysThreshold,
+        latePaymentsInLastPurchase,
+        triggeredByFirstPurchase,
+        triggeredByLateLastPurchase,
+        reasons,
         activeRules: {
             firstPurchaseCostEntry: rules.firstPurchaseCostEntry.enabled,
-            progressiveInstallments: rules.progressiveInstallments.enabled,
-            minimumInstallment: rules.minimumInstallment.enabled,
-            manualExceptions: true
+            lateLastPurchaseCostEntry: rules.lateLastPurchaseCostEntry.enabled
         }
     };
 };
