@@ -64,7 +64,7 @@ export const getBrazilDateString = () => {
 };
 
 export const addDays = (dateStr, days) => {
-    const date = new Date(dateStr + 'T12:00:00'); 
+    const date = new Date(dateStr + 'T12:00:00');
     date.setDate(date.getDate() + days);
     return date.toLocaleDateString('pt-BR', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'America/Sao_Paulo' }).split('/').reverse().join('-');
 };
@@ -130,7 +130,12 @@ export const generatePixPayload = (pixKey, pixType, pixName, pixCity, amount, tx
 export const analyzeCustomerCredit = (customerObj, requestedAmount, allSales) => {
     if (!customerObj) return { approved: false, reason: "Cliente não encontrado para análise.", availableLimit: 0, currentDebt: 0, calculatedLimit: 0, creditActive: false };
 
-    const customerSales = allSales.filter(s => s.customerId === customerObj.id && (s.saleType === 'prazo' || !s.saleType));
+    const customerSales = allSales.filter(s =>
+        s.customerId === customerObj.id
+        && (s.saleType === 'prazo' || !s.saleType)
+        && s.cancellationType !== 'credit_rules_rejection'
+        && s.affectsCredit !== false
+    );
     const today = getBrazilDateString();
     const creditActive = customerObj.creditEnabled !== false;
     const ignoreOverdue = customerObj.creditIgnoreOverdue === true;
