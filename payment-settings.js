@@ -86,9 +86,14 @@ export const normalizePaymentSettings = (settings = {}) => {
     const entryRules = source.termEntryRules && typeof source.termEntryRules === 'object'
         ? source.termEntryRules
         : {};
+    const legacyRules = source.termSalesRules && typeof source.termSalesRules === 'object'
+        ? source.termSalesRules
+        : {};
     const firstPurchaseCostEntry = entryRules.firstPurchaseCostEntry && typeof entryRules.firstPurchaseCostEntry === 'object'
         ? entryRules.firstPurchaseCostEntry
-        : {};
+        : legacyRules.firstPurchaseCostEntry && typeof legacyRules.firstPurchaseCostEntry === 'object'
+            ? legacyRules.firstPurchaseCostEntry
+            : {};
     const lateLastPurchaseCostEntry = entryRules.lateLastPurchaseCostEntry && typeof entryRules.lateLastPurchaseCostEntry === 'object'
         ? entryRules.lateLastPurchaseCostEntry
         : {};
