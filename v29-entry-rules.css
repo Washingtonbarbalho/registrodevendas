@@ -1,0 +1,251 @@
+/* V29 — regras de entrada das vendas a prazo */
+
+.carnet-entry-rules {
+    display: grid;
+    gap: 14px;
+}
+
+.entry-rules-list {
+    display: grid;
+    gap: 12px;
+}
+
+.entry-rule-card {
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+    border-radius: 15px;
+    background: #fff;
+    transition: border-color .18s ease, box-shadow .18s ease;
+}
+
+.entry-rule-card.is-enabled {
+    border-color: #f7c948;
+    box-shadow: 0 7px 22px rgba(15, 23, 42, .06);
+}
+
+.entry-rule-main {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 13px;
+    padding: 15px;
+}
+
+.entry-rule-icon {
+    display: grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    border-radius: 11px;
+    background: #f1f5f9;
+    color: #64748b;
+}
+
+.entry-rule-card.is-enabled .entry-rule-icon {
+    background: #fef3c7;
+    color: #b45309;
+}
+
+.entry-rule-copy strong {
+    display: block;
+    color: #172033;
+    font-size: 12.5px;
+    line-height: 1.35;
+}
+
+.entry-rule-copy p {
+    margin-top: 3px;
+    color: #64748b;
+    font-size: 11px;
+    line-height: 1.45;
+}
+
+.entry-rule-switch {
+    position: relative;
+    flex: 0 0 auto;
+    width: 45px;
+    height: 25px;
+    cursor: pointer;
+}
+
+.entry-rule-switch input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.entry-rule-switch > span {
+    position: absolute;
+    inset: 0;
+    border-radius: 999px;
+    background: #cbd5e1;
+    transition: background .18s ease;
+}
+
+.entry-rule-switch > span::after {
+    content: "";
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 19px;
+    height: 19px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 2px 6px rgba(15, 23, 42, .2);
+    transition: transform .18s ease;
+}
+
+.entry-rule-switch input:checked + span {
+    background: #eab308;
+}
+
+.entry-rule-switch input:checked + span::after {
+    transform: translateX(20px);
+}
+
+.entry-rule-detail,
+.late-days-field {
+    margin: 0 15px 15px 66px;
+    padding: 12px;
+    border-radius: 11px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+}
+
+.entry-rule-detail {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    color: #64748b;
+}
+
+.entry-rule-detail svg {
+    flex: 0 0 auto;
+    margin-top: 1px;
+}
+
+.entry-rule-detail p,
+.entry-rules-note {
+    font-size: 10.5px;
+    line-height: 1.5;
+}
+
+.late-days-field {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.late-days-field > span {
+    color: #475569;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.late-days-field > div {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.late-days-field input {
+    width: 76px;
+    min-height: 38px;
+    padding: 7px 9px;
+    border: 1px solid #cbd5e1;
+    border-radius: 9px;
+    background: #fff;
+    color: #172033;
+    font-size: 12px;
+    font-weight: 800;
+    text-align: center;
+}
+
+.late-days-field > div > span {
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.entry-rules-note {
+    color: #64748b;
+}
+
+.entry-rule-preview {
+    margin-top: -3px;
+    padding: 12px 13px;
+    border: 1px solid;
+    border-radius: 12px;
+}
+
+.entry-rule-preview.needs-entry {
+    border-color: #fcd34d;
+    background: #fffbeb;
+    color: #92400e;
+}
+
+.entry-rule-preview.is-approved {
+    border-color: #a7f3d0;
+    background: #ecfdf5;
+    color: #047857;
+}
+
+.entry-rule-preview-heading {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin-bottom: 7px;
+    font-size: 11.5px;
+}
+
+.entry-rule-preview > p {
+    margin-top: 3px;
+    font-size: 10.5px;
+    line-height: 1.45;
+}
+
+.entry-rule-preview-values {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 5px 12px;
+    margin-top: 9px;
+    padding-top: 9px;
+    border-top: 1px solid currentColor;
+    font-size: 11px;
+}
+
+.entry-rule-preview-values strong {
+    font-size: 12.5px;
+}
+
+.entry-rule-preview-values small {
+    grid-column: 1 / -1;
+    font-size: 10px;
+    font-weight: 800;
+    text-align: right;
+}
+
+@media (max-width: 640px) {
+    .entry-rule-main {
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        gap: 10px;
+        padding: 13px;
+    }
+
+    .entry-rule-icon {
+        width: 34px;
+        height: 34px;
+    }
+
+    .entry-rule-detail,
+    .late-days-field {
+        margin: 0 13px 13px;
+    }
+
+    .late-days-field {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+}
