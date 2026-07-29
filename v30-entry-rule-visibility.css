@@ -1,0 +1,5 @@
+/* V30 — a exigência de entrada é exibida somente após a análise de crédito */
+
+.sale-screen .entry-rule-preview {
+    display: none !important;
+}
