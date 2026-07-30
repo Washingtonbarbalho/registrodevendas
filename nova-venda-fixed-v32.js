@@ -36,9 +36,11 @@ if (!source.includes(previousCreditPriority)) {
 }
 
 const costEntryPriority = `                const entryRuleApplies = entryRuleEvaluation.ruleApplies;
+                const entryRuleHasPriority = entryRuleApplies
+                    && Number(entryRuleEvaluation.requiredEntry) > 0;
                 const limitFailure = !adjustedCreditAnalysis.approved
                     && Number(adjustedCreditAnalysis.suggestedEntry) > 0;
-                const limitIgnoredByEntryRule = entryRuleApplies && limitFailure;
+                const limitIgnoredByEntryRule = entryRuleHasPriority && limitFailure;
                 const creditFailed = !adjustedCreditAnalysis.approved && !limitIgnoredByEntryRule;
                 const entryRuleFailed = !entryRuleEvaluation.approved;
                 const ruleReason = entryRuleEvaluation.reasons.join(' ');
@@ -58,7 +60,7 @@ const costEntryPriority = `                const entryRuleApplies = entryRuleEva
                                 : limitIgnoredByEntryRule
                                     ? 'Entrada igual ao custo aprovada com prioridade sobre o limite disponível.'
                                     : adjustedCreditAnalysis.reason,
-                    suggestedEntry: entryRuleApplies
+                    suggestedEntry: entryRuleHasPriority
                         ? (entryRuleFailed ? Number(entryRuleEvaluation.requiredEntry) || 0 : 0)
                         : Number(adjustedCreditAnalysis.suggestedEntry) || 0,
                     entryRuleEvaluation
