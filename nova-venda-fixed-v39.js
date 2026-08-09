@@ -91,7 +91,7 @@ try {
         "    '            onClose();',",
         "    '        }'",
         "].join('\\n');",
-        "source = source.slice(0, directBranchStart) + directBranchReplacement + source.slice(directBranchEnd);"
+        "source = source.slice(0, directBranchStart) + directBranchReplacement + '\\n' + source.slice(directBranchEnd);"
     ].join('\n');
 
     wrapperSource = wrapperSource.slice(0, blockStart)
