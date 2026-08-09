@@ -176,8 +176,14 @@
                 await importAppSource(primarySource);
             } catch (primaryError) {
                 console.error('Falha ao carregar melhorias mais recentes. Tentando configuração estável.', primaryError);
-                const fallbackSource = rewriteModuleImports(optionalPatchedSource, fallbackModulePaths);
-                await importAppSource(fallbackSource);
+                try {
+                    const fallbackSource = rewriteModuleImports(rawAppSource, fallbackModulePaths);
+                    await importAppSource(fallbackSource);
+                } catch (fallbackError) {
+                    console.error('Configuração estável também falhou. Tentando módulos originais.', fallbackError);
+                    const emergencySource = rewriteModuleImports(rawAppSource, {});
+                    await importAppSource(emergencySource);
+                }
             }
 
             try {
