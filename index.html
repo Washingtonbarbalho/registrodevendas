@@ -18,18 +18,18 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="./styles.css?v=37">
-    <link rel="stylesheet" href="./modals-theme.css?v=37">
-    <link rel="stylesheet" href="./ui-refinements.css?v=37">
-    <link rel="stylesheet" href="./final-tweaks.css?v=37">
-    <link rel="stylesheet" href="./v21-improvements.css?v=37">
-    <link rel="stylesheet" href="./v23-fixes.css?v=37">
-    <link rel="stylesheet" href="./v25-fixes.css?v=37">
-    <link rel="stylesheet" href="./v26-fixes.css?v=37">
-    <link rel="stylesheet" href="./v27-fixes.css?v=37">
-    <link rel="stylesheet" href="./v29-entry-rules.css?v=37">
-    <link rel="stylesheet" href="./v30-entry-rule-visibility.css?v=37">
-    <link rel="stylesheet" href="./v31-dashboard.css?v=37">
+    <link rel="stylesheet" href="./styles.css?v=38">
+    <link rel="stylesheet" href="./modals-theme.css?v=38">
+    <link rel="stylesheet" href="./ui-refinements.css?v=38">
+    <link rel="stylesheet" href="./final-tweaks.css?v=38">
+    <link rel="stylesheet" href="./v21-improvements.css?v=38">
+    <link rel="stylesheet" href="./v23-fixes.css?v=38">
+    <link rel="stylesheet" href="./v25-fixes.css?v=38">
+    <link rel="stylesheet" href="./v26-fixes.css?v=38">
+    <link rel="stylesheet" href="./v27-fixes.css?v=38">
+    <link rel="stylesheet" href="./v29-entry-rules.css?v=38">
+    <link rel="stylesheet" href="./v30-entry-rule-visibility.css?v=38">
+    <link rel="stylesheet" href="./v31-dashboard.css?v=38">
 </head>
 <body>
     <div id="root"></div>
@@ -51,7 +51,7 @@
         };
 
         try {
-            const cleanupKey = 'registro-vendas-cleanup-v37';
+            const cleanupKey = 'registro-vendas-cleanup-v38';
             if (sessionStorage.getItem(cleanupKey) !== 'ok') {
                 if ('serviceWorker' in navigator) {
                     const registrations = await navigator.serviceWorker.getRegistrations();
@@ -69,7 +69,7 @@
                 }
             }
 
-            const version = '37';
+            const version = '38';
             const appResponse = await fetch(`./app.js?v=${version}`, { cache: 'no-store' });
             if (!appResponse.ok) throw new Error(`Falha ao carregar app.js (${appResponse.status})`);
 
@@ -81,7 +81,7 @@
             ];
             const fixedModulePaths = {
                 'modals': './modals-fixed.js',
-                'nova-venda': './nova-venda-fixed-v37.js',
+                'nova-venda': './nova-venda-fixed-v38.js',
                 'aba-visao-geral': './aba-visao-geral-fixed.js',
                 'aba-clientes': './aba-clientes-fixed.js',
                 'aba-taxas': './aba-taxas-fixed-v37.js'
@@ -131,7 +131,7 @@
             const appBlobUrl = URL.createObjectURL(new Blob([appSource], { type: 'text/javascript' }));
             try {
                 await import(appBlobUrl);
-                await import('./tab-persistence.js?v=37');
+                await import('./tab-persistence.js?v=38');
             } finally {
                 URL.revokeObjectURL(appBlobUrl);
             }
