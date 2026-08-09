@@ -21,10 +21,13 @@ try {
     wrapperSource = wrapperSource.replace("const VERSION = '37';", `const VERSION = '${VERSION}';`);
 
     const blockStart = wrapperSource.indexOf('const directBranchPattern = ');
-    const blockEndMarker = '\n\nsource = source.replace(\n    "onChange: e => setFrequency(e.target.value)"';
-    const blockEnd = wrapperSource.indexOf(blockEndMarker, blockStart);
+    const frequencyPatchAnchor = '"onChange: e => setFrequency(e.target.value)"';
+    const frequencyAnchorIndex = wrapperSource.indexOf(frequencyPatchAnchor, blockStart);
+    const blockEnd = frequencyAnchorIndex >= 0
+        ? wrapperSource.lastIndexOf('source = source.replace(', frequencyAnchorIndex)
+        : -1;
 
-    if (blockStart < 0 || blockEnd < 0) {
+    if (blockStart < 0 || frequencyAnchorIndex < 0 || blockEnd < 0 || blockEnd <= blockStart) {
         throw new Error('Bloco antigo de atualização do cartão não localizado.');
     }
 
@@ -32,8 +35,10 @@ try {
         "const directBranchAnchor = '            let finalSalePrice = totalCartValue;';",
         "const directBranchAnchorIndex = source.indexOf(directBranchAnchor);",
         "const directBranchStart = directBranchAnchorIndex >= 0 ? source.lastIndexOf('        } else {', directBranchAnchorIndex) : -1;",
-        "const directBranchEnd = directBranchAnchorIndex >= 0 ? source.indexOf('\\n    };\\n\\n    const handleManualApprove', directBranchAnchorIndex) : -1;",
-        "if (directBranchAnchorIndex < 0 || directBranchStart < 0 || directBranchEnd < 0) {",
+        "const manualApproveAnchor = '    const handleManualApprove = () => {';",
+        "const manualApproveIndex = directBranchAnchorIndex >= 0 ? source.indexOf(manualApproveAnchor, directBranchAnchorIndex) : -1;",
+        "const directBranchEnd = manualApproveIndex >= 0 ? source.lastIndexOf('    };', manualApproveIndex) : -1;",
+        "if (directBranchAnchorIndex < 0 || directBranchStart < 0 || manualApproveIndex < 0 || directBranchEnd < 0 || directBranchEnd <= directBranchStart) {",
         "    throw new Error('Não foi possível localizar com segurança o bloco da venda no cartão.');",
         "}",
         "const directBranchReplacement = [",
