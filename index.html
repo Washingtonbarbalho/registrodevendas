@@ -18,24 +18,25 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="./styles.css?v=39">
-    <link rel="stylesheet" href="./modals-theme.css?v=39">
-    <link rel="stylesheet" href="./ui-refinements.css?v=39">
-    <link rel="stylesheet" href="./final-tweaks.css?v=39">
-    <link rel="stylesheet" href="./v21-improvements.css?v=39">
-    <link rel="stylesheet" href="./v23-fixes.css?v=39">
-    <link rel="stylesheet" href="./v25-fixes.css?v=39">
-    <link rel="stylesheet" href="./v26-fixes.css?v=39">
-    <link rel="stylesheet" href="./v27-fixes.css?v=39">
-    <link rel="stylesheet" href="./v29-entry-rules.css?v=39">
-    <link rel="stylesheet" href="./v30-entry-rule-visibility.css?v=39">
-    <link rel="stylesheet" href="./v31-dashboard.css?v=39">
+    <link rel="stylesheet" href="./styles.css?v=40">
+    <link rel="stylesheet" href="./modals-theme.css?v=40">
+    <link rel="stylesheet" href="./ui-refinements.css?v=40">
+    <link rel="stylesheet" href="./final-tweaks.css?v=40">
+    <link rel="stylesheet" href="./v21-improvements.css?v=40">
+    <link rel="stylesheet" href="./v23-fixes.css?v=40">
+    <link rel="stylesheet" href="./v25-fixes.css?v=40">
+    <link rel="stylesheet" href="./v26-fixes.css?v=40">
+    <link rel="stylesheet" href="./v27-fixes.css?v=40">
+    <link rel="stylesheet" href="./v29-entry-rules.css?v=40">
+    <link rel="stylesheet" href="./v30-entry-rule-visibility.css?v=40">
+    <link rel="stylesheet" href="./v31-dashboard.css?v=40">
 </head>
 <body>
     <div id="root"></div>
 
     <script type="module">
         const root = document.getElementById('root');
+        const version = '40';
 
         const showStartupError = (error) => {
             console.error('Erro ao iniciar o sistema:', error);
@@ -43,70 +44,63 @@
                 <main style="min-height:100vh;display:grid;place-items:center;padding:24px;background:#f8fafc;font-family:Inter,Arial,sans-serif">
                     <section style="width:100%;max-width:520px;background:white;border:1px solid #e2e8f0;border-radius:20px;padding:24px;box-shadow:0 16px 45px rgba(15,23,42,.10)">
                         <h1 style="margin:0 0 10px;color:#0f172a;font-size:22px">Não foi possível iniciar o sistema</h1>
-                        <p style="margin:0 0 16px;color:#64748b;line-height:1.5">Um arquivo do sistema não carregou corretamente. Atualize a página. Se continuar, confira se todos os arquivos do pacote foram colocados na mesma pasta do <strong>index.html</strong>.</p>
+                        <p style="margin:0 0 16px;color:#64748b;line-height:1.5">Um arquivo essencial do sistema não carregou corretamente. Atualize a página e tente novamente.</p>
                         <button onclick="location.reload()" style="border:0;border-radius:12px;background:#0f172a;color:white;font-weight:700;padding:12px 16px;width:100%">Tentar novamente</button>
                         <pre style="white-space:pre-wrap;margin:16px 0 0;padding:12px;border-radius:12px;background:#f1f5f9;color:#b91c1c;font-size:11px;overflow:auto">${String(error?.message || error || 'Erro desconhecido').replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}</pre>
                     </section>
                 </main>`;
         };
 
-        try {
-            const cleanupKey = 'registro-vendas-cleanup-v39';
-            if (sessionStorage.getItem(cleanupKey) !== 'ok') {
-                if ('serviceWorker' in navigator) {
-                    const registrations = await navigator.serviceWorker.getRegistrations();
-                    await Promise.all(registrations.map(registration => registration.unregister()));
-                }
-                if ('caches' in window) {
-                    const cacheNames = await caches.keys();
-                    await Promise.all(cacheNames.map(cacheName => caches.delete(cacheName)));
-                }
-                sessionStorage.setItem(cleanupKey, 'ok');
+        const clearPreviousRuntimeCaches = async () => {
+            const cleanupKey = `registro-vendas-cleanup-v${version}`;
+            if (sessionStorage.getItem(cleanupKey) === 'ok') return;
 
-                if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-                    location.reload();
-                    await new Promise(() => {});
-                }
+            if ('serviceWorker' in navigator) {
+                const registrations = await navigator.serviceWorker.getRegistrations();
+                await Promise.all(registrations.map(registration => registration.unregister()));
             }
+            if ('caches' in window) {
+                const cacheNames = await caches.keys();
+                await Promise.all(cacheNames.map(cacheName => caches.delete(cacheName)));
+            }
+            sessionStorage.setItem(cleanupKey, 'ok');
 
-            const version = '39';
-            const appResponse = await fetch(`./app.js?v=${version}`, { cache: 'no-store' });
-            if (!appResponse.ok) throw new Error(`Falha ao carregar app.js (${appResponse.status})`);
+            if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+                location.reload();
+                await new Promise(() => {});
+            }
+        };
 
-            let appSource = await appResponse.text();
-            const freshModules = [
-                'modals', 'auth-admin', 'nova-venda', 'aba-visao-geral',
-                'aba-vendas-prazo', 'aba-vendas-caixa', 'aba-produtos', 'aba-clientes',
-                'aba-taxas', 'payment-settings', 'utils'
-            ];
-            const fixedModulePaths = {
-                'modals': './modals-fixed.js',
-                'nova-venda': './nova-venda-fixed-v39.js',
-                'aba-visao-geral': './aba-visao-geral-fixed.js',
-                'aba-clientes': './aba-clientes-fixed.js',
-                'aba-taxas': './aba-taxas-fixed-v37.js'
-            };
+        const primaryModulePaths = {
+            'modals': './modals-fixed.js',
+            'nova-venda': './nova-venda-fixed-v39.js',
+            'aba-visao-geral': './aba-visao-geral-fixed.js',
+            'aba-clientes': './aba-clientes-fixed.js',
+            'aba-taxas': './aba-taxas-fixed-v40.js'
+        };
 
-            appSource = appSource.replace(
-                /(['"])(\.\/[^'"]+?\.js)(?:\?[^'"]*)?\1/g,
-                (match, quote, modulePath) => {
-                    const moduleName = modulePath.split('/').pop().replace(/\.js$/, '');
-                    const resolvedModulePath = fixedModulePaths[moduleName] || modulePath;
-                    const moduleUrl = new URL(resolvedModulePath, location.href);
-                    if (freshModules.includes(moduleName)) moduleUrl.search = `?v=${version}`;
-                    return `'${moduleUrl.href}'`;
-                }
-            );
+        const fallbackModulePaths = {
+            'modals': './modals-fixed.js',
+            'nova-venda': './nova-venda-fixed-v36.js',
+            'aba-visao-geral': './aba-visao-geral-fixed.js',
+            'aba-clientes': './aba-clientes-fixed.js',
+            'aba-taxas': './aba-taxas.js'
+        };
+
+        const freshModules = [
+            'modals', 'auth-admin', 'nova-venda', 'aba-visao-geral',
+            'aba-vendas-prazo', 'aba-vendas-caixa', 'aba-produtos', 'aba-clientes',
+            'aba-taxas', 'payment-settings', 'utils'
+        ];
+
+        const applyOptionalAppPatches = (source) => {
+            let patched = source;
 
             const productSortingMarker = `    const sortedProducts = useMemo(() => {
         const list = [...products].sort((a, b) => a.code.localeCompare(b.code));
         if (!productSearch) return list;
         return list.filter(p => p.name.toLowerCase().includes(productSearch.toLowerCase()) || p.code.includes(productSearch));
     }, [products, productSearch]);`;
-
-            if (!appSource.includes(productSortingMarker)) {
-                throw new Error('Não foi possível aplicar a nova organização da lista de produtos.');
-            }
 
             const productSortingByStock = `    const sortedProducts = useMemo(() => {
         const compareProducts = (a, b) => {
@@ -121,20 +115,63 @@
         return list.filter(p => String(p.name || '').toLowerCase().includes(search) || String(p.code || '').includes(productSearch));
     }, [products, productSearch]);`;
 
-            appSource = appSource.replace(productSortingMarker, productSortingByStock);
+            if (patched.includes(productSortingMarker)) {
+                patched = patched.replace(productSortingMarker, productSortingByStock);
+            } else {
+                const productSortingPattern = /    const sortedProducts = useMemo\(\(\) => \{[\s\S]*?    \}, \[products, productSearch\]\);/;
+                if (productSortingPattern.test(patched)) {
+                    patched = patched.replace(productSortingPattern, productSortingByStock);
+                } else {
+                    console.warn('Ordenação preferencial por estoque não pôde ser aplicada; mantendo ordenação original.');
+                }
+            }
 
-            appSource = appSource.replace(
+            patched = patched.replace(
                 "title: installmentListModal.type === 'overdue' ? 'Parcelas em atraso' : 'Vencendo em 7 dias'",
                 "title: installmentListModal.type === 'overdue' ? 'Parcelas em atraso' : installmentListModal.type === 'today' ? 'Parcelas vencendo hoje' : 'Parcelas a vencer nos próximos 7 dias'"
             );
 
-            const appBlobUrl = URL.createObjectURL(new Blob([appSource], { type: 'text/javascript' }));
+            return patched;
+        };
+
+        const rewriteModuleImports = (source, modulePaths) => source.replace(
+            /(['"])(\.\/[^'"]+?\.js)(?:\?[^'"]*)?\1/g,
+            (match, quote, modulePath) => {
+                const moduleName = modulePath.split('/').pop().replace(/\.js$/, '');
+                const resolvedModulePath = modulePaths[moduleName] || modulePath;
+                const moduleUrl = new URL(resolvedModulePath, location.href);
+                if (freshModules.includes(moduleName)) moduleUrl.search = `?v=${version}`;
+                return `'${moduleUrl.href}'`;
+            }
+        );
+
+        const importAppSource = async (source) => {
+            const appBlobUrl = URL.createObjectURL(new Blob([source], { type: 'text/javascript' }));
             try {
                 await import(appBlobUrl);
-                await import('./tab-persistence.js?v=39');
             } finally {
                 URL.revokeObjectURL(appBlobUrl);
             }
+        };
+
+        try {
+            await clearPreviousRuntimeCaches();
+
+            const appResponse = await fetch(`./app.js?v=${version}`, { cache: 'no-store' });
+            if (!appResponse.ok) throw new Error(`Falha ao carregar app.js (${appResponse.status})`);
+            const rawAppSource = await appResponse.text();
+            const optionalPatchedSource = applyOptionalAppPatches(rawAppSource);
+
+            try {
+                const primarySource = rewriteModuleImports(optionalPatchedSource, primaryModulePaths);
+                await importAppSource(primarySource);
+            } catch (primaryError) {
+                console.error('Falha ao carregar melhorias mais recentes. Tentando configuração estável.', primaryError);
+                const fallbackSource = rewriteModuleImports(optionalPatchedSource, fallbackModulePaths);
+                await importAppSource(fallbackSource);
+            }
+
+            await import(`./tab-persistence.js?v=${version}`);
         } catch (error) {
             showStartupError(error);
         }
