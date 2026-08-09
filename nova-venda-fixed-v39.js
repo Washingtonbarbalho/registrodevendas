@@ -1,4 +1,4 @@
-const VERSION = '39';
+const VERSION = '40';
 
 const loadStableFallback = async () => {
     const fallbackUrl = new URL(`./nova-venda-fixed-v36.js?v=${VERSION}`, location.href).href;
@@ -105,7 +105,7 @@ try {
         URL.revokeObjectURL(wrapperUrl);
     }
 } catch (error) {
-    console.error('Falha na versão 39 do formulário. Carregando versão estável anterior.', error);
+    console.error('Falha na implementação nova do formulário. Carregando versão estável anterior.', error);
     finalModule = await loadStableFallback();
 }
 
