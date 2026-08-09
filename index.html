@@ -55,15 +55,24 @@
             const cleanupKey = `registro-vendas-cleanup-v${version}`;
             if (sessionStorage.getItem(cleanupKey) === 'ok') return;
 
-            if ('serviceWorker' in navigator) {
-                const registrations = await navigator.serviceWorker.getRegistrations();
-                await Promise.all(registrations.map(registration => registration.unregister()));
+            try {
+                if ('serviceWorker' in navigator) {
+                    const registrations = await navigator.serviceWorker.getRegistrations();
+                    await Promise.all(registrations.map(registration => registration.unregister()));
+                }
+                if ('caches' in window) {
+                    const cacheNames = await caches.keys();
+                    await Promise.all(cacheNames.map(cacheName => caches.delete(cacheName)));
+                }
+            } catch (cleanupError) {
+                console.warn('A limpeza de cache não foi concluída, mas o sistema continuará carregando.', cleanupError);
             }
-            if ('caches' in window) {
-                const cacheNames = await caches.keys();
-                await Promise.all(cacheNames.map(cacheName => caches.delete(cacheName)));
+
+            try {
+                sessionStorage.setItem(cleanupKey, 'ok');
+            } catch (storageError) {
+                console.warn('Não foi possível registrar a limpeza de cache.', storageError);
             }
-            sessionStorage.setItem(cleanupKey, 'ok');
 
             if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
                 location.reload();
@@ -80,10 +89,10 @@
         };
 
         const fallbackModulePaths = {
-            'modals': './modals-fixed.js',
+            'modals': './modals.js',
             'nova-venda': './nova-venda-fixed-v36.js',
-            'aba-visao-geral': './aba-visao-geral-fixed.js',
-            'aba-clientes': './aba-clientes-fixed.js',
+            'aba-visao-geral': './aba-visao-geral.js',
+            'aba-clientes': './aba-clientes.js',
             'aba-taxas': './aba-taxas.js'
         };
 
@@ -171,7 +180,11 @@
                 await importAppSource(fallbackSource);
             }
 
-            await import(`./tab-persistence.js?v=${version}`);
+            try {
+                await import(`./tab-persistence.js?v=${version}`);
+            } catch (persistenceError) {
+                console.warn('A persistência da aba não carregou; o sistema continuará funcionando.', persistenceError);
+            }
         } catch (error) {
             showStartupError(error);
         }
