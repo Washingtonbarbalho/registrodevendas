@@ -10,6 +10,11 @@ const DEFAULT_CARD_CREDIT_RATES = {
 
 const EMPTY_CARNET_RATES = Array.from({ length: CARD_INSTALLMENT_LIMIT + 1 }, () => 0);
 
+export const CARD_CALCULATION_FORMULAS = Object.freeze({
+    INFINITEPAY: 'infinitepay',
+    SALE_TOTAL: 'sale_total'
+});
+
 export const DEFAULT_TERM_ENTRY_RULES = Object.freeze({
     firstPurchaseCostEntry: {
         enabled: false
@@ -21,9 +26,11 @@ export const DEFAULT_TERM_ENTRY_RULES = Object.freeze({
 });
 
 export const DEFAULT_PAYMENT_SETTINGS = Object.freeze({
-    version: 2,
+    version: 3,
     card: {
         machineName: 'Tabela padrão',
+        calculationFormula: CARD_CALCULATION_FORMULAS.INFINITEPAY,
+        transactionFeePercent: 0,
         presencial: {
             debito: {
                 visa_master: 1.37,
@@ -75,6 +82,10 @@ const normalizeRateArray = (values, defaults) => {
     });
 };
 
+const normalizeCardFormula = value => value === CARD_CALCULATION_FORMULAS.SALE_TOTAL
+    ? CARD_CALCULATION_FORMULAS.SALE_TOTAL
+    : CARD_CALCULATION_FORMULAS.INFINITEPAY;
+
 export const normalizePaymentSettings = (settings = {}) => {
     const source = settings && typeof settings === 'object' ? settings : {};
     const card = source.card && typeof source.card === 'object' ? source.card : {};
@@ -99,9 +110,11 @@ export const normalizePaymentSettings = (settings = {}) => {
         : {};
 
     return {
-        version: 2,
+        version: 3,
         card: {
             machineName: String(card.machineName || DEFAULT_PAYMENT_SETTINGS.card.machineName).trim().slice(0, 80) || DEFAULT_PAYMENT_SETTINGS.card.machineName,
+            calculationFormula: normalizeCardFormula(card.calculationFormula),
+            transactionFeePercent: parseRatePercent(card.transactionFeePercent, DEFAULT_PAYMENT_SETTINGS.card.transactionFeePercent),
             presencial: {
                 debito: {
                     visa_master: parseRatePercent(presencialDebit.visa_master, DEFAULT_PAYMENT_SETTINGS.card.presencial.debito.visa_master),
@@ -162,6 +175,62 @@ export const getCardRate = (settings, { mode, method, brand, installments }) => 
     return safeMethod === 'debit'
         ? normalized.card.presencial.debito[safeBrand]
         : normalized.card.presencial.credito[safeBrand][count];
+};
+
+export const getCardCalculationConfig = settings => {
+    const normalized = normalizePaymentSettings(settings);
+    return {
+        formula: normalized.card.calculationFormula,
+        transactionFeePercent: normalized.card.transactionFeePercent
+    };
+};
+
+export const calculateCardPayment = ({
+    baseAmount = 0,
+    installmentRate = 0,
+    transactionRate = 0,
+    formula = CARD_CALCULATION_FORMULAS.INFINITEPAY,
+    passFeesToCustomer = false
+} = {}) => {
+    const safeBase = Math.max(0, Number(baseAmount) || 0);
+    const installmentPercent = parseRatePercent(installmentRate, 0);
+    const transactionPercent = parseRatePercent(transactionRate, 0);
+    const installmentFraction = Math.min(0.999999, installmentPercent / 100);
+    const transactionFraction = transactionPercent / 100;
+    const safeFormula = normalizeCardFormula(formula);
+    const transactionFeeValue = safeBase * transactionFraction;
+
+    let grossAmount = safeBase;
+    let installmentFeeValue = safeBase * installmentFraction;
+
+    if (passFeesToCustomer) {
+        if (safeFormula === CARD_CALCULATION_FORMULAS.INFINITEPAY) {
+            const desiredBeforeInstallmentFee = safeBase + transactionFeeValue;
+            grossAmount = desiredBeforeInstallmentFee / (1 - installmentFraction);
+            installmentFeeValue = grossAmount * installmentFraction;
+        } else {
+            installmentFeeValue = safeBase * installmentFraction;
+            grossAmount = safeBase + transactionFeeValue + installmentFeeValue;
+        }
+    }
+
+    const totalFeeValue = transactionFeeValue + installmentFeeValue;
+    const netAmount = Math.max(0, grossAmount - totalFeeValue);
+    const customerSurchargeValue = Math.max(0, grossAmount - safeBase);
+
+    return {
+        formula: safeFormula,
+        baseAmount: safeBase,
+        grossAmount,
+        netAmount,
+        installmentRate: installmentPercent,
+        installmentFeeValue,
+        transactionRate: transactionPercent,
+        transactionFeeValue,
+        totalFeeValue,
+        customerSurchargeValue,
+        passFeesToCustomer: passFeesToCustomer === true
+    };
 };
 
 export const getCarnetRate = (settings, frequency, installments) => {
