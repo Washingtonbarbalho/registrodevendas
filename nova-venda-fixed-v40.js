@@ -1,4 +1,4 @@
-const VERSION = '41';
+const VERSION = '42';
 
 const nativeFetch = globalThis.fetch;
 
@@ -39,9 +39,7 @@ const newCardFinancialBlock = `    const isCardPayment = saleType === 'direct' &
         : isCardPayment
             ? entryValue + cardAmountCharged
             : totalCartValue;
-    const netAmountToCompany = isCardPayment
-        ? entryValue + cardNetAmount
-        : totalCustomerPays;`;
+    const netAmountToCompany = totalCustomerPays - currentFeeValue;`;
 
 const oldDirectCardBlock = `        } else {
             let finalSalePrice = totalCartValue;
