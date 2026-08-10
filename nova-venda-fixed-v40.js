@@ -1,4 +1,4 @@
-const VERSION = '40';
+const VERSION = '41';
 
 const nativeFetch = globalThis.fetch;
 
@@ -15,16 +15,24 @@ const newCardFinancialBlock = `    const isCardPayment = saleType === 'direct' &
     const cardFeeFraction = isCardPayment
         ? Math.min(0.999999, Math.max(0, currentFeePercent / 100))
         : 0;
-    const cardFormulaGrossAmount = isCardPayment && cardFeeFraction > 0
-        ? totalRemaining / (1 - cardFeeFraction)
-        : totalRemaining;
-    const cardAmountCharged = isCardPayment && feeType === 'com_juros'
-        ? cardFormulaGrossAmount
-        : totalRemaining;
-    const currentFeeValue = isCardPayment
+    const cardBaseAmount = isCardPayment ? totalRemaining : 0;
+    const cardGrossUpAmount = isCardPayment && cardFeeFraction > 0
+        ? cardBaseAmount / (1 - cardFeeFraction)
+        : cardBaseAmount;
+    const customerPassedFeeValue = isCardPayment && feeType === 'com_juros'
+        ? Math.max(0, cardGrossUpAmount - cardBaseAmount)
+        : 0;
+    const storeAbsorbedFeeValue = isCardPayment && feeType === 'sem_juros'
+        ? Math.max(0, cardBaseAmount * cardFeeFraction)
+        : 0;
+    const currentFeeValue = customerPassedFeeValue + storeAbsorbedFeeValue;
+    const cardAmountCharged = isCardPayment
+        ? cardBaseAmount + customerPassedFeeValue
+        : 0;
+    const cardNetAmount = isCardPayment
         ? (feeType === 'com_juros'
-            ? Math.max(0, cardFormulaGrossAmount - totalRemaining)
-            : Math.max(0, totalRemaining * cardFeeFraction))
+            ? cardBaseAmount
+            : Math.max(0, cardBaseAmount - storeAbsorbedFeeValue))
         : 0;
     const totalCustomerPays = saleType === 'prazo'
         ? totalCartValue + carnetInterestValue
@@ -32,7 +40,7 @@ const newCardFinancialBlock = `    const isCardPayment = saleType === 'direct' &
             ? entryValue + cardAmountCharged
             : totalCartValue;
     const netAmountToCompany = isCardPayment
-        ? entryValue + Math.max(0, cardAmountCharged - currentFeeValue)
+        ? entryValue + cardNetAmount
         : totalCustomerPays;`;
 
 const oldDirectCardBlock = `        } else {
@@ -82,16 +90,14 @@ const newDirectCardBlock = `        } else {
             let finalSalePrice = totalCartValue;
             let feeObj = null;
             let feeVal = 0;
+            let finalCardNetAmount = 0;
 
             if (directMethod === 'credit' || directMethod === 'debit') {
                 const feeP = currentFeePercent;
                 feeVal = currentFeeValue;
-                if (feeType === 'com_juros') {
-                    finalSalePrice = entryValue + cardFormulaGrossAmount;
-                }
+                finalSalePrice = entryValue + cardAmountCharged;
+                finalCardNetAmount = cardNetAmount;
 
-                const grossCardAmount = cardAmountCharged;
-                const netCardAmount = Math.max(0, grossCardAmount - feeVal);
                 feeObj = {
                     applied: feeP > 0,
                     percent: feeP,
@@ -100,19 +106,21 @@ const newDirectCardBlock = `        } else {
                     mode: cardMode,
                     brand: cardBrand,
                     rateTableName: normalizedPaymentSettings.card.machineName,
-                    baseAmount: totalRemaining,
-                    grossCardAmount,
-                    calculatedGrossAmount: feeType === 'com_juros' ? cardFormulaGrossAmount : null,
-                    feeBaseAmount: grossCardAmount,
-                    netCardAmount,
+                    baseAmount: cardBaseAmount,
+                    grossCardAmount: cardAmountCharged,
+                    calculatedGrossAmount: feeType === 'com_juros' ? cardGrossUpAmount : null,
+                    customerPassedFeeValue,
+                    storeAbsorbedFeeValue,
+                    feeBaseAmount: cardBaseAmount,
+                    netCardAmount: finalCardNetAmount,
                     calculationFormula: feeType === 'com_juros'
                         ? 'valor_liquido_dividido_por_um_menos_taxa'
-                        : 'percentual_sobre_valor_passado_no_cartao'
+                        : 'valor_passado_multiplicado_por_um_menos_taxa'
                 };
             }
 
             const netReceived = isCardPayment
-                ? entryValue + Math.max(0, cardAmountCharged - feeVal)
+                ? entryValue + finalCardNetAmount
                 : finalSalePrice;
 
             saleData = { 
