@@ -117,7 +117,6 @@ const FormModal = ({ open, kind, onClose, onSave }) => {
   if (!open) return null;
   const title = kind === 'movement' ? 'Nova movimentação' : kind === 'receivable' ? 'Nova conta a receber' : 'Nova conta a pagar';
   const dateLabel = kind === 'movement' ? 'Data da movimentação' : 'Vencimento';
-
   const submit = async () => {
     const parsed = parseMoney(value);
     if (!description.trim()) return alert('Informe a descrição.');
@@ -379,8 +378,7 @@ export const AbaFinanceiro = ({ userId, sales = [], products = [], onOpenSale })
                   h('button', { onClick: () => deleteManual('account', item.id), className: 'finance44-icon-action is-danger', title: 'Excluir' }, h(Trash2, { size: 16 }))
                 )
             )
-          )))
-    ),
+          ))),
     h(FormModal, { open: !!modalKind, kind: modalKind, onClose: () => setModalKind(null), onSave: saveManual })
   );
 };
