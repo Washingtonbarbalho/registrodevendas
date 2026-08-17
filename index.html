@@ -18,20 +18,21 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="./styles.css?v=46">
-    <link rel="stylesheet" href="./modals-theme.css?v=46">
-    <link rel="stylesheet" href="./ui-refinements.css?v=46">
-    <link rel="stylesheet" href="./final-tweaks.css?v=46">
-    <link rel="stylesheet" href="./v21-improvements.css?v=46">
-    <link rel="stylesheet" href="./v23-fixes.css?v=46">
-    <link rel="stylesheet" href="./v25-fixes.css?v=46">
-    <link rel="stylesheet" href="./v26-fixes.css?v=46">
-    <link rel="stylesheet" href="./v27-fixes.css?v=46">
-    <link rel="stylesheet" href="./v29-entry-rules.css?v=46">
-    <link rel="stylesheet" href="./v30-entry-rule-visibility.css?v=46">
-    <link rel="stylesheet" href="./v31-dashboard.css?v=46">
-    <link rel="stylesheet" href="./v44-financeiro.css?v=46">
-    <link rel="stylesheet" href="./v46-financeiro.css?v=46">
+    <link rel="stylesheet" href="./styles.css?v=47">
+    <link rel="stylesheet" href="./modals-theme.css?v=47">
+    <link rel="stylesheet" href="./ui-refinements.css?v=47">
+    <link rel="stylesheet" href="./final-tweaks.css?v=47">
+    <link rel="stylesheet" href="./v21-improvements.css?v=47">
+    <link rel="stylesheet" href="./v23-fixes.css?v=47">
+    <link rel="stylesheet" href="./v25-fixes.css?v=47">
+    <link rel="stylesheet" href="./v26-fixes.css?v=47">
+    <link rel="stylesheet" href="./v27-fixes.css?v=47">
+    <link rel="stylesheet" href="./v29-entry-rules.css?v=47">
+    <link rel="stylesheet" href="./v30-entry-rule-visibility.css?v=47">
+    <link rel="stylesheet" href="./v31-dashboard.css?v=47">
+    <link rel="stylesheet" href="./v44-financeiro.css?v=47">
+    <link rel="stylesheet" href="./v46-financeiro.css?v=47">
+    <link rel="stylesheet" href="./v47-cancelamentos.css?v=47">
 </head>
 <body>
     <div id="root"></div>
@@ -53,7 +54,7 @@
         };
 
         try {
-            const cleanupKey = 'registro-vendas-cleanup-v46';
+            const cleanupKey = 'registro-vendas-cleanup-v47';
             if (sessionStorage.getItem(cleanupKey) !== 'ok') {
                 if ('serviceWorker' in navigator) {
                     const registrations = await navigator.serviceWorker.getRegistrations();
@@ -71,11 +72,18 @@
                 }
             }
 
-            const version = '46';
+            const version = '47';
             const appResponse = await fetch(`./app.js?v=${version}`, { cache: 'no-store' });
             if (!appResponse.ok) throw new Error(`Falha ao carregar app.js (${appResponse.status})`);
 
             let appSource = await appResponse.text();
+
+            const replaceAppBlock = (startMarker, endMarker, replacement, label) => {
+                const start = appSource.indexOf(startMarker);
+                const end = appSource.indexOf(endMarker, start + startMarker.length);
+                if (start < 0 || end < 0) throw new Error(`Não foi possível preparar ${label}.`);
+                appSource = appSource.slice(0, start) + replacement + '\n\n' + appSource.slice(end);
+            };
 
             const iconImportMarker = "import { Users, User, LogOut, Lock, LayoutDashboard, Receipt, WalletCards, Package, Contact, Store, ShieldCheck, BadgePercent } from 'https://esm.sh/lucide-react@0.292.0';";
             const financeImportMarker = "import { AbaTaxas } from './aba-taxas.js';";
@@ -95,6 +103,9 @@
         };`;
             const privateProfileMarker = "        const { paymentSettings: ignoredSettings, paymentSettingsUpdatedAt: ignoredSettingsDate, ...profileData } = updatedData;";
             const publicProfileMarker = "                        const { paymentSettings: ignoredSettings, paymentSettingsUpdatedAt: ignoredSettingsDate, ...publicProfile } = profileSnap.data();";
+            const cancelStateMarker = "    const [cancelModal, setCancelModal] = useState({ open: false, saleId: null, reason: '' });";
+            const cancelOpenMarker = "onCancelSale: saleId => setCancelModal({ open: true, saleId, reason: '' })";
+            const cancelRenderMarker = "        React.createElement(ConfirmModal, { isOpen: cancelModal.open, title: \"Cancelar venda?\", message: \"Esta ação irá devolver os produtos ao estoque e invalidar os pagamentos.\", isCancel: true, reasonValue: cancelModal.reason, onReasonChange: value => setCancelModal(previous => ({...previous, reason: value})), onClose: () => setCancelModal({ open: false, saleId: null, reason: '' }), onConfirm: confirmCancelSale }),";
 
             if (!appSource.includes(iconImportMarker) || !appSource.includes(financeImportMarker) || !appSource.includes(financeNavMarker) || !appSource.includes(financeRenderMarker)) {
                 throw new Error('Não foi possível integrar a aba Financeiro.');
@@ -108,6 +119,9 @@
             if (!appSource.includes(privateProfileMarker) || !appSource.includes(publicProfileMarker)) {
                 throw new Error('Não foi possível proteger os dados privados do Financeiro.');
             }
+            if (!appSource.includes(cancelStateMarker) || !appSource.includes(cancelOpenMarker) || !appSource.includes(cancelRenderMarker)) {
+                throw new Error('Não foi possível preparar o novo cancelamento de vendas.');
+            }
 
             appSource = appSource.replace(
                 iconImportMarker,
@@ -115,7 +129,7 @@
             );
             appSource = appSource.replace(
                 financeImportMarker,
-                financeImportMarker + "\nimport { AbaFinanceiro } from './aba-financeiro.js';"
+                financeImportMarker + "\nimport { AbaFinanceiro } from './aba-financeiro.js';\nimport { SaleCancellationModal } from './sale-cancellation-modal-v47.js';"
             );
             appSource = appSource.replace(
                 financeNavMarker,
@@ -166,16 +180,146 @@ import { StockMovementModal } from './stock-movement-modal-v44.js';`
                 "                        const { paymentSettings: ignoredSettings, paymentSettingsUpdatedAt: ignoredSettingsDate, financialData: ignoredFinancialData, financialUpdatedAt: ignoredFinancialDate, ...publicProfile } = profileSnap.data();"
             );
 
+            appSource = appSource.replace(cancelStateMarker, "    const [cancelModal, setCancelModal] = useState({ open: false, saleId: null });");
+            appSource = appSource.replace(cancelOpenMarker, "onCancelSale: saleId => setCancelModal({ open: true, saleId })");
+
+            replaceAppBlock(
+                '    const handleCancelSaleLogic = async (saleId, reason) => {',
+                '    const requestDelete = (type, id) =>',
+                String.raw`    const confirmCancelSale = async (payload) => {
+        const sale = sales.find(s => s.id === cancelModal.saleId);
+        if (!sale) return;
+
+        const roundMoney = value => Math.round(((Number(value) || 0) + Number.EPSILON) * 100) / 100;
+        const historyAmount = item => {
+            if (!item || item.type === 'abatement') return 0;
+            return roundMoney((Number(item.amount) || 0) + (item.type === 'full_surplus' ? (Number(item.surplus) || 0) : 0));
+        };
+        const receivedCash = (() => {
+            if (sale.saleType === 'direct') {
+                if (sale.netReceived !== undefined && sale.netReceived !== null && sale.netReceived !== '') return roundMoney(sale.netReceived);
+                return roundMoney(sale.totalPrice);
+            }
+            let total = Number(sale.entryAmount) || 0;
+            (sale.installments || []).forEach(inst => {
+                const history = Array.isArray(inst.history) ? inst.history : [];
+                if (history.length) history.forEach(item => { total += historyAmount(item); });
+                else if (inst.paid && inst.paidAt) total += Number(inst.originalAmount || inst.amount) || 0;
+            });
+            return roundMoney(total);
+        })();
+
+        const items = Array.isArray(sale.items) ? sale.items : [];
+        const requested = new Map((payload.items || []).map(row => [Number(row.index), Math.max(0, parseInt(row.quantity, 10) || 0)]));
+        const selected = items.map((item, index) => {
+            const available = Math.max(0, parseInt(item.quantity, 10) || 0);
+            const quantity = Math.min(available, requested.get(index) || 0);
+            return { index, item, available, quantity };
+        }).filter(row => row.quantity > 0);
+        if (!selected.length) throw new Error('Nenhum produto foi selecionado para cancelamento.');
+
+        const activeGoodsValue = items.reduce((sum, item) => sum + (Number(item.price) || 0) * (parseInt(item.quantity, 10) || 0), 0);
+        const selectedGoodsValue = selected.reduce((sum, row) => sum + (Number(row.item.price) || 0) * row.quantity, 0);
+        const activeQuantity = items.reduce((sum, item) => sum + Math.max(0, parseInt(item.quantity, 10) || 0), 0);
+        const selectedQuantity = selected.reduce((sum, row) => sum + row.quantity, 0);
+        const fraction = Math.min(1, Math.max(0, activeGoodsValue > 0 ? selectedGoodsValue / activeGoodsValue : activeQuantity > 0 ? selectedQuantity / activeQuantity : 1));
+        const allItemsSelected = selectedQuantity >= activeQuantity;
+        const isTotal = payload.mode === 'total' || allItemsSelected;
+        const priorRefunds = (sale.cancellations || []).reduce((sum, event) => sum + (Number(event.refundAmount) || 0), 0);
+        const effectiveReceived = Math.max(0, receivedCash - priorRefunds);
+        const refundAmount = isTotal ? roundMoney(effectiveReceived) : roundMoney(effectiveReceived * fraction);
+        const canceledContractValue = isTotal ? roundMoney(sale.totalPrice) : roundMoney((Number(sale.totalPrice) || 0) * fraction);
+
+        const cancellationEvent = {
+            id: 'sale-cancel-' + Date.now(),
+            type: isTotal ? 'total' : 'partial',
+            date: payload.date,
+            reason: payload.reason,
+            fraction,
+            canceledContractValue,
+            refundAmount,
+            items: selected.map(row => ({
+                productId: row.item.productId || null,
+                productName: row.item.productName || row.item.name || 'Produto',
+                quantity: row.quantity,
+                unitPrice: Number(row.item.price) || 0,
+                amount: roundMoney((Number(row.item.price) || 0) * row.quantity)
+            })),
+            createdAt: new Date().toISOString()
+        };
+
+        const updateData = {
+            cancellations: [...(sale.cancellations || []), cancellationEvent],
+            lastCancellationAt: payload.date,
+            lastCancellationReason: payload.reason
+        };
+
+        if (isTotal) {
+            updateData.status = 'canceled';
+            updateData.cancelReason = payload.reason;
+            updateData.canceledAt = serverTimestamp();
+        } else {
+            const selectedByIndex = new Map(selected.map(row => [row.index, row.quantity]));
+            updateData.items = items.map((item, index) => ({
+                ...item,
+                quantity: Math.max(0, (parseInt(item.quantity, 10) || 0) - (selectedByIndex.get(index) || 0))
+            })).filter(item => (parseInt(item.quantity, 10) || 0) > 0);
+            updateData.totalPrice = roundMoney((Number(sale.totalPrice) || 0) * (1 - fraction));
+            updateData.totalCost = roundMoney((Number(sale.totalCost) || 0) * (1 - fraction));
+            if (Array.isArray(sale.installments)) {
+                updateData.installments = sale.installments.map(inst => inst.paid ? inst : {
+                    ...inst,
+                    amount: roundMoney((Number(inst.amount) || 0) * (1 - fraction))
+                });
+                const allPaid = updateData.installments.every(inst => inst.paid || (Number(inst.amount) || 0) <= 0);
+                updateData.status = allPaid ? 'completed' : 'active';
+            }
+            updateData.partiallyCanceled = true;
+        }
+
+        await updateDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'sales', sale.id), updateData);
+
+        for (const row of selected) {
+            if (!row.item.productId) continue;
+            const prodRef = doc(db, 'artifacts', APP_ID, 'users', user.uid, 'products', row.item.productId);
+            try {
+                const prodSnap = await getDoc(prodRef);
+                if (prodSnap.exists()) {
+                    const currentQty = parseInt(prodSnap.data().quantity, 10) || 0;
+                    await updateDoc(prodRef, { quantity: currentQty + row.quantity });
+                }
+            } catch (error) {
+                console.error('Erro ao restaurar estoque do cancelamento:', error);
+            }
+        }
+
+        setCancelModal({ open: false, saleId: null });
+        setSelectedSaleDetail(null);
+    };`,
+                'o cancelamento total e parcial das vendas'
+            );
+
+            appSource = appSource.replace(
+                cancelRenderMarker,
+                `        React.createElement(SaleCancellationModal, {
+            isOpen: cancelModal.open,
+            sale: cancelModal.saleId ? sales.find(s => s.id === cancelModal.saleId) : null,
+            onClose: () => setCancelModal({ open: false, saleId: null }),
+            onConfirm: confirmCancelSale
+        }),`
+            );
+
             const freshModules = [
                 'modals', 'auth-admin', 'nova-venda', 'aba-visao-geral',
                 'aba-vendas-prazo', 'aba-vendas-caixa', 'aba-produtos', 'aba-clientes',
-                'aba-financeiro', 'stock-movement-modal-v44', 'aba-taxas', 'payment-settings', 'utils'
+                'aba-financeiro', 'sale-cancellation-modal-v47', 'stock-movement-modal-v44', 'aba-taxas', 'payment-settings', 'utils'
             ];
             const fixedModulePaths = {
                 'modals': './modals-fixed.js',
                 'nova-venda': './nova-venda-fixed-v40.js',
                 'aba-visao-geral': './aba-visao-geral-fixed.js',
-                'aba-clientes': './aba-clientes-fixed.js'
+                'aba-clientes': './aba-clientes-fixed.js',
+                'aba-financeiro': './aba-financeiro-loader-v47.js'
             };
 
             appSource = appSource.replace(
@@ -222,7 +366,7 @@ import { StockMovementModal } from './stock-movement-modal-v44.js';`
             const appBlobUrl = URL.createObjectURL(new Blob([appSource], { type: 'text/javascript' }));
             try {
                 await import(appBlobUrl);
-                await import('./tab-persistence.js?v=46');
+                await import('./tab-persistence.js?v=47');
             } finally {
                 URL.revokeObjectURL(appBlobUrl);
             }
