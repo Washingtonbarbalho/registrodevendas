@@ -18,19 +18,19 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="./styles.css?v=43">
-    <link rel="stylesheet" href="./modals-theme.css?v=43">
-    <link rel="stylesheet" href="./ui-refinements.css?v=43">
-    <link rel="stylesheet" href="./final-tweaks.css?v=43">
-    <link rel="stylesheet" href="./v21-improvements.css?v=43">
-    <link rel="stylesheet" href="./v23-fixes.css?v=43">
-    <link rel="stylesheet" href="./v25-fixes.css?v=43">
-    <link rel="stylesheet" href="./v26-fixes.css?v=43">
-    <link rel="stylesheet" href="./v27-fixes.css?v=43">
-    <link rel="stylesheet" href="./v29-entry-rules.css?v=43">
-    <link rel="stylesheet" href="./v30-entry-rule-visibility.css?v=43">
-    <link rel="stylesheet" href="./v31-dashboard.css?v=43">
-    <link rel="stylesheet" href="./v43-financeiro.css?v=43">
+    <link rel="stylesheet" href="./styles.css?v=44">
+    <link rel="stylesheet" href="./modals-theme.css?v=44">
+    <link rel="stylesheet" href="./ui-refinements.css?v=44">
+    <link rel="stylesheet" href="./final-tweaks.css?v=44">
+    <link rel="stylesheet" href="./v21-improvements.css?v=44">
+    <link rel="stylesheet" href="./v23-fixes.css?v=44">
+    <link rel="stylesheet" href="./v25-fixes.css?v=44">
+    <link rel="stylesheet" href="./v26-fixes.css?v=44">
+    <link rel="stylesheet" href="./v27-fixes.css?v=44">
+    <link rel="stylesheet" href="./v29-entry-rules.css?v=44">
+    <link rel="stylesheet" href="./v30-entry-rule-visibility.css?v=44">
+    <link rel="stylesheet" href="./v31-dashboard.css?v=44">
+    <link rel="stylesheet" href="./v44-financeiro.css?v=44">
 </head>
 <body>
     <div id="root"></div>
@@ -52,7 +52,7 @@
         };
 
         try {
-            const cleanupKey = 'registro-vendas-cleanup-v43';
+            const cleanupKey = 'registro-vendas-cleanup-v44';
             if (sessionStorage.getItem(cleanupKey) !== 'ok') {
                 if ('serviceWorker' in navigator) {
                     const registrations = await navigator.serviceWorker.getRegistrations();
@@ -70,7 +70,7 @@
                 }
             }
 
-            const version = '43';
+            const version = '44';
             const appResponse = await fetch(`./app.js?v=${version}`, { cache: 'no-store' });
             if (!appResponse.ok) throw new Error(`Falha ao carregar app.js (${appResponse.status})`);
 
@@ -80,18 +80,32 @@
             const financeImportMarker = "import { AbaTaxas } from './aba-taxas.js';";
             const financeNavMarker = "        { id: 'rates', label: 'Taxas e juros', shortLabel: 'Taxas', icon: BadgePercent }";
             const financeRenderMarker = "                    : React.createElement(AbaTaxas, {";
+            const stockModalImportMarker = `    ConfirmModal, WhatsAppChooserModal, ProductModal, StockMovementModal
+} from './modals.js?v=4';`;
+            const movementMarker = `        const newMovement = {
+            id: Date.now().toString(),
+            type: movType,
+            quantity: movQty,
+            unitCost: isEntry && movType === 'compra' ? movCost : 0,
+            date: new Date().toISOString(),
+            previousQty: currentQty,
+            newQty: newQty,
+            notes: movementInfo.notes || ''
+        };`;
+            const privateProfileMarker = "        const { paymentSettings: ignoredSettings, paymentSettingsUpdatedAt: ignoredSettingsDate, ...profileData } = updatedData;";
+            const publicProfileMarker = "                        const { paymentSettings: ignoredSettings, paymentSettingsUpdatedAt: ignoredSettingsDate, ...publicProfile } = profileSnap.data();";
 
-            if (!appSource.includes(iconImportMarker)) {
-                throw new Error('Não foi possível preparar o ícone da aba Financeiro.');
+            if (!appSource.includes(iconImportMarker) || !appSource.includes(financeImportMarker) || !appSource.includes(financeNavMarker) || !appSource.includes(financeRenderMarker)) {
+                throw new Error('Não foi possível integrar a aba Financeiro.');
             }
-            if (!appSource.includes(financeImportMarker)) {
-                throw new Error('Não foi possível integrar o módulo Financeiro.');
+            if (!appSource.includes(stockModalImportMarker)) {
+                throw new Error('Não foi possível integrar a forma de pagamento das compras de estoque.');
             }
-            if (!appSource.includes(financeNavMarker)) {
-                throw new Error('Não foi possível adicionar a aba Financeiro à navegação.');
+            if (!appSource.includes(movementMarker)) {
+                throw new Error('Não foi possível registrar os dados financeiros da compra de mercadoria.');
             }
-            if (!appSource.includes(financeRenderMarker)) {
-                throw new Error('Não foi possível abrir a aba Financeiro.');
+            if (!appSource.includes(privateProfileMarker) || !appSource.includes(publicProfileMarker)) {
+                throw new Error('Não foi possível proteger os dados privados do Financeiro.');
             }
 
             appSource = appSource.replace(
@@ -116,11 +130,45 @@
                     })
                     : React.createElement(AbaTaxas, {`
             );
+            appSource = appSource.replace(
+                stockModalImportMarker,
+                `    ConfirmModal, WhatsAppChooserModal, ProductModal
+} from './modals.js?v=4';
+import { StockMovementModal } from './stock-movement-modal-v44.js';`
+            );
+            appSource = appSource.replace(
+                movementMarker,
+                `        const movementDate = new Date().toISOString();
+        const purchasePaymentMethod = movType === 'compra' ? (movementInfo.paymentMethod || 'pix') : null;
+        const purchaseDeferred = movType === 'compra' && (purchasePaymentMethod === 'credit' || purchasePaymentMethod === 'term');
+        const newMovement = {
+            id: Date.now().toString(),
+            type: movType,
+            quantity: movQty,
+            unitCost: isEntry && movType === 'compra' ? movCost : 0,
+            date: movementDate,
+            previousQty: currentQty,
+            newQty: newQty,
+            notes: movementInfo.notes || '',
+            paymentMethod: purchasePaymentMethod,
+            paymentDueDate: purchaseDeferred ? (movementInfo.paymentDueDate || null) : null,
+            financialPaid: movType === 'compra' ? !purchaseDeferred : null,
+            financialPaidAt: movType === 'compra' && !purchaseDeferred ? movementDate.split('T')[0] : null
+        };`
+            );
+            appSource = appSource.replace(
+                privateProfileMarker,
+                "        const { paymentSettings: ignoredSettings, paymentSettingsUpdatedAt: ignoredSettingsDate, financialData: ignoredFinancialData, financialUpdatedAt: ignoredFinancialDate, ...profileData } = updatedData;"
+            );
+            appSource = appSource.replace(
+                publicProfileMarker,
+                "                        const { paymentSettings: ignoredSettings, paymentSettingsUpdatedAt: ignoredSettingsDate, financialData: ignoredFinancialData, financialUpdatedAt: ignoredFinancialDate, ...publicProfile } = profileSnap.data();"
+            );
 
             const freshModules = [
                 'modals', 'auth-admin', 'nova-venda', 'aba-visao-geral',
                 'aba-vendas-prazo', 'aba-vendas-caixa', 'aba-produtos', 'aba-clientes',
-                'aba-financeiro', 'aba-taxas', 'payment-settings', 'utils'
+                'aba-financeiro', 'stock-movement-modal-v44', 'aba-taxas', 'payment-settings', 'utils'
             ];
             const fixedModulePaths = {
                 'modals': './modals-fixed.js',
@@ -173,7 +221,7 @@
             const appBlobUrl = URL.createObjectURL(new Blob([appSource], { type: 'text/javascript' }));
             try {
                 await import(appBlobUrl);
-                await import('./tab-persistence.js?v=43');
+                await import('./tab-persistence.js?v=44');
             } finally {
                 URL.revokeObjectURL(appBlobUrl);
             }
