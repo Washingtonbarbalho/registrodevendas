@@ -56,7 +56,12 @@ const combineDateAndTime = (dateValue, timestampValue) => {
   }
   return datePart + 'T' + (timePart || '00:00:00');
 };
-const movementSortKey = item => item.dateTime || (item.date ? item.date + 'T00:00:00' : '');
+const movementSortKey = item => {
+  const raw = item.dateTime || (item.date ? item.date + 'T00:00:00' : '');
+  if (!raw) return 0;
+  const parsed = new Date(raw);
+  return Number.isNaN(parsed.getTime()) ? 0 : parsed.getTime();
+};
 const formatMovementDateTime = item => {
   const raw = item.dateTime;
   if (raw) {
@@ -154,7 +159,7 @@ replaceRequired(
 );
 replaceRequired(
 "    .sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id)), [automaticMovements, manualMovements, startDate, endDate, search]);",
-"    .sort((a, b) => movementSortKey(b).localeCompare(movementSortKey(a)) || b.id.localeCompare(a.id)), [automaticMovements, manualMovements, startDate, endDate, search]);",
+"    .sort((a, b) => movementSortKey(b) - movementSortKey(a) || b.id.localeCompare(a.id)), [automaticMovements, manualMovements, startDate, endDate, search]);",
 'a ordenação cronológica das movimentações'
 );
 replaceRequired(
