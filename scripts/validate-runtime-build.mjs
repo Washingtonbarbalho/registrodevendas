@@ -6,7 +6,7 @@ import { pathToFileURL } from 'node:url';
 
 const root = process.cwd();
 const activeModules = [
-  'bootstrap-v55.js',
+  'bootstrap-v56.js',
   'app-patch-setup-v52.js',
   'app-patch-stock-v52.js',
   'app-patch-cancel-v52.js',
@@ -21,6 +21,8 @@ const activeModules = [
   'modals-fixed-v52.js',
   'nova-venda-fixed-v55.js',
   'nova-venda-fixed-v55-core.js',
+  'nova-venda-fixed.js',
+  'nova-venda.js',
   'payment-settings.js',
   'utils.js',
   'components.js',
@@ -66,21 +68,35 @@ const generatedFile = join(tmpdir(), `registrodevendas-generated-${Date.now()}.m
 await writeFile(generatedFile, source, 'utf8');
 checkSyntax(generatedFile);
 
+const compatibilityLine = '    const netAmountToCompany = totalCustomerPays - currentFeeValue;';
 const baseSaleSource = await readFile(resolve(root, 'nova-venda.js'), 'utf8');
-const oldCardMarker = "    const netAmountToCompany = totalCustomerPays - currentFeeValue;";
-if (!baseSaleSource.includes(oldCardMarker)) {
+if (!baseSaleSource.includes(compatibilityLine)) {
   throw new Error('A base da Nova Venda mudou e precisa de revisão antes de publicar.');
 }
 
 const summaryWrapperSource = await readFile(resolve(root, 'nova-venda-fixed.js'), 'utf8');
-const compatibilityMarker = "const financialMarker = '    const netAmountToCompany = totalCustomerPays - currentFeeValue;';";
-if (!summaryWrapperSource.includes(compatibilityMarker)) {
+const summaryMarker = `const financialMarker = '${compatibilityLine}';`;
+if (!summaryWrapperSource.includes(summaryMarker)) {
   throw new Error('O construtor do resumo de pagamento mudou e precisa de revisão.');
 }
 
-const v55WrapperSource = await readFile(resolve(root, 'nova-venda-fixed-v55.js'), 'utf8');
-if (!v55WrapperSource.includes('financialMarkerMatch') || !v55WrapperSource.includes('nova-venda-fixed-v55-core.js')) {
-  throw new Error('A camada de compatibilidade da Nova Venda v55 está incompleta.');
+const cardCoreSource = await readFile(resolve(root, 'nova-venda-fixed-v55-core.js'), 'utf8');
+if (!cardCoreSource.includes(`const newCardFinancialBlock = \``) || !cardCoreSource.includes(compatibilityLine)) {
+  throw new Error('A fórmula do cartão deixou de preservar a linha exigida pelo resumo de pagamento.');
+}
+if (!cardCoreSource.includes('cardBaseAmount / (1 - cardFeeFraction)')) {
+  throw new Error('A fórmula de repasse da taxa ao cliente não está usando valor líquido dividido por 1 menos a taxa.');
+}
+if (!cardCoreSource.includes('cardBaseAmount * cardFeeFraction')) {
+  throw new Error('O cálculo da taxa assumida pela loja não está proporcional ao valor passado no cartão.');
+}
+if (!cardCoreSource.includes('saleDateTime: new Date().toISOString()')) {
+  throw new Error('O horário real das novas vendas não está sendo registrado.');
 }
 
-console.log(`Validação concluída: ${activeModules.length} módulos ativos + app.js final gerado + compatibilidade da Nova Venda sem erros de sintaxe.`);
+const saleBridgeSource = await readFile(resolve(root, 'nova-venda-fixed-v55.js'), 'utf8');
+if (!saleBridgeSource.includes("nova-venda-fixed-v55-core.js?v=56")) {
+  throw new Error('A Nova Venda não está apontando para o núcleo estável da v56.');
+}
+
+console.log(`Validação concluída: ${activeModules.length} módulos ativos + app.js final gerado + fórmula/cartão/resumo/horário compatíveis.`);
