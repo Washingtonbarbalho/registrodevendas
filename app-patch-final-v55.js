@@ -45,7 +45,7 @@ export const applyFinalPatches = source => {
     const moduleName = modulePath.split('/').pop().replace(/\.js$/, '');
     const resolved = fixedPaths[moduleName] || modulePath;
     const url = new URL(resolved, location.href);
-    if (freshModules.has(moduleName) || resolved.includes('v52') || resolved.includes('v54') || resolved.includes('v55')) url.search = '?v=55';
+    if (freshModules.has(moduleName) || resolved.includes('v52') || resolved.includes('v54') || resolved.includes('v55')) url.search = '?v=56';
     return `'${url.href}'`;
   });
 
