@@ -1,0 +1,1 @@
+.mobile-bottom-nav{grid-template-columns:repeat(8,minmax(0,1fr))}.mobile-nav-button{min-width:0}.mobile-nav-button span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}@media(max-width:420px){.mobile-bottom-nav{left:5px;right:5px;padding:5px}.mobile-nav-button{font-size:7px;gap:2px}.mobile-nav-button svg{width:17px;height:17px}}
