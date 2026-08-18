@@ -19,7 +19,7 @@ const activeModules = [
   'aba-vendas-caixa-v52.js',
   'aba-vendas-prazo-v52.js',
   'aba-clientes-fixed-v52.js',
-  'modals-fixed-v52.js',
+  'modals-fixed-v58.js',
   'nova-venda-fixed-v55.js',
   'nova-venda-fixed-v55-core.js',
   'payment-settings.js',
@@ -103,6 +103,11 @@ for (const marker of [
 const cancellationModal = await readFile(resolve(root, 'sale-cancellation-modal-v58.js'), 'utf8');
 for (const marker of ['Estorno ao cliente', 'Impacto líquido da loja', 'Lucro referente ao cancelamento']) {
   if (!cancellationModal.includes(marker)) throw new Error(`Resumo do cancelamento incompleto: ${marker}`);
+}
+
+const detailsModal = await readFile(resolve(root, 'modals-fixed-v58.js'), 'utf8');
+for (const marker of ['Estorno ao cliente', 'Impacto líquido da loja', 'Lucro cancelado']) {
+  if (!detailsModal.includes(marker)) throw new Error(`Detalhe da venda incompleto: ${marker}`);
 }
 
 const financeSource = await readFile(resolve(root, 'aba-financeiro-v54.js'), 'utf8');
