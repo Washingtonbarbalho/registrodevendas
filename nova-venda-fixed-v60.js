@@ -53,6 +53,15 @@ try {
     }
     templateSource = templateSource.replace("const VERSION = '59';", `const VERSION = '${VERSION}';`);
 
+    // Como a base v59 será executada a partir de um Blob, o import interno
+    // precisa ser absoluto para não depender da resolução de URLs do Blob.
+    const internalImportMarker = "finalModule = await import(`./nova-venda-fixed-v36.js?v=${VERSION}`);";
+    const internalImportReplacement = "finalModule = await import(new URL('./nova-venda-fixed-v36.js?v=' + VERSION, location.href).href);";
+    if (!templateSource.includes(internalImportMarker)) {
+        throw new Error('Não foi possível estabilizar o carregamento interno da Nova Venda.');
+    }
+    templateSource = templateSource.replace(internalImportMarker, internalImportReplacement);
+
     // Na v59 as Observações eram inseridas exatamente no fechamento da seção
     // Pagamento. Isso destruía o marcador utilizado pelo resumo. Na v60 o campo
     // passa a ficar dentro da própria seção de Pagamento, logo após o cabeçalho,
