@@ -4,14 +4,6 @@ const replaceRequired = (source, marker, replacement, label) => {
 };
 
 export const applyReportsPatch = source => {
-  const iconImport = "import { Users, User, LogOut, Lock, LayoutDashboard, Receipt, WalletCards, Package, Contact, Store, ShieldCheck, BadgePercent, Banknote } from 'https://esm.sh/lucide-react@0.292.0';";
-  source = replaceRequired(
-    source,
-    iconImport,
-    "import { Users, User, LogOut, Lock, LayoutDashboard, Receipt, WalletCards, Package, Contact, Store, ShieldCheck, BadgePercent, Banknote, FileBarChart } from 'https://esm.sh/lucide-react@0.292.0';",
-    'o ícone dos Relatórios'
-  );
-
   const financeImport = "import { AbaFinanceiro } from './aba-financeiro-v54.js';";
   source = replaceRequired(
     source,
@@ -24,7 +16,7 @@ export const applyReportsPatch = source => {
   source = replaceRequired(
     source,
     ratesNav,
-    "        { id: 'reports', label: 'Relatórios', shortLabel: 'Relat.', icon: FileBarChart },\n" + ratesNav,
+    "        { id: 'reports', label: 'Relatórios', shortLabel: 'Relat.', icon: LayoutDashboard },\n" + ratesNav,
     'a navegação dos Relatórios'
   );
 
