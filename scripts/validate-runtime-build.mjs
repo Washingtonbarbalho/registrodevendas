@@ -6,12 +6,12 @@ import { pathToFileURL } from 'node:url';
 
 const root = process.cwd();
 const activeModules = [
-  'bootstrap-v59.js',
+  'bootstrap-v60.js',
   'app-patch-setup-v59.js',
   'app-patch-stock-v52.js',
   'app-patch-cancel-v59.js',
   'app-patch-profit-v58.js',
-  'app-patch-final-v59.js',
+  'app-patch-final-v60.js',
   'app.js',
   'aba-financeiro-v54.js',
   'stock-movement-modal-v52.js',
@@ -19,7 +19,9 @@ const activeModules = [
   'aba-vendas-prazo-v52.js',
   'aba-clientes-fixed-v52.js',
   'modals-fixed-v59.js',
+  'nova-venda-fixed-v60.js',
   'nova-venda-fixed-v59.js',
+  'nova-venda-fixed.js',
   'payment-settings.js',
   'utils.js',
   'components.js',
@@ -52,7 +54,7 @@ const { applySetupPatches } = await importFresh('app-patch-setup-v59.js');
 const { applyStockPatch } = await importFresh('app-patch-stock-v52.js');
 const { applyCancelPatch } = await importFresh('app-patch-cancel-v59.js');
 const { applyProfitPatch } = await importFresh('app-patch-profit-v58.js');
-const { applyFinalPatches } = await importFresh('app-patch-final-v59.js');
+const { applyFinalPatches } = await importFresh('app-patch-final-v60.js');
 
 let source = await readFile(resolve(root, 'app.js'), 'utf8');
 source = applySetupPatches(source);
@@ -71,18 +73,49 @@ if (source.includes('SaleCancellationModal')) {
 if (!source.includes('React.createElement(ConfirmModal, { isOpen: cancelModal.open, title: "Cancelar venda?"')) {
   throw new Error('O cancelamento total simples não está ligado ao modal padrão.');
 }
+if (!source.includes('nova-venda-fixed-v60.js')) {
+  throw new Error('A aplicação final não está apontando para a Nova Venda v60.');
+}
 
-const newSaleSource = await readFile(resolve(root, 'nova-venda-fixed-v59.js'), 'utf8');
+const legacyNewSale = await readFile(resolve(root, 'nova-venda-fixed-v59.js'), 'utf8');
 for (const marker of [
   'cardBaseAmount / (1 - cardFeeFraction)',
   'cardBaseAmount * cardFeeFraction',
   'const netAmountToCompany = totalCustomerPays - currentFeeValue;',
   'saleDateTime: new Date().toISOString()',
   "const [saleNotes, setSaleNotes] = useState('');",
-  'notes: saleNotes.trim()',
-  '4. Observações'
+  'notes: saleNotes.trim()'
 ]) {
-  if (!newSaleSource.includes(marker)) throw new Error(`Proteção da Nova Venda ausente: ${marker}`);
+  if (!legacyNewSale.includes(marker)) throw new Error(`Proteção herdada da Nova Venda ausente: ${marker}`);
+}
+
+const stableNewSale = await readFile(resolve(root, 'nova-venda-fixed-v60.js'), 'utf8');
+for (const marker of [
+  "mode === 'prazo' && React.createElement('div', { className: \\\"space-y-4 animate-fade-in\\\" },",
+  'Observações (Opcional)',
+  'hasPaymentSectionEndMarker',
+  'Resumo do pagamento não inserido porque a estrutura visual da seção foi alterada.',
+  "./nova-venda-fixed-v59.js?v=${VERSION}"
+]) {
+  if (!stableNewSale.includes(marker)) throw new Error(`Proteção da Nova Venda v60 ausente: ${marker}`);
+}
+
+const brokenPaymentTail = `React.createElement('div', { className: \"sale-bottom-bar fixed bottom-0 w-full p-4 z-40\" },`;
+const v60NotesStart = stableNewSale.indexOf('Observações (Opcional)');
+const v60PaymentStart = stableNewSale.indexOf("mode === 'prazo' && React.createElement('div', { className: \\\"space-y-4 animate-fade-in\\\" },");
+if (v60NotesStart < 0 || v60PaymentStart < 0) {
+  throw new Error('Não foi possível validar a nova posição das observações.');
+}
+if (stableNewSale.includes('"4. Observações"')) {
+  throw new Error('As observações ainda estão sendo injetadas como seção posterior ao Pagamento.');
+}
+
+const baseWrapper = await readFile(resolve(root, 'nova-venda-fixed.js'), 'utf8');
+if (!baseWrapper.includes('paymentSectionEndMarker') || !baseWrapper.includes('Não foi possível localizar o final da seção de pagamento.')) {
+  throw new Error('O contrato legado do resumo de pagamento mudou sem atualização da proteção v60.');
+}
+if (!stableNewSale.includes("pathname.endsWith('/nova-venda-fixed.js')")) {
+  throw new Error('A proteção do resumo de pagamento não intercepta o wrapper legado.');
 }
 
 const cancelPatch = await readFile(resolve(root, 'app-patch-cancel-v59.js'), 'utf8');
@@ -98,7 +131,7 @@ for (const marker of [
   if (!cancelPatch.includes(marker)) throw new Error(`Proteção do cancelamento total ausente: ${marker}`);
 }
 if (cancelPatch.includes('payload.mode') || cancelPatch.includes("type: 'partial'")) {
-  throw new Error('Foi encontrado um caminho de novo cancelamento parcial na v59.');
+  throw new Error('Foi encontrado um caminho de novo cancelamento parcial.');
 }
 
 const profitPatch = await readFile(resolve(root, 'app-patch-profit-v58.js'), 'utf8');
@@ -121,4 +154,4 @@ if (!financeSource.includes('event.refundAmount')) {
   throw new Error('O Financeiro deixou de considerar o estorno do cancelamento.');
 }
 
-console.log(`Validação concluída: ${activeModules.length} módulos ativos + app final + cartão + cancelamento total + observações sem erros de sintaxe.`);
+console.log(`Validação concluída: ${activeModules.length} módulos ativos + app final + Nova Venda v60 + cancelamento total + observações sem conflito estrutural.`);
