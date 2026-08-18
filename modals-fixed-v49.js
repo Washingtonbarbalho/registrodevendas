@@ -88,42 +88,38 @@ if (historyStartIndex < 0 || historyEndIndex < 0) throw new Error('Não foi poss
 const newCombinedHistory = `    const combinedHistory = useMemo(() => {
         const history = [];
         if (!product) return history;
-
         if (Array.isArray(product.movements)) {
             product.movements.forEach(movement => {
                 const quantity = toNumber(movement.quantity);
-                history.push({
-                    id: movement.id,
-                    date: movement.date,
-                    type: movement.type,
-                    qty: quantity,
-                    isEntry: ['compra', 'ajuste_entrada', 'devolucao'].includes(movement.type),
-                    totalValue: quantity * toNumber(movement.unitCost),
-                    notes: movement.notes
-                });
+                history.push({ id: movement.id, date: movement.date, type: movement.type, qty: quantity, isEntry: ['compra', 'ajuste_entrada', 'devolucao'].includes(movement.type), totalValue: quantity * toNumber(movement.unitCost), notes: movement.notes });
             });
         }
-
         if (Array.isArray(salesHistory)) {
             salesHistory.forEach(sale => {
                 const itemMatch = sale.items?.find(item => item.productId === product.id);
-                if (itemMatch) {
-                    const quantity = toNumber(itemMatch.quantity);
-                    const storedLineTotal = toNumber(itemMatch.price);
-                    const storedUnitPrice = toNumber(itemMatch.unitPrice);
-                    const lineTotal = storedLineTotal > 0 ? storedLineTotal : quantity * (storedUnitPrice || toNumber(product.salePrice));
+                const cancellationEvents = Array.isArray(sale.cancellations) ? sale.cancellations : [];
+                const partialItems = cancellationEvents
+                    .filter(event => event.type === 'partial')
+                    .flatMap(event => (event.items || []).filter(cancelItem => cancelItem.productId === product.id));
+                const partialQuantity = partialItems.reduce((sum, cancelItem) => sum + toNumber(cancelItem.quantity), 0);
+                const partialValue = partialItems.reduce((sum, cancelItem) => sum + (toNumber(cancelItem.amount) || toNumber(cancelItem.quantity) * toNumber(cancelItem.unitPrice)), 0);
+                const activeQuantity = itemMatch ? toNumber(itemMatch.quantity) : 0;
+                const activeLineTotal = itemMatch ? (toNumber(itemMatch.price) || activeQuantity * (toNumber(itemMatch.unitPrice) || toNumber(product.salePrice))) : 0;
+                const originalQuantity = activeQuantity + partialQuantity;
+                const originalLineTotal = activeLineTotal + partialValue;
+
+                if (originalQuantity > 0) {
                     history.push({
                         id: 'sale-' + sale.id,
                         date: sale.saleDateTime || (sale.saleDate + 'T12:00:00.000Z'),
                         type: 'venda',
-                        qty: quantity,
+                        qty: originalQuantity,
                         isEntry: false,
-                        totalValue: lineTotal,
+                        totalValue: originalLineTotal,
                         notes: 'Venda p/ ' + (sale.customerName?.split(' ')[0] || 'cliente')
                     });
                 }
 
-                const cancellationEvents = Array.isArray(sale.cancellations) ? sale.cancellations : [];
                 let detailedCancellationFound = false;
                 cancellationEvents.forEach((event, eventIndex) => {
                     (event.items || []).filter(cancelItem => cancelItem.productId === product.id).forEach((cancelItem, itemIndex) => {
@@ -144,25 +140,15 @@ const newCombinedHistory = `    const combinedHistory = useMemo(() => {
                 if (!detailedCancellationFound && sale.status === 'canceled' && itemMatch) {
                     const quantity = toNumber(itemMatch.quantity);
                     const lineTotal = toNumber(itemMatch.price) || quantity * (toNumber(itemMatch.unitPrice) || toNumber(product.salePrice));
-                    history.push({
-                        id: 'cancel-' + sale.id,
-                        date: getCanceledDate(sale),
-                        type: 'cancelamento',
-                        qty: quantity,
-                        isEntry: true,
-                        totalValue: lineTotal,
-                        notes: 'Venda Cancelada'
-                    });
+                    history.push({ id: 'cancel-' + sale.id, date: getCanceledDate(sale), type: 'cancelamento', qty: quantity, isEntry: true, totalValue: lineTotal, notes: 'Venda Cancelada' });
                 }
             });
         }
-
         return history.sort((a, b) => new Date(b.date) - new Date(a.date));
     }, [product, salesHistory]);
 
 `;
 wrapperSource = wrapperSource.slice(0, historyStartIndex) + newCombinedHistory + wrapperSource.slice(historyEndIndex);
-
 wrapperSource = wrapperSource.replace(/from\s+(['"])(\.\/[^'"]+)\1/g, (match, quote, modulePath) => {
   const moduleUrl = new URL(modulePath, location.href);
   moduleUrl.searchParams.set('v', VERSION);
@@ -181,18 +167,10 @@ globalThis.fetch = async (input, init) => {
 const blob = new Blob([wrapperSource], { type: 'text/javascript' });
 const url = URL.createObjectURL(blob);
 let finalModule;
-try {
-  finalModule = await import(url);
-} finally {
-  globalThis.fetch = nativeFetch;
-  URL.revokeObjectURL(url);
-}
-
+try { finalModule = await import(url); }
+finally { globalThis.fetch = nativeFetch; URL.revokeObjectURL(url); }
 const required = ['UserProfileModal','CustomerFormModal','EditInstallmentModal','SaleDetailsModal','PixCodeModal','InstallmentListModal','PaymentConfirmationModal','ConfirmModal','WhatsAppChooserModal','ProductModal','StockMovementModal','ProductDetailsModal'];
-for (const key of required) {
-  if (typeof finalModule?.[key] !== 'function') throw new Error('O modal ' + key + ' não foi exportado corretamente.');
-}
-
+for (const key of required) { if (typeof finalModule?.[key] !== 'function') throw new Error('O modal ' + key + ' não foi exportado corretamente.'); }
 export const UserProfileModal = finalModule.UserProfileModal;
 export const CustomerFormModal = finalModule.CustomerFormModal;
 export const EditInstallmentModal = finalModule.EditInstallmentModal;
