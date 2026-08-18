@@ -37,7 +37,7 @@ export const applyFinalPatches = source => {
   };
   const freshModules = new Set([
     'modals','auth-admin','nova-venda','aba-visao-geral','aba-vendas-prazo','aba-vendas-caixa',
-    'aba-produtos','aba-clientes','aba-financeiro-v52','sale-cancellation-modal-v49',
+    'aba-produtos','aba-clientes','aba-financeiro-v54','sale-cancellation-modal-v52',
     'stock-movement-modal-v52','aba-taxas','payment-settings','utils'
   ]);
 
@@ -45,7 +45,7 @@ export const applyFinalPatches = source => {
     const moduleName = modulePath.split('/').pop().replace(/\.js$/, '');
     const resolved = fixedPaths[moduleName] || modulePath;
     const url = new URL(resolved, location.href);
-    if (freshModules.has(moduleName) || resolved.includes('v52')) url.search = '?v=53';
+    if (freshModules.has(moduleName) || resolved.includes('v52') || resolved.includes('v54')) url.search = '?v=54';
     return `'${url.href}'`;
   });
 
