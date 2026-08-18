@@ -15,19 +15,34 @@ jobs:
         with:
           node-version: '20'
       - name: Validar sintaxe do módulo ativo
-        run: node --check aba-relatorios-v63.js
-      - name: Impedir imports frágeis do Lucide nos relatórios
+        run: node --check aba-relatorios-v64.js
+      - name: Impedir dependência frágil de ícones externos
         run: |
-          if grep -q "lucide-react" aba-relatorios-v63.js; then
+          if grep -q "lucide-react" aba-relatorios-v64.js; then
             echo "A aba Relatórios não deve depender de imports do Lucide."
             exit 1
           fi
-          if grep -q "ReceiptText" aba-relatorios-v63.js aba-relatorios-v62.js; then
-            echo "ReceiptText voltou à cadeia ativa dos Relatórios."
+          grep -q "const ICON_PATHS" aba-relatorios-v64.js
+          grep -q "const ReportIcon" aba-relatorios-v64.js
+      - name: Validar tabela real no PDF
+        run: |
+          grep -q "const drawPdfTable" aba-relatorios-v64.js
+          grep -q "drawHeader();" aba-relatorios-v64.js
+          grep -q "pdf.rect(x, y, widths\[index\], headerHeight, 'FD')" aba-relatorios-v64.js
+          grep -q "pdf.rect(x, y, widths\[columnIndex\], rowHeight, 'FD')" aba-relatorios-v64.js
+          if grep -q "pieces.join('  |  ')" aba-relatorios-v64.js; then
+            echo "O detalhamento do PDF voltou ao formato textual antigo."
             exit 1
           fi
+      - name: Validar interface simplificada
+        run: |
+          if grep -q "reports62-guide" aba-relatorios-v64.js; then
+            echo "O bloco explicativo do topo voltou à aba Relatórios."
+            exit 1
+          fi
+          grep -q "h('h1', { className: 'page-title' }, 'Relatórios')" aba-relatorios-v64.js
       - name: Validar ponte e bootstrap ativos
         run: |
-          grep -q "aba-relatorios-v63.js" aba-relatorios-v62.js
-          grep -q "aba-relatorios-v63.js?v=63" bootstrap-v63.js
-          grep -q "bootstrap-v63.js?v=63" index.html
+          grep -q "aba-relatorios-v64.js?v=64" aba-relatorios-v63.js
+          grep -q "aba-relatorios-v64.js?v=64" bootstrap-v64.js
+          grep -q "bootstrap-v64.js?v=64" index.html
