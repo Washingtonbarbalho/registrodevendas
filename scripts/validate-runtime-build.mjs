@@ -6,22 +6,20 @@ import { pathToFileURL } from 'node:url';
 
 const root = process.cwd();
 const activeModules = [
-  'bootstrap-v58.js',
-  'app-patch-setup-v58.js',
+  'bootstrap-v59.js',
+  'app-patch-setup-v59.js',
   'app-patch-stock-v52.js',
-  'app-patch-cancel-v58.js',
+  'app-patch-cancel-v59.js',
   'app-patch-profit-v58.js',
-  'app-patch-final-v58.js',
+  'app-patch-final-v59.js',
   'app.js',
   'aba-financeiro-v54.js',
   'stock-movement-modal-v52.js',
-  'sale-cancellation-modal-v58.js',
   'aba-vendas-caixa-v52.js',
   'aba-vendas-prazo-v52.js',
   'aba-clientes-fixed-v52.js',
-  'modals-fixed-v58.js',
-  'nova-venda-fixed-v55.js',
-  'nova-venda-fixed-v55-core.js',
+  'modals-fixed-v59.js',
+  'nova-venda-fixed-v59.js',
   'payment-settings.js',
   'utils.js',
   'components.js',
@@ -50,11 +48,11 @@ const importFresh = async relativeFile => {
   return import(url.href);
 };
 
-const { applySetupPatches } = await importFresh('app-patch-setup-v58.js');
+const { applySetupPatches } = await importFresh('app-patch-setup-v59.js');
 const { applyStockPatch } = await importFresh('app-patch-stock-v52.js');
-const { applyCancelPatch } = await importFresh('app-patch-cancel-v58.js');
+const { applyCancelPatch } = await importFresh('app-patch-cancel-v59.js');
 const { applyProfitPatch } = await importFresh('app-patch-profit-v58.js');
-const { applyFinalPatches } = await importFresh('app-patch-final-v58.js');
+const { applyFinalPatches } = await importFresh('app-patch-final-v59.js');
 
 let source = await readFile(resolve(root, 'app.js'), 'utf8');
 source = applySetupPatches(source);
@@ -67,27 +65,40 @@ const generatedFile = join(tmpdir(), `registrodevendas-generated-${Date.now()}.m
 await writeFile(generatedFile, source, 'utf8');
 checkSyntax(generatedFile);
 
-const cardCore = await readFile(resolve(root, 'nova-venda-fixed-v55-core.js'), 'utf8');
+if (source.includes('SaleCancellationModal')) {
+  throw new Error('O fluxo de cancelamento parcial ainda está ligado à aplicação final.');
+}
+if (!source.includes('React.createElement(ConfirmModal, { isOpen: cancelModal.open, title: "Cancelar venda?"')) {
+  throw new Error('O cancelamento total simples não está ligado ao modal padrão.');
+}
+
+const newSaleSource = await readFile(resolve(root, 'nova-venda-fixed-v59.js'), 'utf8');
 for (const marker of [
   'cardBaseAmount / (1 - cardFeeFraction)',
   'cardBaseAmount * cardFeeFraction',
   'const netAmountToCompany = totalCustomerPays - currentFeeValue;',
-  'saleDateTime: new Date().toISOString()'
+  'saleDateTime: new Date().toISOString()',
+  "const [saleNotes, setSaleNotes] = useState('');",
+  'notes: saleNotes.trim()',
+  '4. Observações'
 ]) {
-  if (!cardCore.includes(marker)) throw new Error(`Proteção da Nova Venda ausente: ${marker}`);
+  if (!newSaleSource.includes(marker)) throw new Error(`Proteção da Nova Venda ausente: ${marker}`);
 }
 
-const cancelPatch = await readFile(resolve(root, 'app-patch-cancel-v58.js'), 'utf8');
+const cancelPatch = await readFile(resolve(root, 'app-patch-cancel-v59.js'), 'utf8');
 for (const marker of [
+  "type: 'total'",
   'customerRefundAmount',
   'storeImpactAmount',
   'refundAmount: storeImpactAmount',
   'canceledCostAmount',
   'profitImpactAmount',
-  'customerPaidAmount',
-  'storeNetAmount'
+  'quantity: currentQty + row.quantity'
 ]) {
-  if (!cancelPatch.includes(marker)) throw new Error(`Proteção do cancelamento proporcional ausente: ${marker}`);
+  if (!cancelPatch.includes(marker)) throw new Error(`Proteção do cancelamento total ausente: ${marker}`);
+}
+if (cancelPatch.includes('payload.mode') || cancelPatch.includes("type: 'partial'")) {
+  throw new Error('Foi encontrado um caminho de novo cancelamento parcial na v59.');
 }
 
 const profitPatch = await readFile(resolve(root, 'app-patch-profit-v58.js'), 'utf8');
@@ -100,19 +111,14 @@ for (const marker of [
   if (!profitPatch.includes(marker)) throw new Error(`Proteção do lucro após cancelamento ausente: ${marker}`);
 }
 
-const cancellationModal = await readFile(resolve(root, 'sale-cancellation-modal-v58.js'), 'utf8');
-for (const marker of ['Estorno ao cliente', 'Impacto líquido da loja', 'Lucro referente ao cancelamento']) {
-  if (!cancellationModal.includes(marker)) throw new Error(`Resumo do cancelamento incompleto: ${marker}`);
-}
-
-const detailsModal = await readFile(resolve(root, 'modals-fixed-v58.js'), 'utf8');
-for (const marker of ['Estorno ao cliente', 'Impacto líquido da loja', 'Lucro cancelado']) {
-  if (!detailsModal.includes(marker)) throw new Error(`Detalhe da venda incompleto: ${marker}`);
+const detailsModal = await readFile(resolve(root, 'modals-fixed-v59.js'), 'utf8');
+if (!detailsModal.includes('sale.notes') || !detailsModal.includes('Observações da venda')) {
+  throw new Error('As observações da venda não estão disponíveis no detalhe da venda.');
 }
 
 const financeSource = await readFile(resolve(root, 'aba-financeiro-v54.js'), 'utf8');
 if (!financeSource.includes('event.refundAmount')) {
-  throw new Error('O Financeiro deixou de considerar o impacto líquido registrado no cancelamento.');
+  throw new Error('O Financeiro deixou de considerar o estorno do cancelamento.');
 }
 
-console.log(`Validação concluída: ${activeModules.length} módulos ativos + app final + cartão + estorno + lucro proporcional sem erros de sintaxe.`);
+console.log(`Validação concluída: ${activeModules.length} módulos ativos + app final + cartão + cancelamento total + observações sem erros de sintaxe.`);
