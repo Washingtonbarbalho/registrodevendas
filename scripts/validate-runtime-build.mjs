@@ -6,15 +6,16 @@ import { pathToFileURL } from 'node:url';
 
 const root = process.cwd();
 const activeModules = [
-  'bootstrap-v57.js',
-  'app-patch-setup-v57.js',
+  'bootstrap-v58.js',
+  'app-patch-setup-v58.js',
   'app-patch-stock-v52.js',
-  'app-patch-cancel-v57.js',
-  'app-patch-final-v57.js',
+  'app-patch-cancel-v58.js',
+  'app-patch-profit-v58.js',
+  'app-patch-final-v58.js',
   'app.js',
   'aba-financeiro-v54.js',
   'stock-movement-modal-v52.js',
-  'sale-cancellation-modal-v57.js',
+  'sale-cancellation-modal-v58.js',
   'aba-vendas-caixa-v52.js',
   'aba-vendas-prazo-v52.js',
   'aba-clientes-fixed-v52.js',
@@ -49,15 +50,17 @@ const importFresh = async relativeFile => {
   return import(url.href);
 };
 
-const { applySetupPatches } = await importFresh('app-patch-setup-v57.js');
+const { applySetupPatches } = await importFresh('app-patch-setup-v58.js');
 const { applyStockPatch } = await importFresh('app-patch-stock-v52.js');
-const { applyCancelPatch } = await importFresh('app-patch-cancel-v57.js');
-const { applyFinalPatches } = await importFresh('app-patch-final-v57.js');
+const { applyCancelPatch } = await importFresh('app-patch-cancel-v58.js');
+const { applyProfitPatch } = await importFresh('app-patch-profit-v58.js');
+const { applyFinalPatches } = await importFresh('app-patch-final-v58.js');
 
 let source = await readFile(resolve(root, 'app.js'), 'utf8');
 source = applySetupPatches(source);
 source = applyStockPatch(source);
 source = applyCancelPatch(source);
+source = applyProfitPatch(source);
 source = applyFinalPatches(source);
 
 const generatedFile = join(tmpdir(), `registrodevendas-generated-${Date.now()}.mjs`);
@@ -74,21 +77,32 @@ for (const marker of [
   if (!cardCore.includes(marker)) throw new Error(`Proteção da Nova Venda ausente: ${marker}`);
 }
 
-const cancelPatch = await readFile(resolve(root, 'app-patch-cancel-v57.js'), 'utf8');
+const cancelPatch = await readFile(resolve(root, 'app-patch-cancel-v58.js'), 'utf8');
 for (const marker of [
   'customerRefundAmount',
   'storeImpactAmount',
   'refundAmount: storeImpactAmount',
-  "feeResponsibility = isCardSale ? (sale.feeConfig?.type === 'com_juros' ? 'customer' : 'store') : null",
+  'canceledCostAmount',
+  'profitImpactAmount',
   'customerPaidAmount',
   'storeNetAmount'
 ]) {
   if (!cancelPatch.includes(marker)) throw new Error(`Proteção do cancelamento proporcional ausente: ${marker}`);
 }
 
-const cancellationModal = await readFile(resolve(root, 'sale-cancellation-modal-v57.js'), 'utf8');
-if (!cancellationModal.includes('Estorno ao cliente') || !cancellationModal.includes('Impacto líquido da loja')) {
-  throw new Error('O modal não diferencia o estorno ao cliente do impacto líquido da loja.');
+const profitPatch = await readFile(resolve(root, 'app-patch-profit-v58.js'), 'utf8');
+for (const marker of [
+  'getDirectProfitNetAmount',
+  'event?.storeImpactAmount ?? event?.refundAmount',
+  'realProfit += getDirectProfitNetAmount(s)',
+  'getDirectProfitNetAmount(s) - (s.totalCost || 0)'
+]) {
+  if (!profitPatch.includes(marker)) throw new Error(`Proteção do lucro após cancelamento ausente: ${marker}`);
+}
+
+const cancellationModal = await readFile(resolve(root, 'sale-cancellation-modal-v58.js'), 'utf8');
+for (const marker of ['Estorno ao cliente', 'Impacto líquido da loja', 'Lucro referente ao cancelamento']) {
+  if (!cancellationModal.includes(marker)) throw new Error(`Resumo do cancelamento incompleto: ${marker}`);
 }
 
 const financeSource = await readFile(resolve(root, 'aba-financeiro-v54.js'), 'utf8');
@@ -96,4 +110,4 @@ if (!financeSource.includes('event.refundAmount')) {
   throw new Error('O Financeiro deixou de considerar o impacto líquido registrado no cancelamento.');
 }
 
-console.log(`Validação concluída: ${activeModules.length} módulos ativos + app final + cartão + cancelamento proporcional sem erros de sintaxe.`);
+console.log(`Validação concluída: ${activeModules.length} módulos ativos + app final + cartão + estorno + lucro proporcional sem erros de sintaxe.`);
