@@ -18,21 +18,21 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="./styles.css?v=47">
-    <link rel="stylesheet" href="./modals-theme.css?v=47">
-    <link rel="stylesheet" href="./ui-refinements.css?v=47">
-    <link rel="stylesheet" href="./final-tweaks.css?v=47">
-    <link rel="stylesheet" href="./v21-improvements.css?v=47">
-    <link rel="stylesheet" href="./v23-fixes.css?v=47">
-    <link rel="stylesheet" href="./v25-fixes.css?v=47">
-    <link rel="stylesheet" href="./v26-fixes.css?v=47">
-    <link rel="stylesheet" href="./v27-fixes.css?v=47">
-    <link rel="stylesheet" href="./v29-entry-rules.css?v=47">
-    <link rel="stylesheet" href="./v30-entry-rule-visibility.css?v=47">
-    <link rel="stylesheet" href="./v31-dashboard.css?v=47">
-    <link rel="stylesheet" href="./v44-financeiro.css?v=47">
-    <link rel="stylesheet" href="./v46-financeiro.css?v=47">
-    <link rel="stylesheet" href="./v47-cancelamentos.css?v=47">
+    <link rel="stylesheet" href="./styles.css?v=49">
+    <link rel="stylesheet" href="./modals-theme.css?v=49">
+    <link rel="stylesheet" href="./ui-refinements.css?v=49">
+    <link rel="stylesheet" href="./final-tweaks.css?v=49">
+    <link rel="stylesheet" href="./v21-improvements.css?v=49">
+    <link rel="stylesheet" href="./v23-fixes.css?v=49">
+    <link rel="stylesheet" href="./v25-fixes.css?v=49">
+    <link rel="stylesheet" href="./v26-fixes.css?v=49">
+    <link rel="stylesheet" href="./v27-fixes.css?v=49">
+    <link rel="stylesheet" href="./v29-entry-rules.css?v=49">
+    <link rel="stylesheet" href="./v30-entry-rule-visibility.css?v=49">
+    <link rel="stylesheet" href="./v31-dashboard.css?v=49">
+    <link rel="stylesheet" href="./v44-financeiro.css?v=49">
+    <link rel="stylesheet" href="./v46-financeiro.css?v=49">
+    <link rel="stylesheet" href="./v47-cancelamentos.css?v=49">
 </head>
 <body>
     <div id="root"></div>
@@ -54,7 +54,7 @@
         };
 
         try {
-            const cleanupKey = 'registro-vendas-cleanup-v47';
+            const cleanupKey = 'registro-vendas-cleanup-v49';
             if (sessionStorage.getItem(cleanupKey) !== 'ok') {
                 if ('serviceWorker' in navigator) {
                     const registrations = await navigator.serviceWorker.getRegistrations();
@@ -72,7 +72,7 @@
                 }
             }
 
-            const version = '47';
+            const version = '49';
             const appResponse = await fetch(`./app.js?v=${version}`, { cache: 'no-store' });
             if (!appResponse.ok) throw new Error(`Falha ao carregar app.js (${appResponse.status})`);
 
@@ -110,18 +110,10 @@
             if (!appSource.includes(iconImportMarker) || !appSource.includes(financeImportMarker) || !appSource.includes(financeNavMarker) || !appSource.includes(financeRenderMarker)) {
                 throw new Error('Não foi possível integrar a aba Financeiro.');
             }
-            if (!appSource.includes(stockModalImportMarker)) {
-                throw new Error('Não foi possível integrar a forma de pagamento das compras de estoque.');
-            }
-            if (!appSource.includes(movementMarker)) {
-                throw new Error('Não foi possível registrar os dados financeiros da compra de mercadoria.');
-            }
-            if (!appSource.includes(privateProfileMarker) || !appSource.includes(publicProfileMarker)) {
-                throw new Error('Não foi possível proteger os dados privados do Financeiro.');
-            }
-            if (!appSource.includes(cancelStateMarker) || !appSource.includes(cancelOpenMarker) || !appSource.includes(cancelRenderMarker)) {
-                throw new Error('Não foi possível preparar o novo cancelamento de vendas.');
-            }
+            if (!appSource.includes(stockModalImportMarker)) throw new Error('Não foi possível integrar a forma de pagamento das compras de estoque.');
+            if (!appSource.includes(movementMarker)) throw new Error('Não foi possível registrar os dados financeiros da compra de mercadoria.');
+            if (!appSource.includes(privateProfileMarker) || !appSource.includes(publicProfileMarker)) throw new Error('Não foi possível proteger os dados privados do Financeiro.');
+            if (!appSource.includes(cancelStateMarker) || !appSource.includes(cancelOpenMarker) || !appSource.includes(cancelRenderMarker)) throw new Error('Não foi possível preparar o novo cancelamento de vendas.');
 
             appSource = appSource.replace(
                 iconImportMarker,
@@ -129,7 +121,7 @@
             );
             appSource = appSource.replace(
                 financeImportMarker,
-                financeImportMarker + "\nimport { AbaFinanceiro } from './aba-financeiro.js';\nimport { SaleCancellationModal } from './sale-cancellation-modal-v47.js';"
+                financeImportMarker + "\nimport { AbaFinanceiro } from './aba-financeiro.js';\nimport { SaleCancellationModal } from './sale-cancellation-modal-v49.js';"
             );
             appSource = appSource.replace(
                 financeNavMarker,
@@ -168,7 +160,8 @@ import { StockMovementModal } from './stock-movement-modal-v44.js';`
             paymentMethod: purchasePaymentMethod,
             paymentDueDate: purchaseDeferred ? (movementInfo.paymentDueDate || null) : null,
             financialPaid: movType === 'compra' ? !purchaseDeferred : null,
-            financialPaidAt: movType === 'compra' && !purchaseDeferred ? movementDate.split('T')[0] : null
+            financialPaidAt: movType === 'compra' && !purchaseDeferred ? movementDate.split('T')[0] : null,
+            financialPaidAtDateTime: movType === 'compra' && !purchaseDeferred ? movementDate : null
         };`
             );
             appSource = appSource.replace(
@@ -191,6 +184,18 @@ import { StockMovementModal } from './stock-movement-modal-v44.js';`
         if (!sale) return;
 
         const roundMoney = value => Math.round(((Number(value) || 0) + Number.EPSILON) * 100) / 100;
+        const getItemUnitPrice = item => {
+            const stored = Number(item?.unitPrice) || 0;
+            if (stored > 0) return stored;
+            const qty = Math.max(1, parseInt(item?.quantity, 10) || 1);
+            return roundMoney((Number(item?.price) || 0) / qty);
+        };
+        const getItemUnitCost = item => {
+            const stored = Number(item?.unitCost) || 0;
+            if (stored > 0) return stored;
+            const qty = Math.max(1, parseInt(item?.quantity, 10) || 1);
+            return roundMoney((Number(item?.cost) || 0) / qty);
+        };
         const historyAmount = item => {
             if (!item || item.type === 'abatement') return 0;
             return roundMoney((Number(item.amount) || 0) + (item.type === 'full_surplus' ? (Number(item.surplus) || 0) : 0));
@@ -214,12 +219,14 @@ import { StockMovementModal } from './stock-movement-modal-v44.js';`
         const selected = items.map((item, index) => {
             const available = Math.max(0, parseInt(item.quantity, 10) || 0);
             const quantity = Math.min(available, requested.get(index) || 0);
-            return { index, item, available, quantity };
+            const unitPrice = getItemUnitPrice(item);
+            const unitCost = getItemUnitCost(item);
+            return { index, item, available, quantity, unitPrice, unitCost };
         }).filter(row => row.quantity > 0);
         if (!selected.length) throw new Error('Nenhum produto foi selecionado para cancelamento.');
 
-        const activeGoodsValue = items.reduce((sum, item) => sum + (Number(item.price) || 0) * (parseInt(item.quantity, 10) || 0), 0);
-        const selectedGoodsValue = selected.reduce((sum, row) => sum + (Number(row.item.price) || 0) * row.quantity, 0);
+        const activeGoodsValue = items.reduce((sum, item) => sum + getItemUnitPrice(item) * (parseInt(item.quantity, 10) || 0), 0);
+        const selectedGoodsValue = selected.reduce((sum, row) => sum + row.unitPrice * row.quantity, 0);
         const activeQuantity = items.reduce((sum, item) => sum + Math.max(0, parseInt(item.quantity, 10) || 0), 0);
         const selectedQuantity = selected.reduce((sum, row) => sum + row.quantity, 0);
         const fraction = Math.min(1, Math.max(0, activeGoodsValue > 0 ? selectedGoodsValue / activeGoodsValue : activeQuantity > 0 ? selectedQuantity / activeQuantity : 1));
@@ -242,8 +249,8 @@ import { StockMovementModal } from './stock-movement-modal-v44.js';`
                 productId: row.item.productId || null,
                 productName: row.item.productName || row.item.name || 'Produto',
                 quantity: row.quantity,
-                unitPrice: Number(row.item.price) || 0,
-                amount: roundMoney((Number(row.item.price) || 0) * row.quantity)
+                unitPrice: row.unitPrice,
+                amount: roundMoney(row.unitPrice * row.quantity)
             })),
             createdAt: new Date().toISOString()
         };
@@ -260,12 +267,24 @@ import { StockMovementModal } from './stock-movement-modal-v44.js';`
             updateData.canceledAt = serverTimestamp();
         } else {
             const selectedByIndex = new Map(selected.map(row => [row.index, row.quantity]));
-            updateData.items = items.map((item, index) => ({
-                ...item,
-                quantity: Math.max(0, (parseInt(item.quantity, 10) || 0) - (selectedByIndex.get(index) || 0))
-            })).filter(item => (parseInt(item.quantity, 10) || 0) > 0);
+            updateData.items = items.map((item, index) => {
+                const oldQty = Math.max(0, parseInt(item.quantity, 10) || 0);
+                const newQty = Math.max(0, oldQty - (selectedByIndex.get(index) || 0));
+                const unitPrice = getItemUnitPrice(item);
+                const unitCost = getItemUnitCost(item);
+                return {
+                    ...item,
+                    quantity: newQty,
+                    price: roundMoney(unitPrice * newQty),
+                    cost: roundMoney(unitCost * newQty),
+                    unitPrice,
+                    unitCost
+                };
+            }).filter(item => (parseInt(item.quantity, 10) || 0) > 0);
+            updateData.productsTotal = roundMoney(updateData.items.reduce((sum, item) => sum + (Number(item.price) || 0), 0));
+            updateData.totalCost = roundMoney(updateData.items.reduce((sum, item) => sum + (Number(item.cost) || 0), 0));
+            updateData.totalDiscount = roundMoney(updateData.items.reduce((sum, item) => sum + (Number(item.unitDiscount) || 0) * (Number(item.quantity) || 0), 0));
             updateData.totalPrice = roundMoney((Number(sale.totalPrice) || 0) * (1 - fraction));
-            updateData.totalCost = roundMoney((Number(sale.totalCost) || 0) * (1 - fraction));
             if (Array.isArray(sale.installments)) {
                 updateData.installments = sale.installments.map(inst => inst.paid ? inst : {
                     ...inst,
@@ -312,14 +331,14 @@ import { StockMovementModal } from './stock-movement-modal-v44.js';`
             const freshModules = [
                 'modals', 'auth-admin', 'nova-venda', 'aba-visao-geral',
                 'aba-vendas-prazo', 'aba-vendas-caixa', 'aba-produtos', 'aba-clientes',
-                'aba-financeiro', 'sale-cancellation-modal-v47', 'stock-movement-modal-v44', 'aba-taxas', 'payment-settings', 'utils'
+                'aba-financeiro', 'sale-cancellation-modal-v49', 'stock-movement-modal-v44', 'aba-taxas', 'payment-settings', 'utils'
             ];
             const fixedModulePaths = {
-                'modals': './modals-fixed.js',
-                'nova-venda': './nova-venda-fixed-v40.js',
+                'modals': './modals-fixed-v49.js',
+                'nova-venda': './nova-venda-fixed-v49.js',
                 'aba-visao-geral': './aba-visao-geral-fixed.js',
                 'aba-clientes': './aba-clientes-fixed.js',
-                'aba-financeiro': './aba-financeiro-loader-v47.js'
+                'aba-financeiro': './aba-financeiro-loader-v49.js'
             };
 
             appSource = appSource.replace(
@@ -339,9 +358,7 @@ import { StockMovementModal } from './stock-movement-modal-v44.js';`
         return list.filter(p => p.name.toLowerCase().includes(productSearch.toLowerCase()) || p.code.includes(productSearch));
     }, [products, productSearch]);`;
 
-            if (!appSource.includes(productSortingMarker)) {
-                throw new Error('Não foi possível aplicar a nova organização da lista de produtos.');
-            }
+            if (!appSource.includes(productSortingMarker)) throw new Error('Não foi possível aplicar a nova organização da lista de produtos.');
 
             const productSortingByStock = `    const sortedProducts = useMemo(() => {
         const compareProducts = (a, b) => {
@@ -366,7 +383,7 @@ import { StockMovementModal } from './stock-movement-modal-v44.js';`
             const appBlobUrl = URL.createObjectURL(new Blob([appSource], { type: 'text/javascript' }));
             try {
                 await import(appBlobUrl);
-                await import('./tab-persistence.js?v=47');
+                await import('./tab-persistence.js?v=49');
             } finally {
                 URL.revokeObjectURL(appBlobUrl);
             }
