@@ -33,7 +33,7 @@ export const applyFinalPatches = source => {
     'aba-visao-geral': './aba-visao-geral-fixed.js',
     'aba-vendas-prazo': './aba-vendas-prazo-v52.js',
     'aba-vendas-caixa': './aba-vendas-caixa-v52.js',
-    'aba-clientes': './aba-clientes-fixed.js'
+    'aba-clientes': './aba-clientes-fixed-v52.js'
   };
   const freshModules = new Set([
     'modals','auth-admin','nova-venda','aba-visao-geral','aba-vendas-prazo','aba-vendas-caixa',
