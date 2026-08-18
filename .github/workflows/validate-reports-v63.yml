@@ -1,0 +1,33 @@
+name: Validar Relatórios
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate-reports:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Validar sintaxe do módulo ativo
+        run: node --check aba-relatorios-v63.js
+      - name: Impedir imports frágeis do Lucide nos relatórios
+        run: |
+          if grep -q "lucide-react" aba-relatorios-v63.js; then
+            echo "A aba Relatórios não deve depender de imports do Lucide."
+            exit 1
+          fi
+          if grep -q "ReceiptText" aba-relatorios-v63.js aba-relatorios-v62.js; then
+            echo "ReceiptText voltou à cadeia ativa dos Relatórios."
+            exit 1
+          fi
+      - name: Validar ponte e bootstrap ativos
+        run: |
+          grep -q "aba-relatorios-v63.js" aba-relatorios-v62.js
+          grep -q "aba-relatorios-v63.js?v=63" bootstrap-v63.js
+          grep -q "bootstrap-v63.js?v=63" index.html
