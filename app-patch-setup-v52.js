@@ -11,6 +11,7 @@ export const applySetupPatches = source => {
   const stockImport = `    ConfirmModal, WhatsAppChooserModal, ProductModal, StockMovementModal\n} from './modals.js?v=4';`;
   const privateProfile = "        const { paymentSettings: ignoredSettings, paymentSettingsUpdatedAt: ignoredSettingsDate, ...profileData } = updatedData;";
   const publicProfile = "        await updateDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'all_users', user.uid), profileData);";
+  const initialPublicProfile = "                        const { paymentSettings: ignoredSettings, paymentSettingsUpdatedAt: ignoredSettingsDate, ...publicProfile } = profileSnap.data();";
   const cancelState = "    const [cancelModal, setCancelModal] = useState({ open: false, saleId: null, reason: '' });";
   const cancelOpen = "onCancelSale: saleId => setCancelModal({ open: true, saleId, reason: '' })";
 
@@ -43,6 +44,9 @@ import { StockMovementModal } from './stock-movement-modal-v52.js';`,
     "        const { paymentSettings: ignoredSettings, paymentSettingsUpdatedAt: ignoredSettingsDate, financialData: ignoredFinancialData, financialUpdatedAt: ignoredFinancialDate, ...profileData } = updatedData;",
     'a privacidade dos dados financeiros');
   if (!source.includes(publicProfile)) throw new Error('Não foi possível validar o perfil público.');
+  source = replaceRequired(source, initialPublicProfile,
+    "                        const { paymentSettings: ignoredSettings, paymentSettingsUpdatedAt: ignoredSettingsDate, financialData: ignoredFinancialData, financialUpdatedAt: ignoredFinancialDate, ...publicProfile } = profileSnap.data();",
+    'a privacidade do perfil público inicial');
   source = replaceRequired(source, cancelState,
     "    const [cancelModal, setCancelModal] = useState({ open: false, saleId: null });",
     'o estado de cancelamento');
