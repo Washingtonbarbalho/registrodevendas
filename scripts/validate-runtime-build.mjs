@@ -22,6 +22,7 @@ const activeModules = [
   'nova-venda-fixed-v60.js',
   'nova-venda-fixed-v59.js',
   'nova-venda-fixed.js',
+  'nova-venda.js',
   'payment-settings.js',
   'utils.js',
   'components.js',
@@ -91,31 +92,42 @@ for (const marker of [
 
 const stableNewSale = await readFile(resolve(root, 'nova-venda-fixed-v60.js'), 'utf8');
 for (const marker of [
-  "mode === 'prazo' && React.createElement('div', { className: \\\"space-y-4 animate-fade-in\\\" },",
   'Observações (Opcional)',
+  'notesDefinitionsPattern',
   'hasPaymentSectionEndMarker',
   'Resumo do pagamento não inserido porque a estrutura visual da seção foi alterada.',
-  "./nova-venda-fixed-v59.js?v=${VERSION}"
+  './nova-venda-fixed-v59.js?v=${VERSION}',
+  "pathname.endsWith('/nova-venda-fixed.js')"
 ]) {
   if (!stableNewSale.includes(marker)) throw new Error(`Proteção da Nova Venda v60 ausente: ${marker}`);
-}
-
-const brokenPaymentTail = `React.createElement('div', { className: \"sale-bottom-bar fixed bottom-0 w-full p-4 z-40\" },`;
-const v60NotesStart = stableNewSale.indexOf('Observações (Opcional)');
-const v60PaymentStart = stableNewSale.indexOf("mode === 'prazo' && React.createElement('div', { className: \\\"space-y-4 animate-fade-in\\\" },");
-if (v60NotesStart < 0 || v60PaymentStart < 0) {
-  throw new Error('Não foi possível validar a nova posição das observações.');
 }
 if (stableNewSale.includes('"4. Observações"')) {
   throw new Error('As observações ainda estão sendo injetadas como seção posterior ao Pagamento.');
 }
 
+// Teste estrutural do problema que derrubou a v59.
+// A nova posição das Observações deve preservar, byte a byte, o fechamento que
+// o resumo de pagamento legado procura.
+const baseSaleSource = await readFile(resolve(root, 'nova-venda.js'), 'utf8');
+const notesAnchor = `                    ),\n\n                    mode === 'prazo' && React.createElement('div', { className: "space-y-4 animate-fade-in" },`;
+const paymentSectionEndMarker = `                    )\n                )\n            )\n        ),\n        \n        React.createElement('div', { className: "sale-bottom-bar fixed bottom-0 w-full p-4 z-40" },`;
+if (!baseSaleSource.includes(notesAnchor)) {
+  throw new Error('O ponto seguro de inserção das Observações não existe mais no formulário-base.');
+}
+if (!baseSaleSource.includes(paymentSectionEndMarker)) {
+  throw new Error('O fechamento original da seção Pagamento não existe no formulário-base.');
+}
+const simulatedNotesSource = baseSaleSource.replace(
+  notesAnchor,
+  `                    ),\n                    /* OBSERVACOES_V60 */\n\n                    mode === 'prazo' && React.createElement('div', { className: "space-y-4 animate-fade-in" },`
+);
+if (!simulatedNotesSource.includes(paymentSectionEndMarker)) {
+  throw new Error('A inserção das Observações voltou a quebrar o fechamento da seção Pagamento.');
+}
+
 const baseWrapper = await readFile(resolve(root, 'nova-venda-fixed.js'), 'utf8');
 if (!baseWrapper.includes('paymentSectionEndMarker') || !baseWrapper.includes('Não foi possível localizar o final da seção de pagamento.')) {
   throw new Error('O contrato legado do resumo de pagamento mudou sem atualização da proteção v60.');
-}
-if (!stableNewSale.includes("pathname.endsWith('/nova-venda-fixed.js')")) {
-  throw new Error('A proteção do resumo de pagamento não intercepta o wrapper legado.');
 }
 
 const cancelPatch = await readFile(resolve(root, 'app-patch-cancel-v59.js'), 'utf8');
@@ -154,4 +166,4 @@ if (!financeSource.includes('event.refundAmount')) {
   throw new Error('O Financeiro deixou de considerar o estorno do cancelamento.');
 }
 
-console.log(`Validação concluída: ${activeModules.length} módulos ativos + app final + Nova Venda v60 + cancelamento total + observações sem conflito estrutural.`);
+console.log(`Validação concluída: ${activeModules.length} módulos ativos + app final + teste estrutural da Nova Venda v60 + cancelamento total + observações.`);
