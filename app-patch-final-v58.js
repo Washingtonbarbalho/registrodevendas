@@ -28,7 +28,7 @@ export const applyFinalPatches = source => {
     }, [products, productSearch]);`, 'a organização dos produtos');
 
   const fixedPaths = {
-    modals: './modals-fixed-v52.js',
+    modals: './modals-fixed-v58.js',
     'nova-venda': './nova-venda-fixed-v55.js',
     'aba-visao-geral': './aba-visao-geral-fixed.js',
     'aba-vendas-prazo': './aba-vendas-prazo-v52.js',
