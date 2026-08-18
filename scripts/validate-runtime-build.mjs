@@ -6,12 +6,12 @@ import { pathToFileURL } from 'node:url';
 
 const root = process.cwd();
 const activeModules = [
-  'bootstrap-v60.js',
+  'bootstrap-v61.js',
   'app-patch-setup-v59.js',
   'app-patch-stock-v52.js',
   'app-patch-cancel-v59.js',
   'app-patch-profit-v58.js',
-  'app-patch-final-v60.js',
+  'app-patch-final-v61.js',
   'app.js',
   'aba-financeiro-v54.js',
   'stock-movement-modal-v52.js',
@@ -55,7 +55,7 @@ const { applySetupPatches } = await importFresh('app-patch-setup-v59.js');
 const { applyStockPatch } = await importFresh('app-patch-stock-v52.js');
 const { applyCancelPatch } = await importFresh('app-patch-cancel-v59.js');
 const { applyProfitPatch } = await importFresh('app-patch-profit-v58.js');
-const { applyFinalPatches } = await importFresh('app-patch-final-v60.js');
+const { applyFinalPatches } = await importFresh('app-patch-final-v61.js');
 
 let source = await readFile(resolve(root, 'app.js'), 'utf8');
 source = applySetupPatches(source);
@@ -75,7 +75,7 @@ if (!source.includes('React.createElement(ConfirmModal, { isOpen: cancelModal.op
   throw new Error('O cancelamento total simples não está ligado ao modal padrão.');
 }
 if (!source.includes('nova-venda-fixed-v60.js')) {
-  throw new Error('A aplicação final não está apontando para a Nova Venda v60.');
+  throw new Error('A aplicação final não está apontando para a Nova Venda estabilizada.');
 }
 
 const legacyNewSale = await readFile(resolve(root, 'nova-venda-fixed-v59.js'), 'utf8');
@@ -96,10 +96,11 @@ for (const marker of [
   'notesDefinitionsPattern',
   'hasPaymentSectionEndMarker',
   'Resumo do pagamento não inserido porque a estrutura visual da seção foi alterada.',
-  './nova-venda-fixed-v59.js?v=${VERSION}',
-  "pathname.endsWith('/nova-venda-fixed.js')"
+  "pathname.endsWith('/nova-venda-fixed.js')",
+  'internalImportMarker',
+  "new URL('./nova-venda-fixed-v36.js?v=' + VERSION, location.href).href"
 ]) {
-  if (!stableNewSale.includes(marker)) throw new Error(`Proteção da Nova Venda v60 ausente: ${marker}`);
+  if (!stableNewSale.includes(marker)) throw new Error(`Proteção da Nova Venda estabilizada ausente: ${marker}`);
 }
 if (stableNewSale.includes('"4. Observações"')) {
   throw new Error('As observações ainda estão sendo injetadas como seção posterior ao Pagamento.');
@@ -119,7 +120,7 @@ if (!baseSaleSource.includes(paymentSectionEndMarker)) {
 }
 const simulatedNotesSource = baseSaleSource.replace(
   notesAnchor,
-  `                    ),\n                    /* OBSERVACOES_V60 */\n\n                    mode === 'prazo' && React.createElement('div', { className: "space-y-4 animate-fade-in" },`
+  `                    ),\n                    /* OBSERVACOES_ESTAVEL */\n\n                    mode === 'prazo' && React.createElement('div', { className: "space-y-4 animate-fade-in" },`
 );
 if (!simulatedNotesSource.includes(paymentSectionEndMarker)) {
   throw new Error('A inserção das Observações voltou a quebrar o fechamento da seção Pagamento.');
@@ -127,7 +128,7 @@ if (!simulatedNotesSource.includes(paymentSectionEndMarker)) {
 
 const baseWrapper = await readFile(resolve(root, 'nova-venda-fixed.js'), 'utf8');
 if (!baseWrapper.includes('paymentSectionEndMarker') || !baseWrapper.includes('Não foi possível localizar o final da seção de pagamento.')) {
-  throw new Error('O contrato legado do resumo de pagamento mudou sem atualização da proteção v60.');
+  throw new Error('O contrato legado do resumo de pagamento mudou sem atualização da proteção atual.');
 }
 
 const cancelPatch = await readFile(resolve(root, 'app-patch-cancel-v59.js'), 'utf8');
@@ -166,4 +167,4 @@ if (!financeSource.includes('event.refundAmount')) {
   throw new Error('O Financeiro deixou de considerar o estorno do cancelamento.');
 }
 
-console.log(`Validação concluída: ${activeModules.length} módulos ativos + app final + teste estrutural da Nova Venda v60 + cancelamento total + observações.`);
+console.log(`Validação concluída: ${activeModules.length} módulos ativos + app final v61 + teste estrutural da Nova Venda + cancelamento total + observações.`);
