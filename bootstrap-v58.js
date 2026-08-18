@@ -22,7 +22,7 @@ const criticalModules = [
   ['Vendas no caixa', './aba-vendas-caixa-v52.js?v=58', 'AbaVendasCaixa'],
   ['Vendas a prazo', './aba-vendas-prazo-v52.js?v=58', 'AbaVendasPrazo'],
   ['Clientes', './aba-clientes-fixed-v52.js?v=58', 'AbaClientes'],
-  ['Modais', './modals-fixed-v52.js?v=58', 'SaleDetailsModal'],
+  ['Modais', './modals-fixed-v58.js?v=58', 'SaleDetailsModal'],
   ['Nova venda', './nova-venda-fixed-v55.js?v=58', 'NewSaleScreen']
 ];
 
