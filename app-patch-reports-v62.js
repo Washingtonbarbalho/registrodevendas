@@ -8,7 +8,7 @@ export const applyReportsPatch = source => {
   source = replaceRequired(
     source,
     financeImport,
-    financeImport + "\nimport { AbaRelatorios } from './aba-relatorios-v62.js';",
+    financeImport + "\nimport { AbaRelatorios } from './aba-relatorios-v63.js';",
     'o módulo dos Relatórios'
   );
 
