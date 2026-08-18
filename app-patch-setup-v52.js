@@ -19,7 +19,7 @@ export const applySetupPatches = source => {
     "import { Users, User, LogOut, Lock, LayoutDashboard, Receipt, WalletCards, Package, Contact, Store, ShieldCheck, BadgePercent, Banknote } from 'https://esm.sh/lucide-react@0.292.0';",
     'o ícone do Financeiro');
   source = replaceRequired(source, financeImport,
-    financeImport + "\nimport { AbaFinanceiro } from './aba-financeiro-v52.js';\nimport { SaleCancellationModal } from './sale-cancellation-modal-v52.js';",
+    financeImport + "\nimport { AbaFinanceiro } from './aba-financeiro-v54.js';\nimport { SaleCancellationModal } from './sale-cancellation-modal-v52.js';",
     'os módulos do Financeiro');
   source = replaceRequired(source, navMarker,
     "        { id: 'finance', label: 'Financeiro', shortLabel: 'Fin.', icon: Banknote },\n" + navMarker,
