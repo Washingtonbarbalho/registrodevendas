@@ -1,5 +1,8 @@
-const VERSION = '55';
+const VERSION = '56';
 const nativeFetch = globalThis.fetch;
+
+const timestampMarker = "            saleDate: saleDate, saleType: saleType, status: 'active'";
+const timestampReplacement = "            saleDate: saleDate, saleDateTime: new Date().toISOString(), saleType: saleType, status: 'active'";
 
 const oldCardFinancialBlock = `    const isCardPayment = saleType === 'direct' && (directMethod === 'credit' || directMethod === 'debit');
     const currentFeePercent = isCardPayment ? parseMoney(feePercent) : 0;
@@ -35,9 +38,7 @@ const newCardFinancialBlock = `    const isCardPayment = saleType === 'direct' &
         : isCardPayment
             ? roundCardMoney(entryValue + cardAmountCharged)
             : totalCartValue;
-    const netAmountToCompany = saleType === 'direct' && isCardPayment
-        ? roundCardMoney(entryValue + cardNetAmount)
-        : totalCustomerPays;`;
+    const netAmountToCompany = totalCustomerPays - currentFeeValue;`;
 
 const oldDirectCardBlock = `        } else {
             let finalSalePrice = totalCartValue;
@@ -142,15 +143,34 @@ const shouldPatch = input => {
 globalThis.fetch = async (input, init) => {
   const response = await nativeFetch.call(globalThis, input, init);
   if (!shouldPatch(input) || !response.ok) return response;
+
   let source = await response.text();
-  if (!source.includes(oldCardFinancialBlock) || !source.includes(oldDirectCardBlock)) throw new Error('Não foi possível aplicar a fórmula correta do cartão.');
-  source = source.replace(oldCardFinancialBlock, newCardFinancialBlock).replace(oldDirectCardBlock, newDirectCardBlock);
-  const headers = new Headers(response.headers); headers.set('content-type', 'text/javascript; charset=utf-8');
+  if (!source.includes(oldCardFinancialBlock) || !source.includes(oldDirectCardBlock)) {
+    throw new Error('Não foi possível aplicar a fórmula correta do cartão.');
+  }
+  if (!source.includes(timestampMarker)) {
+    throw new Error('Não foi possível registrar o horário real da nova venda.');
+  }
+
+  source = source
+    .replace(oldCardFinancialBlock, newCardFinancialBlock)
+    .replace(oldDirectCardBlock, newDirectCardBlock)
+    .replace(timestampMarker, timestampReplacement);
+
+  const headers = new Headers(response.headers);
+  headers.set('content-type', 'text/javascript; charset=utf-8');
   return new Response(source, { status: response.status, statusText: response.statusText, headers });
 };
 
 let finalModule;
-try { finalModule = await import(`./nova-venda-fixed-v36.js?v=${VERSION}`); }
-finally { globalThis.fetch = nativeFetch; }
-if (!finalModule?.NewSaleScreen) throw new Error('O formulário de vendas não foi carregado corretamente.');
+try {
+  finalModule = await import(`./nova-venda-fixed-v36.js?v=${VERSION}`);
+} finally {
+  globalThis.fetch = nativeFetch;
+}
+
+if (!finalModule?.NewSaleScreen) {
+  throw new Error('O formulário de vendas não foi carregado corretamente.');
+}
+
 export const NewSaleScreen = finalModule.NewSaleScreen;
