@@ -15,7 +15,7 @@ const patchBase = source => {
   source = source.replace(chooserSignature, chooserReplacement);
 
   const copyButton = `                React.createElement('button', { onClick: () => handleOpen('copy'), className: "w-full p-4 bg-slate-100 text-slate-600 font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-slate-200" }, React.createElement(Copy, { size: 20 }), "Copiar Mensagem")`;
-  const chooserButtons = `${copyButton},\n                onPdf && React.createElement('button', { onClick: onPdf, className: "w-full p-4 bg-slate-900 text-white font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-slate-800 shadow-sm" }, React.createElement(FileText, { size: 20 }), "Compartilhar PDF")`;
+  const chooserButtons = `${copyButton},\n                onPdf && React.createElement('button', { onClick: onPdf, className: "w-full p-4 bg-slate-900 text-white font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-slate-800 shadow-sm" }, React.createElement('span', { className: "text-[10px] font-black border border-white/40 rounded px-1.5 py-0.5" }, "PDF"), "Compartilhar PDF")`;
   if (!source.includes(copyButton)) throw new Error('Não foi possível inserir a opção de PDF nas mensagens.');
   source = source.replace(copyButton, chooserButtons);
 
