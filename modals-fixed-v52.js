@@ -4,7 +4,15 @@ if (!response.ok) throw new Error('Não foi possível carregar os modais da vers
 let source = await response.text();
 source = source
   .replaceAll("sale.saleDateTime || (sale.saleDate + 'T12:00:00.000Z')", "sale.saleDateTime || sale.saleDate")
-  .replaceAll("event.createdAt || (event.date ? event.date + 'T12:00:01.000Z' : getCanceledDate(sale))", "event.createdAt || event.date || getCanceledDate(sale)");
+  .replaceAll("event.createdAt || (event.date ? event.date + 'T12:00:01.000Z' : getCanceledDate(sale))", "event.createdAt || event.date || getCanceledDate(sale)")
+  .replaceAll(
+    "if (inst.paid && inst.paidAt) paidDisplayDate = formatDate(inst.paidAt);",
+    "if (inst.paid && inst.paidAt) { const latestPayment = Array.isArray(inst.history) && inst.history.length ? inst.history[inst.history.length - 1] : null; paidDisplayDate = formatDetailedDateTime(inst.paidAt, latestPayment?.timestamp || inst.paidAtDateTime); }"
+  )
+  .replaceAll(
+    "h.type === 'abatement' ? 'Abatimento autom.' : formatDate(h.date)",
+    "h.type === 'abatement' ? 'Abatimento autom.' : formatDetailedDateTime(h.date, h.timestamp)"
+  );
 
 const blob = new Blob([source], { type: 'text/javascript' });
 const url = URL.createObjectURL(blob);
