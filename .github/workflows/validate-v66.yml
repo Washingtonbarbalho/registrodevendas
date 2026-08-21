@@ -1,4 +1,4 @@
-name: Validar v66
+name: Validar v67
 
 on:
   push:
@@ -7,48 +7,47 @@ on:
     branches: [main]
 
 jobs:
-  validate-v66:
+  validate-v67:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - name: Validar sintaxe dos módulos v66
+      - name: Validar sintaxe dos módulos v67
         run: |
-          node --check app-patch-mobile-menu-v66.js
-          node --check app-patch-final-v66.js
-          node --check bootstrap-v66.js
-      - name: Validar transformação do aplicativo
+          node --check aba-financeiro-v67.js
+          node --check aba-produtos-v67.js
+          node --check batch-stock-modal-v67.js
+          node --check app-patch-batch-stock-v67.js
+          node --check app-patch-final-v67.js
+          node --check bootstrap-v67.js
+          node --check scripts/validate-v67.mjs
+      - name: Validar montagem completa do aplicativo
         run: |
-          node --input-type=module <<'NODE'
-          import fs from 'node:fs';
-          import { applyMobileMenuPatch } from './app-patch-mobile-menu-v66.js';
-          const source = fs.readFileSync('./app.js', 'utf8');
-          const transformed = applyMobileMenuPatch(source);
-          fs.writeFileSync('/tmp/app-mobile-v66.js', transformed);
-          if (!transformed.includes('mobile-menu-backdrop')) throw new Error('Backdrop do menu não foi inserido.');
-          if (!transformed.includes('mobile-navigation-drawer')) throw new Error('Drawer mobile não foi inserido.');
-          if (!transformed.includes('setMobileMenuOpen(open => !open)')) throw new Error('Alternância do hambúrguer não foi inserida.');
-          if (transformed.includes('className: "mobile-bottom-nav"')) throw new Error('A barra inferior antiga ainda existe.');
-          NODE
-          node --check /tmp/app-mobile-v66.js
-      - name: Validar comportamentos do menu
+          node scripts/validate-v67.mjs
+          node --check /tmp/registro-vendas-runtime-v67.mjs
+      - name: Validar estoque em lote
         run: |
-          grep -q "onClick: () => setMobileMenuOpen(false)" app-patch-mobile-menu-v66.js
-          grep -q "onClick: () => { setView(item.id); setMobileMenuOpen(false); }" app-patch-mobile-menu-v66.js
-          grep -q "event.key === 'Escape'" app-patch-mobile-menu-v66.js
-          grep -q "window.innerWidth >= 1024" app-patch-mobile-menu-v66.js
-          grep -q "document.body.style.overflow = 'hidden'" app-patch-mobile-menu-v66.js
-      - name: Validar interface mobile
+          grep -q "writeBatch" batch-stock-modal-v67.js
+          grep -q "batchId" batch-stock-modal-v67.js
+          grep -q "batchTotal" batch-stock-modal-v67.js
+          grep -q "O Financeiro receberá um único lançamento" batch-stock-modal-v67.js
+          grep -q "Compra de mercadoria em lote" aba-financeiro-v67.js
+          grep -q "purchaseItems" aba-financeiro-v67.js
+      - name: Validar filtros de contas
         run: |
+          grep -q "item.dueDate >= startDate && item.dueDate <= endDate" aba-financeiro-v67.js
+          grep -q "finance67-account-tools" aba-financeiro-v67.js
+          grep -q "Contas a receber" aba-financeiro-v67.js
+          grep -q "Contas a pagar" aba-financeiro-v67.js
+      - name: Validar preservação do menu mobile
+        run: |
+          grep -q "applyMobileMenuPatch" bootstrap-v67.js
           grep -q "inset: 72px 0 0" v66-mobile-menu.css
-          grep -q "mobile-menu-toggle.is-open" v66-mobile-menu.css
-          grep -q "mobile-menu-nav-button.is-active" v66-mobile-menu.css
-          grep -q "@media (min-width: 1024px)" v66-mobile-menu.css
       - name: Validar versão ativa
         run: |
-          grep -q "v66-mobile-menu.css?v=66" index.html
-          grep -q "bootstrap-v66.js?v=66" index.html
-          grep -q "applyMobileMenuPatch" bootstrap-v66.js
-          grep -q "app-patch-final-v66.js?v=66" bootstrap-v66.js
+          grep -q "v67-batch-stock.css?v=67" index.html
+          grep -q "bootstrap-v67.js?v=67" index.html
+          grep -q "aba-financeiro-v67.js?v=67" bootstrap-v67.js
+          grep -q "batch-stock-modal-v67.js?v=67" bootstrap-v67.js
