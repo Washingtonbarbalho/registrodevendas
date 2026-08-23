@@ -5,7 +5,7 @@ import {
   isTermSale,
   sumMoney,
   toCents
-} from './financial-core-v70.js?v=72';
+} from './financial-core-v70.js?v=73';
 
 export const SALES_VIEW_DEFAULTS = Object.freeze({
   query: '',
@@ -70,6 +70,7 @@ const saleSearchText = sale => normalizeText([
   sale?.customerPhone,
   sale?.id,
   sale?.contractId,
+  sale?.saleChannel,
   getSalePaymentLabel(sale),
   ...(Array.isArray(sale?.items) ? sale.items.flatMap(item => [item?.productName, item?.productCode, item?.code]) : [])
 ].filter(Boolean).join(' '));

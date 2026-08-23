@@ -276,6 +276,8 @@ export const ProductModal = ({ isOpen, onClose, onSave, lastCode, initialData })
     const [description, setDescription] = useState('');
     const [salePrice, setSalePrice] = useState('');
     const [costPrice, setCostPrice] = useState('');
+    const [minimumStock, setMinimumStock] = useState('3');
+    const [replenishmentLeadTimeDays, setReplenishmentLeadTimeDays] = useState('7');
     const [isPromo, setIsPromo] = useState(false);
     const [promoPrice, setPromoPrice] = useState('');
     const [promoStart, setPromoStart] = useState('');
@@ -285,10 +287,13 @@ export const ProductModal = ({ isOpen, onClose, onSave, lastCode, initialData })
         if (initialData && isOpen) {
             setName(initialData.name || ''); setDescription(initialData.description || ''); 
             setSalePrice(initialData.salePrice || 0); setCostPrice(initialData.costPrice || 0); 
+            setMinimumStock(String(initialData.minimumStock ?? 3));
+            setReplenishmentLeadTimeDays(String(initialData.replenishmentLeadTimeDays ?? 7));
             setIsPromo(initialData.isPromo || false); setPromoPrice(initialData.promoPrice || 0); 
             setPromoStart(initialData.promoStart || ''); setPromoEnd(initialData.promoEnd || '');
         } else if (isOpen) {
             setName(''); setDescription(''); setSalePrice(''); setCostPrice('');
+            setMinimumStock('3'); setReplenishmentLeadTimeDays('7');
             setIsPromo(false); setPromoPrice(''); setPromoStart(''); setPromoEnd('');
         }
     }, [initialData, isOpen]);
@@ -310,6 +315,8 @@ export const ProductModal = ({ isOpen, onClose, onSave, lastCode, initialData })
         if (!name || numSale <= 0) return alert("Nome e Preço de Venda são obrigatórios.");
         const dataToSave = {
             code: nextCode, name: name.toUpperCase(), description, salePrice: numSale, costPrice: numCost,
+            minimumStock: Math.max(0, parseInt(minimumStock, 10) || 0),
+            replenishmentLeadTimeDays: Math.min(365, Math.max(0, parseInt(replenishmentLeadTimeDays, 10) || 0)),
             isPromo, promoPrice: isPromo ? parseMoney(promoPrice) : 0, promoStart: isPromo ? promoStart : null, promoEnd: isPromo ? promoEnd : null
         };
         if (!initialData) {
@@ -366,6 +373,28 @@ export const ProductModal = ({ isOpen, onClose, onSave, lastCode, initialData })
                             React.createElement('span', { className: `font-bold ${margin >= 0 ? 'text-emerald-600' : 'text-red-500'}` }, `${margin.toFixed(2)}%`)
                         )
                     )
+                ),
+                React.createElement('div', { className: "bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3" },
+                    React.createElement('p', { className: "text-xs font-bold text-slate-500 uppercase" }, "Estoque e reposição"),
+                    React.createElement('div', { className: "grid grid-cols-2 gap-3" },
+                        React.createElement('div', null,
+                            React.createElement('label', { className: "block text-[10px] font-bold text-slate-500 uppercase mb-1" }, "Estoque mínimo"),
+                            React.createElement('input', {
+                                type: "number", min: "0", step: "1", value: minimumStock,
+                                onChange: event => setMinimumStock(event.target.value),
+                                className: "w-full p-3 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-yellow-500 text-sm font-bold text-slate-800"
+                            })
+                        ),
+                        React.createElement('div', null,
+                            React.createElement('label', { className: "block text-[10px] font-bold text-slate-500 uppercase mb-1" }, "Reposição (dias)"),
+                            React.createElement('input', {
+                                type: "number", min: "0", max: "365", step: "1", value: replenishmentLeadTimeDays,
+                                onChange: event => setReplenishmentLeadTimeDays(event.target.value),
+                                className: "w-full p-3 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-yellow-500 text-sm font-bold text-slate-800"
+                            })
+                        )
+                    ),
+                    React.createElement('p', { className: "text-[11px] text-slate-500" }, "Usados para alertar estoque baixo e prever quando comprar novamente.")
                 ),
                 React.createElement('div', { className: `p-4 rounded-xl border transition-colors ${isPromo ? 'bg-purple-50 border-purple-200' : 'bg-slate-50 border-slate-200'}` },
                     React.createElement('div', { className: "flex justify-between items-center cursor-pointer", onClick: () => setIsPromo(!isPromo) },

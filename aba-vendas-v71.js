@@ -3,8 +3,8 @@ import {
   ArrowDownUp, Banknote, CalendarDays, CheckCircle2, ChevronRight, CreditCard,
   Plus, Receipt, RotateCcw, Search, SlidersHorizontal, WalletCards, X, XCircle
 } from 'https://esm.sh/lucide-react@0.292.0';
-import { Pagination } from './components.js?v=72';
-import { formatCurrency, formatDate, getCurrentMonthEnd, getCurrentMonthStart } from './utils.js?v=72';
+import { Pagination } from './components.js?v=73';
+import { formatCurrency, formatDate, getCurrentMonthEnd, getCurrentMonthStart } from './utils.js?v=73';
 import {
   buildSalesView,
   getNextOpenDueDate,
@@ -14,8 +14,8 @@ import {
   getSalePendingAmount,
   SALES_VIEW_DEFAULTS,
   summarizeSalesView
-} from './sales-operations-v71.js?v=72';
-import { getDirectSaleNet } from './financial-core-v70.js?v=72';
+} from './sales-operations-v71.js?v=73';
+import { getDirectSaleNet } from './financial-core-v70.js?v=73';
 
 const ITEMS_PER_PAGE = 12;
 
@@ -67,6 +67,10 @@ const SaleRow = ({ sale, onOpen }) => {
   const nextDue = getNextOpenDueDate(sale);
   const canceled = getOperationalSaleStatus(sale) === 'canceled';
   const customer = sale?.customerName || 'Venda avulsa';
+  const channel = {
+    presencial: 'Presencial', whatsapp: 'WhatsApp', instagram: 'Instagram',
+    facebook: 'Facebook / Marketplace', outro: 'Outro canal'
+  }[sale?.saleChannel];
 
   return React.createElement('button', {
     type: 'button',
@@ -82,7 +86,7 @@ const SaleRow = ({ sale, onOpen }) => {
           type === 'direct' ? 'No caixa' : 'A prazo'
         )
       ),
-      React.createElement('p', { className: 'sales-row-subtitle' }, formatSaleMoment(sale)),
+      React.createElement('p', { className: 'sales-row-subtitle' }, `${formatSaleMoment(sale)}${channel ? ` · ${channel}` : ''}`),
       React.createElement('div', { className: 'sales-row-mobile-badges' },
         React.createElement('span', { className: `status-badge ${status.className}` }, React.createElement(StatusIcon, { size: 12 }), status.label),
         React.createElement('span', { className: 'status-badge status-neutral' }, getSalePaymentLabel(sale))
@@ -192,7 +196,7 @@ export const AbaVendas = ({ sales, setNewSaleMode, setSelectedSaleDetail }) => {
             type: 'search',
             value: query,
             onChange: event => setQuery(event.target.value),
-            placeholder: 'Buscar cliente, produto, código ou pagamento...',
+            placeholder: 'Buscar cliente, produto, canal ou pagamento...',
             'aria-label': 'Buscar vendas'
           }),
           query && React.createElement('button', { type: 'button', onClick: () => setQuery(''), 'aria-label': 'Limpar busca' }, React.createElement(X, { size: 16 }))

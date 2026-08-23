@@ -159,13 +159,13 @@ fs.writeFileSync(generatedFile, source);
 checkSyntax(generatedFile);
 
 for (const marker of [
-  'aba-vendas-v71.js?v=72',
-  'auth-screen-v71.js?v=72',
+  'aba-vendas-v71.js?v=73',
+  'auth-screen-v71.js?v=73',
+  'aba-relatorios-v73.js?v=73',
   "{ id: 'sales', label: 'Vendas', shortLabel: 'Vendas'",
   "view === 'sales' ? React.createElement(AbaVendas",
   'mobile-quick-nav',
-  "const mobilePrimaryNav = ['dashboard', 'sales', 'products', 'finance']",
-  "item.id === 'finance' ? 'Financeiro' : item.shortLabel",
+  "const mobilePrimaryNav = ['dashboard', 'sales', 'products', 'customers']",
   'quick-sale-sheet',
   'buildSaleInventoryPlan(requestedItems, inventoryRecords)',
   'getSalesAccrualSummary(sales, dashStartDate, dashEndDate)',
@@ -179,6 +179,8 @@ for (const obsolete of [
   'cashierSearch',
   'salesSearch',
   "{ id: 'cashier'",
+  "const mobilePrimaryNav = ['dashboard', 'sales', 'products', 'finance']",
+  "item.id === 'finance' ? 'Financeiro' : item.shortLabel",
   "React.createElement('span', null, \"Mais\")",
   "'aria-label': \"Abrir todos os módulos\""
 ]) assert.ok(!source.includes(obsolete), `Fluxo duplicado ainda presente: ${obsolete}`);
@@ -251,6 +253,7 @@ const makeSaleHarness = (initialStock, options = {}) => {
 const cashSale = {
   saleType: 'direct',
   paymentMethod: 'pix',
+  saleChannel: 'instagram',
   customerId: null,
   customerName: 'VENDA AVULSA',
   status: 'completed',
@@ -270,6 +273,7 @@ const savedCashId = await cashHarness.handleAddSale(cashSale);
 assert.equal(savedCashId, 'sale-1', 'A venda no caixa deve retornar o identificador realmente gravado.');
 assert.equal(cashHarness.savedSales.size, 1, 'A venda precisa ser gravada uma única vez.');
 assert.equal(cashHarness.savedSales.get(savedCashId)?.totalCost, 14.22, 'O custo precisa ser normalizado antes da gravação.');
+assert.equal(cashHarness.savedSales.get(savedCashId)?.saleChannel, 'instagram', 'A transação de venda precisa preservar o canal escolhido.');
 assert.equal(cashHarness.savedSales.get(savedCashId)?.inventoryOperationId, savedCashId);
 assert.equal(cashHarness.inventory.get('perfume')?.quantity, 1, 'Produtos repetidos devem gerar apenas uma baixa consolidada.');
 assert.equal(cashHarness.inventory.get('creme')?.quantity, 1);
@@ -412,14 +416,16 @@ const identifyTab = Function(`${persistenceSource.slice(normalizeStart, normaliz
   return identifyTab;`)();
 assert.equal(identifyTab('Financeiro'), 'finance');
 assert.equal(identifyTab('Fin.'), 'finance');
+assert.equal(identifyTab('Clientes'), 'customers');
 assert.equal(identifyTab('Relatórios'), 'reports');
 assert.equal(identifyTab('Relat.'), 'reports');
 assert.equal(identifyTab('Vendas no caixa'), 'sales');
 assert.ok(persistenceSource.includes('.mobile-menu-nav-button'), 'A navegação pelo menu lateral precisa preservar a aba.');
 
 const index = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-assert.ok(index.includes('bootstrap-v71.js?v=72'), 'A correção operacional v72 precisa estar ativa.');
+assert.ok(index.includes('bootstrap-v71.js?v=73'), 'A versão estratégica v73 precisa estar ativa.');
 assert.ok(index.includes('v71-operations.css?v=71'), 'Os estilos operacionais v71 precisam estar ativos.');
+assert.ok(index.includes('reports-strategic-v73.css?v=73'), 'Os estilos dos relatórios estratégicos precisam estar ativos.');
 
 const inherited = spawnSync(process.execPath, ['scripts/validate-v70.mjs'], {
   cwd: fileURLToPath(new URL('..', import.meta.url)),
@@ -427,4 +433,4 @@ const inherited = spawnSync(process.execPath, ['scripts/validate-v70.mjs'], {
 });
 if (inherited.status !== 0) throw new Error(`Regressão na v70:\n${inherited.stderr || inherited.stdout}`);
 
-console.log('Aplicação v72 validada: venda gravada com baixa atômica, estoque conferido, PIX privado e navegação mobile sem menu duplicado.');
+console.log('Aplicação v73 validada: venda e canal gravados com baixa atômica, PIX privado e Clientes na navegação mobile.');

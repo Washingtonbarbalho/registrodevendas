@@ -103,7 +103,7 @@ export const applyOperationsPatch = source => {
 
   const currentNav = "    const currentNav = navItems.find(item => item.id === view) || navItems[0];";
   source = replaceRequired(source, currentNav, `${currentNav}
-    const mobilePrimaryNav = ['dashboard', 'sales', 'products', 'finance']
+    const mobilePrimaryNav = ['dashboard', 'sales', 'products', 'customers']
         .map(id => navItems.find(item => item.id === id))
         .filter(Boolean);`, 'os destinos rápidos do celular');
 
@@ -139,7 +139,7 @@ export const applyOperationsPatch = source => {
                 type: "button",
                 onClick: () => { setView(item.id); setMobileMenuOpen(false); setQuickSaleMenuOpen(false); },
                 className: \`mobile-quick-nav-button \${view === item.id ? 'is-active' : ''}\`
-            }, React.createElement(item.icon, { size: 19 }), React.createElement('span', null, item.id === 'finance' ? 'Financeiro' : item.shortLabel)))
+            }, React.createElement(item.icon, { size: 19 }), React.createElement('span', null, item.shortLabel)))
         ),
 
         quickSaleMenuOpen && React.createElement('div', {

@@ -71,6 +71,7 @@ export const NewSaleScreen = ({ mode, onClose, customers, products, sales, onSav
     const [firstDueDate, setFirstDueDate] = useState('');
     
     const [directMethod, setDirectMethod] = useState('pix');
+    const [saleChannel, setSaleChannel] = useState('presencial');
     const [cardInstallments, setCardInstallments] = useState(1);
     const [cardMode, setCardMode] = useState('presencial');
     const [cardBrand, setCardBrand] = useState('visa_master');
@@ -244,6 +245,7 @@ export const NewSaleScreen = ({ mode, onClose, customers, products, sales, onSav
         const sumDiscount = cart.reduce((acc, i) => acc + (i.unitDiscount * i.quantity), 0);
 
         let saleData = { 
+            saleChannel,
             customerId: customerId, customerName: cName, customerPhone: cPhone, 
             items: cart, totalCost: cart.reduce((acc, i) => acc + i.cost, 0), totalPrice: totalCartValue, totalDiscount: sumDiscount,
             saleDate: saleDate, saleType: saleType, status: 'active'
@@ -490,6 +492,21 @@ export const NewSaleScreen = ({ mode, onClose, customers, products, sales, onSav
                             cart.length === 0 ? React.createElement('p', { className: "text-center text-slate-400 text-sm py-4 italic" }, "Nenhum produto adicionado.") : cart.map(item => React.createElement('div', { key: item.tempId, className: `flex justify-between items-center p-3 rounded-lg border shadow-sm ${mode === 'prazo' ? 'bg-yellow-50 border-yellow-200' : 'bg-emerald-50 border-emerald-200'}` }, React.createElement('div', null, React.createElement('p', { className: "font-bold text-sm text-slate-800 leading-tight mb-1" }, `${item.quantity}x ${item.productName}`), React.createElement('div', { className: "flex items-center gap-2" }, React.createElement('p', { className: "text-xs font-bold text-slate-600" }, `${formatCurrency(item.price)}`), item.unitDiscount > 0 && React.createElement('span', { className: "bg-red-100 text-red-600 text-[10px] px-1.5 py-0.5 rounded font-bold" }, `-${formatCurrency(item.unitDiscount * item.quantity)}`))), React.createElement('button', { onClick: () => handleRemoveItem(item.tempId), className: "text-red-400 hover:text-red-600 p-2 bg-white rounded-full shadow-sm" }, React.createElement(Trash2, { size: 16 })))),
                             cart.length > 0 && React.createElement('div', { className: "text-right font-bold text-xl text-slate-800 pt-3 border-t border-slate-100 mt-2" }, `Total: ${formatCurrency(totalCartValue)}`)
                         )
+                    )
+                ),
+
+                React.createElement('div', { className: "sale-channel-field" },
+                    React.createElement('label', { htmlFor: "sale-channel" }, "Canal da venda"),
+                    React.createElement('select', {
+                        id: "sale-channel",
+                        value: saleChannel,
+                        onChange: event => setSaleChannel(event.target.value)
+                    },
+                        React.createElement('option', { value: "presencial" }, "Presencial / loja"),
+                        React.createElement('option', { value: "whatsapp" }, "WhatsApp"),
+                        React.createElement('option', { value: "instagram" }, "Instagram"),
+                        React.createElement('option', { value: "facebook" }, "Facebook / Marketplace"),
+                        React.createElement('option', { value: "outro" }, "Outro canal")
                     )
                 ),
 

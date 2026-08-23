@@ -55,6 +55,11 @@ export const AbaProdutos = ({ productSearch, setProductSearch, paginatedProducts
                     const today = getBrazilDateString();
                     const isPromoActive = product.isPromo && today >= product.promoStart && today <= product.promoEnd;
                     const stock = Number(product.quantity) || 0;
+                    const configuredMinimum = Number(product.minimumStock);
+                    const minimumStock = product.minimumStock !== undefined && product.minimumStock !== null
+                        && product.minimumStock !== '' && Number.isFinite(configuredMinimum) && configuredMinimum >= 0
+                        ? Math.floor(configuredMinimum) : 3;
+                    const lowStock = stock <= minimumStock;
 
                     return React.createElement('div', {
                         key: product.id,
@@ -80,13 +85,17 @@ export const AbaProdutos = ({ productSearch, setProductSearch, paginatedProducts
                         ),
                         React.createElement('div', { className: "hidden md:block list-meta font-semibold" }, formatCurrency(product.costPrice)),
                         React.createElement('div', { className: "hidden md:flex items-center gap-2" },
-                            React.createElement(Boxes, { size: 15, className: stock <= 0 ? 'text-red-500' : stock <= 3 ? 'text-orange-500' : 'text-slate-400' }),
-                            React.createElement('span', { className: `text-xs font-extrabold ${stock <= 0 ? 'text-red-600' : stock <= 3 ? 'text-orange-600' : 'text-slate-700'}` }, `${stock} un.`)
+                            React.createElement(Boxes, { size: 15, className: stock <= 0 ? 'text-red-500' : lowStock ? 'text-orange-500' : 'text-slate-400' }),
+                            React.createElement('span', {
+                                className: `text-xs font-extrabold ${stock <= 0 ? 'text-red-600' : lowStock ? 'text-orange-600' : 'text-slate-700'}`,
+                                title: `Estoque mínimo: ${minimumStock} unidades`
+                            }, `${stock} un.`)
                         ),
                         React.createElement('div', { className: "md:hidden text-right" },
                             React.createElement('span', { className: "list-label-mobile" }, "Venda"),
                             React.createElement('p', { className: `list-value ${isPromoActive ? 'text-purple-700' : ''}` }, formatCurrency(isPromoActive ? product.promoPrice : product.salePrice)),
-                            React.createElement('p', { className: `mt-1 text-[10px] font-extrabold ${stock <= 0 ? 'text-red-600' : stock <= 3 ? 'text-orange-600' : 'text-slate-500'}` }, `${stock} em estoque`)
+                            React.createElement('p', { className: `mt-1 text-[10px] font-extrabold ${stock <= 0 ? 'text-red-600' : lowStock ? 'text-orange-600' : 'text-slate-500'}` },
+                                lowStock && stock > 0 ? `${stock} em estoque · mínimo ${minimumStock}` : `${stock} em estoque`)
                         ),
                         React.createElement('div', { className: "hidden md:grid place-items-center text-slate-300" }, React.createElement(ChevronRight, { size: 18 }))
                     );

@@ -1,17 +1,17 @@
-import { applySetupPatches } from './app-patch-setup-v59.js?v=72';
-import { applyReportsPatch } from './app-patch-reports-v65.js?v=72';
-import { applyStockPatch } from './app-patch-stock-v68.js?v=72';
-import { applyCancelPatch } from './app-patch-cancel-v59.js?v=72';
-import { applyProfitPatch } from './app-patch-profit-v58.js?v=72';
-import { applySalePdfPatch } from './app-patch-sale-pdf-v65.js?v=72';
-import { applyMobileMenuPatch } from './app-patch-mobile-menu-v66.js?v=72';
-import { applyBatchStockPatch } from './app-patch-batch-stock-v68.js?v=72';
-import { applySecurityReliabilityPatch } from './app-patch-security-v69.js?v=72';
-import { applyAccountingPatch } from './app-patch-accounting-v70.js?v=72';
-import { applyOperationsPatch } from './app-patch-operations-v71.js?v=72';
-import { applyFinalPatches } from './app-patch-final-v71.js?v=72';
+import { applySetupPatches } from './app-patch-setup-v59.js?v=73';
+import { applyReportsPatch } from './app-patch-reports-v65.js?v=73';
+import { applyStockPatch } from './app-patch-stock-v68.js?v=73';
+import { applyCancelPatch } from './app-patch-cancel-v59.js?v=73';
+import { applyProfitPatch } from './app-patch-profit-v58.js?v=73';
+import { applySalePdfPatch } from './app-patch-sale-pdf-v65.js?v=73';
+import { applyMobileMenuPatch } from './app-patch-mobile-menu-v66.js?v=73';
+import { applyBatchStockPatch } from './app-patch-batch-stock-v68.js?v=73';
+import { applySecurityReliabilityPatch } from './app-patch-security-v69.js?v=73';
+import { applyAccountingPatch } from './app-patch-accounting-v70.js?v=73';
+import { applyOperationsPatch } from './app-patch-operations-v71.js?v=73';
+import { applyFinalPatches } from './app-patch-final-v71.js?v=73';
 
-const VERSION = '72';
+const VERSION = '73';
 
 const withStage = async (label, task) => {
   try { return await task(); }
@@ -22,16 +22,16 @@ const withStage = async (label, task) => {
 };
 
 const criticalModules = [
-  ['Financeiro', './aba-financeiro-v68.js?v=72', 'AbaFinanceiro'],
-  ['Relatórios', './aba-relatorios-v65.js?v=72', 'AbaRelatorios'],
-  ['Produtos', './aba-produtos-v67.js?v=72', 'AbaProdutos'],
-  ['Movimentação em lote', './batch-stock-modal-v68.js?v=72', 'BatchStockModal'],
-  ['Movimentação de estoque', './stock-movement-modal-v68.js?v=72', 'StockMovementModal'],
-  ['Vendas', './aba-vendas-v71.js?v=72', 'AbaVendas'],
-  ['Clientes', './aba-clientes-fixed-v52.js?v=72', 'AbaClientes'],
-  ['Login', './auth-screen-v71.js?v=72', 'AuthScreen'],
-  ['Modais', './modals-fixed-v69.js?v=72', 'SaleDetailsModal'],
-  ['Nova venda', './nova-venda-fixed-v70.js?v=72', 'NewSaleScreen']
+  ['Financeiro', './aba-financeiro-v68.js?v=73', 'AbaFinanceiro'],
+  ['Relatórios', './aba-relatorios-v73.js?v=73', 'AbaRelatorios'],
+  ['Produtos', './aba-produtos-v67.js?v=73', 'AbaProdutos'],
+  ['Movimentação em lote', './batch-stock-modal-v68.js?v=73', 'BatchStockModal'],
+  ['Movimentação de estoque', './stock-movement-modal-v68.js?v=73', 'StockMovementModal'],
+  ['Vendas', './aba-vendas-v71.js?v=73', 'AbaVendas'],
+  ['Clientes', './aba-clientes-fixed-v52.js?v=73', 'AbaClientes'],
+  ['Login', './auth-screen-v71.js?v=73', 'AuthScreen'],
+  ['Modais', './modals-fixed-v69.js?v=73', 'SaleDetailsModal'],
+  ['Nova venda', './nova-venda-fixed-v70.js?v=73', 'NewSaleScreen']
 ];
 
 const preflightCriticalModules = async () => {
@@ -43,33 +43,35 @@ const preflightCriticalModules = async () => {
   }
 
   await withStage('Falha nos filtros unificados das vendas', async () => {
-    const module = await import('./sales-operations-v71.js?v=72');
+    const module = await import('./sales-operations-v71.js?v=73');
     for (const name of ['buildSalesView', 'summarizeSalesView', 'getOperationalSaleStatus']) {
       if (typeof module?.[name] !== 'function') throw new Error(`função ${name} não encontrada`);
     }
   });
 
   await withStage('Falha nos cálculos financeiros compartilhados', async () => {
-    const module = await import('./financial-core-v70.js?v=72');
+    const module = await import('./financial-core-v70.js?v=73');
     for (const name of ['buildFinancialLedger', 'getSalesAccrualSummary', 'splitMoney', 'applyInstallmentPayment']) {
       if (typeof module?.[name] !== 'function') throw new Error(`função ${name} não encontrada`);
     }
   });
 
-  await withStage('Falha na conciliação dos relatórios', async () => {
-    const module = await import('./reports-engine-v70.js?v=72');
-    if (typeof module?.buildReport !== 'function') throw new Error('motor de relatórios não encontrado');
+  await withStage('Falha na conciliação e nos relatórios estratégicos', async () => {
+    const module = await import('./reports-engine-v73.js?v=73');
+    for (const name of ['buildReport', 'buildPeriodComparison', 'getNetOperatingResult', 'buildReplenishmentForecast', 'buildRecurringCustomers']) {
+      if (typeof module?.[name] !== 'function') throw new Error(`função estratégica ${name} não encontrada`);
+    }
   });
 
   await withStage('Falha no módulo de parcelamento das compras', async () => {
-    const module = await import('./purchase-payment-v68.js?v=72');
+    const module = await import('./purchase-payment-v68.js?v=73');
     if (typeof module?.buildPaymentInstallments !== 'function' || typeof module?.normalizePaymentInstallments !== 'function') {
       throw new Error('funções de parcelamento não encontradas');
     }
   });
 
   await withStage('Falha na validação de estoque', async () => {
-    const module = await import('./inventory-reliability-v69.js?v=72');
+    const module = await import('./inventory-reliability-v69.js?v=73');
     if (typeof module?.aggregateSaleItems !== 'function' || typeof module?.buildSaleInventoryPlan !== 'function') {
       throw new Error('funções de integridade do estoque não encontradas');
     }
@@ -77,7 +79,7 @@ const preflightCriticalModules = async () => {
 };
 
 export const startApp = async () => {
-  const cleanupKey = 'registro-vendas-cleanup-v72';
+  const cleanupKey = 'registro-vendas-cleanup-v73';
   if (sessionStorage.getItem(cleanupKey) !== 'ok') {
     await withStage('Falha ao limpar cache antigo', async () => {
       if ('serviceWorker' in navigator) {
@@ -121,7 +123,7 @@ export const startApp = async () => {
   const blobUrl = URL.createObjectURL(new Blob([source], { type: 'text/javascript' }));
   try {
     await withStage('Falha ao interpretar a aplicação final', async () => import(blobUrl));
-    await withStage('Falha ao restaurar a última aba', async () => import('./tab-persistence.js?v=72'));
+    await withStage('Falha ao restaurar a última aba', async () => import('./tab-persistence.js?v=73'));
   } finally {
     URL.revokeObjectURL(blobUrl);
   }

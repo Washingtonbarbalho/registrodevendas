@@ -33,6 +33,7 @@ export const applyFinalPatches = source => {
     'aba-visao-geral': './aba-visao-geral-fixed.js',
     'aba-produtos': './aba-produtos-v67.js',
     'aba-clientes': './aba-clientes-fixed-v52.js',
+    'aba-relatorios-v65': './aba-relatorios-v73.js',
     'stock-movement-modal-v52': './stock-movement-modal-v68.js'
   };
 
@@ -40,7 +41,7 @@ export const applyFinalPatches = source => {
     'modals', 'auth-admin', 'auth-screen-v71', 'nova-venda', 'aba-visao-geral', 'aba-vendas-v71',
     'sales-operations-v71', 'aba-produtos', 'aba-produtos-v67', 'aba-clientes', 'aba-financeiro-v68',
     'stock-movement-modal-v52', 'stock-movement-modal-v68', 'batch-stock-modal-v68', 'purchase-payment-v68',
-    'aba-relatorios-v65', 'reports-engine-v65', 'reports-engine-v70', 'financial-core-v70', 'sale-pdf-v65',
+    'aba-relatorios-v65', 'aba-relatorios-v73', 'reports-engine-v65', 'reports-engine-v70', 'reports-engine-v73', 'financial-core-v70', 'sale-pdf-v65',
     'aba-taxas', 'payment-settings', 'utils', 'components', 'inventory-reliability-v69'
   ]);
 
@@ -48,7 +49,7 @@ export const applyFinalPatches = source => {
     const moduleName = modulePath.split('/').pop().replace(/\.js$/, '');
     const resolved = fixedPaths[moduleName] || modulePath;
     const url = new URL(resolved, location.href);
-    if (freshModules.has(moduleName) || /v(52|54|59|60|65|66|67|68|69|70|71)/.test(resolved)) url.search = '?v=72';
+    if (freshModules.has(moduleName) || /v(52|54|59|60|65|66|67|68|69|70|71|73)/.test(resolved)) url.search = '?v=73';
     return `'${url.href}'`;
   });
 
