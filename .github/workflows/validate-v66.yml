@@ -1,4 +1,4 @@
-name: Validar v68
+name: Validar v69
 
 on:
   push:
@@ -7,28 +7,33 @@ on:
     branches: [main]
 
 jobs:
-  validate-v68:
+  validate-v69:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
-      - name: Validar sintaxe dos módulos críticos v68
+          node-version: '22'
+      - name: Validar sintaxe dos módulos críticos v69
         run: |
+          node --check bootstrap-v69.js
+          node --check app-patch-security-v69.js
+          node --check app-patch-final-v69.js
+          node --check inventory-reliability-v69.js
+          node --check nova-venda-fixed-v69.js
+          node --check modals-fixed-v69.js
+          node --check auth-admin.js
           node --check aba-financeiro-v68.js
           node --check batch-stock-modal-v68.js
           node --check stock-movement-modal-v68.js
           node --check purchase-payment-v68.js
           node --check app-patch-stock-v68.js
           node --check app-patch-batch-stock-v68.js
-          node --check app-patch-final-v68.js
-          node --check bootstrap-v68.js
-          node --check scripts/validate-v68.mjs
+          node --check scripts/validate-v69.mjs
       - name: Validar montagem completa do aplicativo
         run: |
-          node scripts/validate-v68.mjs
-          node --check /tmp/registro-vendas-runtime-v68.mjs
+          node scripts/validate-v69.mjs
+          node --check /tmp/registro-vendas-runtime-v69.mjs
       - name: Validar parcelamento das compras
         run: |
           grep -q "paymentInstallmentsCount" batch-stock-modal-v68.js
@@ -46,14 +51,23 @@ jobs:
           grep -q "Contas a pagar" aba-financeiro-v68.js
       - name: Validar estoque em lote e menu mobile
         run: |
-          grep -q "writeBatch" batch-stock-modal-v68.js
+          grep -q "runTransaction" batch-stock-modal-v68.js
           grep -q "batchId" batch-stock-modal-v68.js
-          grep -q "applyMobileMenuPatch" bootstrap-v68.js
+          grep -q "applyMobileMenuPatch" bootstrap-v69.js
           grep -q "inset: 72px 0 0" v66-mobile-menu.css
+      - name: Validar segurança, privacidade e estoque
+        run: |
+          grep -q "status: 'deleted'" auth-admin.js
+          grep -q "onSnapshot(profileRef" app-patch-security-v69.js
+          grep -q "runTransaction(db" app-patch-security-v69.js
+          grep -q "validProductStock" firestore.rules
+          grep -q "QRCode.toDataURL" modals-fixed-v69.js
       - name: Validar versão ativa
         run: |
-          grep -q "v68-stock-installments.css?v=68" index.html
-          grep -q "bootstrap-v68.js?v=68" index.html
-          grep -q "aba-financeiro-v68.js?v=68" bootstrap-v68.js
-          grep -q "batch-stock-modal-v68.js?v=68" bootstrap-v68.js
-          grep -q "stock-movement-modal-v68.js?v=68" bootstrap-v68.js
+          grep -q "v68-stock-installments.css?v=69" index.html
+          grep -q "bootstrap-v69.js?v=69" index.html
+          grep -q "aba-financeiro-v68.js?v=69" bootstrap-v69.js
+          grep -q "batch-stock-modal-v68.js?v=69" bootstrap-v69.js
+          grep -q "stock-movement-modal-v68.js?v=69" bootstrap-v69.js
+          grep -q "modals-fixed-v69.js?v=69" bootstrap-v69.js
+          grep -q "nova-venda-fixed-v69.js?v=69" bootstrap-v69.js

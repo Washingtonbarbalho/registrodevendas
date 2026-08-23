@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'https://esm.sh/react@18.2.0
 import { createPortal } from 'https://esm.sh/react-dom@18.2.0';
 import { CalendarDays, CreditCard, Package, Search, Trash2, X } from 'https://esm.sh/lucide-react@0.292.0';
 import { db, APP_ID } from './firebase-config.js';
-import { doc, getDoc, writeBatch } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js';
+import { doc, runTransaction } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js';
 import { MoneyInput } from './components.js';
 import { formatCurrency, getBrazilDateString, maskMoney, parseMoney } from './utils.js';
 import { buildPaymentInstallments, clampInstallments, money } from './purchase-payment-v68.js';
@@ -125,59 +125,57 @@ export const BatchStockModal = ({ isOpen, onClose, products = [], userId, onSucc
     try {
       const batchId = makeBatchId();
       const movementDate = new Date().toISOString();
-      const firestoreBatch = writeBatch(db);
-      const snapshots = [];
+      const computed = await runTransaction(db, async transaction => {
+        const references = rows.map(row => doc(db, 'artifacts', APP_ID, 'users', userId, 'products', row.productId));
+        const productSnapshots = await Promise.all(references.map(reference => transaction.get(reference)));
+        const updates = productSnapshots.map((snapshot, index) => {
+          const row = rows[index];
+          if (!snapshot.exists()) throw new Error(`O produto ${row.name} não foi encontrado.`);
+          const product = snapshot.data();
+          const currentQty = Math.max(0, parseInt(product.quantity, 10) || 0);
+          const currentCost = Math.max(0, Number(product.costPrice) || 0);
+          const quantity = Math.max(0, parseInt(row.quantity, 10) || 0);
+          const unitCost = isPurchase ? Math.max(0, parseMoney(row.unitCost) || 0) : 0;
+          if (!isEntry && quantity > currentQty) throw new Error(`${row.name}: estoque disponível é ${currentQty} un.`);
 
-      for (const row of rows) {
-        const productRef = doc(db, 'artifacts', APP_ID, 'users', userId, 'products', row.productId);
-        const snapshot = await getDoc(productRef);
-        if (!snapshot.exists()) throw new Error(`O produto ${row.name} não foi encontrado.`);
-        snapshots.push({ row, productRef, product: snapshot.data() });
-      }
+          const newQty = isEntry ? currentQty + quantity : currentQty - quantity;
+          let newCost = currentCost;
+          if (isPurchase && quantity > 0 && newQty > 0) {
+            newCost = ((currentQty * currentCost) + (quantity * unitCost)) / newQty;
+          }
 
-      const computed = snapshots.map(({ row, productRef, product }, index) => {
-        const currentQty = Math.max(0, parseInt(product.quantity, 10) || 0);
-        const currentCost = Math.max(0, Number(product.costPrice) || 0);
-        const quantity = Math.max(0, parseInt(row.quantity, 10) || 0);
-        const unitCost = isPurchase ? Math.max(0, parseMoney(row.unitCost) || 0) : 0;
-        if (!isEntry && quantity > currentQty) throw new Error(`${row.name}: estoque disponível é ${currentQty} un.`);
+          const deferred = isPurchase && (paymentMethod === 'credit' || paymentMethod === 'term');
+          const financialInstallments = deferred ? installmentPlan.map(item => ({ ...item })) : [];
+          const movement = {
+            id: `${batchId}-${index + 1}`,
+            batchId,
+            batchIndex: index,
+            batchItemCount: rows.length,
+            batchTotal: isPurchase ? batchTotal : 0,
+            type,
+            quantity,
+            unitCost,
+            date: movementDate,
+            previousQty: currentQty,
+            newQty,
+            notes: notes.trim(),
+            paymentMethod: isPurchase ? paymentMethod : null,
+            paymentDueDate: deferred ? paymentDueDate : null,
+            paymentFirstDueDate: deferred ? paymentDueDate : null,
+            paymentInstallmentsCount: deferred ? count : 1,
+            financialInstallments,
+            financialPaid: isPurchase ? !deferred : null,
+            financialPaidAt: isPurchase && !deferred ? movementDate.split('T')[0] : null,
+            financialPaidAtDateTime: isPurchase && !deferred ? movementDate : null
+          };
+          const movements = Array.isArray(product.movements) ? [...product.movements, movement] : [movement];
+          return { reference: references[index], update: { quantity: newQty, costPrice: newCost, movements }, result: { row, quantity, unitCost, newQty } };
+        });
 
-        const newQty = isEntry ? currentQty + quantity : currentQty - quantity;
-        let newCost = currentCost;
-        if (isPurchase && quantity > 0 && newQty > 0) {
-          newCost = ((currentQty * currentCost) + (quantity * unitCost)) / newQty;
-        }
-
-        const deferred = isPurchase && (paymentMethod === 'credit' || paymentMethod === 'term');
-        const financialInstallments = deferred ? installmentPlan.map(item => ({ ...item })) : [];
-        const movement = {
-          id: `${batchId}-${index + 1}`,
-          batchId,
-          batchIndex: index,
-          batchItemCount: rows.length,
-          batchTotal: isPurchase ? batchTotal : 0,
-          type,
-          quantity,
-          unitCost,
-          date: movementDate,
-          previousQty: currentQty,
-          newQty,
-          notes: notes.trim(),
-          paymentMethod: isPurchase ? paymentMethod : null,
-          paymentDueDate: deferred ? paymentDueDate : null,
-          paymentFirstDueDate: deferred ? paymentDueDate : null,
-          paymentInstallmentsCount: deferred ? count : 1,
-          financialInstallments,
-          financialPaid: isPurchase ? !deferred : null,
-          financialPaidAt: isPurchase && !deferred ? movementDate.split('T')[0] : null,
-          financialPaidAtDateTime: isPurchase && !deferred ? movementDate : null
-        };
-        const movements = Array.isArray(product.movements) ? [...product.movements, movement] : [movement];
-        firestoreBatch.update(productRef, { quantity: newQty, costPrice: newCost, movements });
-        return { row, quantity, unitCost, newQty };
+        updates.forEach(item => transaction.update(item.reference, item.update));
+        return updates.map(item => item.result);
       });
 
-      await firestoreBatch.commit();
       onSuccess?.({ batchId, type, itemCount: rows.length, total: batchTotal, paymentMethod, installmentsCount: count, items: computed });
       onClose?.();
     } catch (error) {

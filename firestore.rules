@@ -1,0 +1,122 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function profilePath(appId, userId) {
+      return /databases/$(database)/documents/artifacts/$(appId)/users/$(userId)/profile/info;
+    }
+
+    function hasProfile(appId, userId) {
+      return exists(profilePath(appId, userId));
+    }
+
+    function profile(appId, userId) {
+      return get(profilePath(appId, userId)).data;
+    }
+
+    function isAdmin(appId) {
+      return isSignedIn()
+        && hasProfile(appId, request.auth.uid)
+        && profile(appId, request.auth.uid).get('approved', false) == true
+        && profile(appId, request.auth.uid).get('role', 'user') == 'admin'
+        && profile(appId, request.auth.uid).get('status', 'active') != 'blocked'
+        && profile(appId, request.auth.uid).get('status', 'active') != 'deleted';
+    }
+
+    function isApprovedOwner(appId, userId) {
+      return isOwner(userId)
+        && hasProfile(appId, userId)
+        && profile(appId, userId).get('approved', false) == true
+        && profile(appId, userId).get('status', 'active') != 'blocked'
+        && profile(appId, userId).get('status', 'active') != 'deleted';
+    }
+
+    function isSafePendingProfile(userId) {
+      return isOwner(userId)
+        && request.resource.data.get('uid', '') == userId
+        && request.resource.data.get('role', '') == 'user'
+        && request.resource.data.get('approved', true) == false
+        && request.resource.data.get('status', '') == 'pending';
+    }
+
+    function ownerProfileFieldsOnly() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+        'name', 'storeName', 'phone', 'pixType', 'pixKey', 'pixBank', 'pixName', 'city',
+        'paymentSettings', 'paymentSettingsUpdatedAt', 'financialData', 'financialUpdatedAt', 'updatedAt'
+      ]);
+    }
+
+    function adminProfileFieldsOnly() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+        'name', 'storeName', 'phone', 'pixType', 'pixKey', 'pixBank', 'pixName', 'city',
+        'approved', 'status', 'updatedAt', 'deletedAt', 'deletedBy'
+      ]);
+    }
+
+    function validProductStock() {
+      return request.resource.data.quantity is int
+        && request.resource.data.quantity >= 0;
+    }
+
+    match /artifacts/{appId}/users/{userId}/profile/info {
+      allow get: if isOwner(userId) || isAdmin(appId);
+      allow list: if isAdmin(appId);
+      allow create: if isSafePendingProfile(userId)
+        || (isAdmin(appId)
+          && request.resource.data.get('approved', true) == false
+          && request.resource.data.get('status', '') == 'deleted');
+      allow update: if (isApprovedOwner(appId, userId) && ownerProfileFieldsOnly())
+        || (isAdmin(appId) && adminProfileFieldsOnly());
+      allow delete: if false;
+    }
+
+    match /artifacts/{appId}/public/data/all_users/{userId} {
+      allow read: if isAdmin(appId);
+      allow create: if isOwner(userId)
+        && request.resource.data.get('uid', '') == userId
+        && request.resource.data.get('role', '') == 'user'
+        && request.resource.data.get('approved', true) == false
+        && request.resource.data.get('status', '') == 'pending'
+        && request.resource.data.keys().hasOnly([
+          'uid', 'email', 'name', 'storeName', 'phone', 'role', 'approved', 'status', 'createdAt'
+        ]);
+      allow update: if (isApprovedOwner(appId, userId)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'storeName', 'phone', 'updatedAt']))
+        || (isAdmin(appId)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'name', 'storeName', 'phone', 'approved', 'status', 'updatedAt',
+            'pixType', 'pixKey', 'pixBank', 'pixName', 'paymentSettings', 'financialData', 'privacyMigratedAt'
+          ])
+          && !request.resource.data.keys().hasAny([
+            'pixType', 'pixKey', 'pixBank', 'pixName', 'paymentSettings', 'financialData'
+          ]));
+      allow delete: if isAdmin(appId);
+    }
+
+    match /artifacts/{appId}/users/{userId}/products/{productId} {
+      allow create, update: if isApprovedOwner(appId, userId) && validProductStock();
+      allow read, delete: if isApprovedOwner(appId, userId);
+    }
+
+    match /artifacts/{appId}/users/{userId}/sales/{saleId} {
+      allow read, create, update: if isApprovedOwner(appId, userId);
+      allow delete: if false;
+    }
+
+    match /artifacts/{appId}/users/{userId}/customers/{customerId} {
+      allow read, create, update, delete: if isApprovedOwner(appId, userId);
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

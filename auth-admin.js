@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'https://esm.sh/react@18.2.0';
-import { Store, AlertTriangle, RefreshCw, Mail, UserCheck, Lock, UserCog, Shield, X, Search, Edit2, Trash2 } from 'https://esm.sh/lucide-react@0.292.0';
+import { Store, AlertTriangle, Mail, UserCheck, Lock, UserCog, Shield, X, Search, Edit2, Trash2 } from 'https://esm.sh/lucide-react@0.292.0';
 import { db, auth, APP_ID, ADMIN_EMAIL } from './firebase-config.js';
-import { collection, query, where, getDocs, setDoc, doc, updateDoc, deleteDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
+import { collection, query, doc, getDoc, onSnapshot, serverTimestamp, writeBatch, deleteField } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js";
 import { maskPhone, applyPixMask } from './utils.js';
 import { Pagination } from './components.js';
@@ -16,28 +16,12 @@ export const AuthScreen = () => {
     const [phone, setPhone] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
-    const [recoveryMode, setRecoveryMode] = useState(false);
-
     const checkEmail = async () => {
-        if (!email) return setError("Digite um e-mail.");
+        const normalizedEmail = email.trim().toLowerCase();
+        if (!normalizedEmail) return setError("Digite um e-mail.");
         setError('');
-        setLoading(true);
-        try {
-            const usersRef = collection(db, 'artifacts', APP_ID, 'public', 'data', 'all_users');
-            const q = query(usersRef, where("email", "==", email));
-            const querySnapshot = await getDocs(q);
-            
-            if (!querySnapshot.empty) {
-                setStep('password');
-            } else {
-                setStep('register');
-            }
-        } catch (e) {
-            console.error("CheckEmail Error:", e);
-            setStep('password');
-        } finally {
-            setLoading(false);
-        }
+        setEmail(normalizedEmail);
+        setStep('password');
     };
 
     const handleLogin = async () => {
@@ -45,27 +29,41 @@ export const AuthScreen = () => {
         setLoading(true);
         setError('');
         try {
-            await signInWithEmailAndPassword(auth, email, password);
+            await signInWithEmailAndPassword(auth, email.trim().toLowerCase(), password);
         } catch (e) {
-            setError("Usuário ou senha incorretos.");
+            setError("E-mail ou senha incorretos. Se ainda não tem cadastro, escolha Criar conta.");
             setLoading(false);
         }
     };
 
-    const forceCreateUserData = async (uid) => {
-        const isAdmin = email.toLowerCase() === ADMIN_EMAIL.toLowerCase();
-        const userData = {
-            uid: uid,
-            email: email,
-            name: fullName || "Usuário Recuperado",
+    const createInitialUserData = async (uid) => {
+        const normalizedEmail = email.trim().toLowerCase();
+        const privateProfile = {
+            uid,
+            email: normalizedEmail,
+            name: fullName || "Usuário",
             storeName: storeName || "Minha Hinode",
             phone: phone || "",
-            role: isAdmin ? 'admin' : 'user',
-            approved: isAdmin ? true : false, 
+            role: 'user',
+            approved: false,
+            status: 'pending',
             createdAt: serverTimestamp()
         };
-        await setDoc(doc(db, 'artifacts', APP_ID, 'users', uid, 'profile', 'info'), userData);
-        await setDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'all_users', uid), userData);
+        const directoryProfile = {
+            uid,
+            email: normalizedEmail,
+            name: privateProfile.name,
+            storeName: privateProfile.storeName,
+            phone: privateProfile.phone,
+            role: 'user',
+            approved: false,
+            status: 'pending',
+            createdAt: serverTimestamp()
+        };
+        const batch = writeBatch(db);
+        batch.set(doc(db, 'artifacts', APP_ID, 'users', uid, 'profile', 'info'), privateProfile);
+        batch.set(doc(db, 'artifacts', APP_ID, 'public', 'data', 'all_users', uid), directoryProfile);
+        await batch.commit();
     };
 
     const handleRegister = async () => {
@@ -75,19 +73,13 @@ export const AuthScreen = () => {
         setError('');
         
         try {
-            const userCred = await createUserWithEmailAndPassword(auth, email, password);
-            await forceCreateUserData(userCred.user.uid);
+            const userCred = await createUserWithEmailAndPassword(auth, email.trim().toLowerCase(), password);
+            await createInitialUserData(userCred.user.uid);
 
         } catch (e) {
             if (e.code === 'auth/email-already-in-use') {
-                try {
-                    const userCred = await signInWithEmailAndPassword(auth, email, password);
-                    await forceCreateUserData(userCred.user.uid);
-                    setRecoveryMode(true);
-                } catch (loginErr) {
-                    setError("Este e-mail já existe. Tente fazer login na tela inicial com sua senha antiga.");
-                    setLoading(false);
-                }
+                setError("Este e-mail já possui uma conta. Volte e faça login com a senha cadastrada.");
+                setLoading(false);
             } else {
                 setError("Erro ao cadastrar: " + e.message);
                 setLoading(false);
@@ -107,8 +99,6 @@ export const AuthScreen = () => {
                 React.createElement('p', { className: "text-slate-400 text-sm" }, step === 'register' ? "Preencha seus dados" : "Identifique-se para continuar")
             ),
             error && React.createElement('div', { className: "bg-red-50 text-red-500 p-3 rounded-xl text-sm mb-4 flex items-center gap-2" }, React.createElement(AlertTriangle, { size: 16 }), error),
-            recoveryMode && React.createElement('div', { className: "bg-blue-50 text-blue-600 p-3 rounded-xl text-sm mb-4 flex items-center gap-2 animate-pulse" }, React.createElement(RefreshCw, { size: 16 }), "Conta recuperada! Redirecionando..."),
-            
             step === 'email' && React.createElement('div', { className: "space-y-4" },
                 React.createElement('div', null, React.createElement('label', { className: "block text-xs font-bold text-slate-500 uppercase mb-1 ml-1" }, "E-mail"), React.createElement('div', { className: "relative" }, React.createElement(Mail, { className: "absolute left-3 top-3 text-slate-400", size: 20 }), React.createElement('input', { autoFocus: true, type: "email", className: "w-full p-3 pl-10 border border-slate-200 rounded-xl focus:ring-2 focus:ring-yellow-500 outline-none", placeholder: "seu@email.com", value: email, onChange: e => setEmail(e.target.value) }))),
                 React.createElement('button', { onClick: checkEmail, disabled: loading, className: "w-full py-3 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 transition-colors disabled:opacity-50" }, loading ? "Verificando..." : "Continuar")
@@ -116,7 +106,8 @@ export const AuthScreen = () => {
             step === 'password' && React.createElement('div', { className: "space-y-4 animate-fade-in" },
                 React.createElement('div', { className: "flex items-center gap-2 bg-slate-50 p-2 rounded-lg mb-2" }, React.createElement(UserCheck, { size: 16, className: "text-green-500" }), React.createElement('span', { className: "text-sm text-slate-600 truncate flex-1" }, email), React.createElement('button', { onClick: () => { setStep('email'); setPassword(''); setError(''); }, className: "text-xs text-blue-500 font-bold hover:underline" }, "Trocar")),
                 React.createElement('div', null, React.createElement('label', { className: "block text-xs font-bold text-slate-500 uppercase mb-1 ml-1" }, "Senha"), React.createElement('div', { className: "relative" }, React.createElement(Lock, { className: "absolute left-3 top-3 text-slate-400", size: 20 }), React.createElement('input', { autoFocus: true, type: "password", className: "w-full p-3 pl-10 border border-slate-200 rounded-xl focus:ring-2 focus:ring-yellow-500 outline-none", placeholder: "••••••••", value: password, onChange: e => setPassword(e.target.value) }))),
-                React.createElement('button', { onClick: handleLogin, disabled: loading, className: "w-full py-3 bg-yellow-500 text-slate-900 font-bold rounded-xl hover:bg-yellow-400 transition-colors shadow-lg shadow-yellow-200 disabled:opacity-50" }, loading ? "Entrando..." : "Entrar")
+                React.createElement('button', { onClick: handleLogin, disabled: loading, className: "w-full py-3 bg-yellow-500 text-slate-900 font-bold rounded-xl hover:bg-yellow-400 transition-colors shadow-lg shadow-yellow-200 disabled:opacity-50" }, loading ? "Entrando..." : "Entrar"),
+                React.createElement('button', { type: "button", onClick: () => { setStep('register'); setPassword(''); setError(''); }, disabled: loading, className: "w-full py-2.5 text-sm font-bold text-slate-500 hover:text-slate-800 disabled:opacity-50" }, "Criar uma conta")
             ),
             step === 'register' && React.createElement('div', { className: "space-y-3 animate-fade-in" },
                  React.createElement('div', { className: "flex items-center gap-2 bg-slate-50 p-2 rounded-lg mb-2" }, React.createElement(UserCog, { size: 16, className: "text-orange-500" }), React.createElement('span', { className: "text-sm text-slate-600 truncate flex-1" }, email), React.createElement('button', { onClick: () => { setStep('email'); setPassword(''); setError(''); }, className: "text-xs text-blue-500 font-bold hover:underline" }, "Trocar")),
@@ -139,7 +130,33 @@ export const AdminUsersPanel = ({ onClose }) => {
 
     useEffect(() => {
         const q = query(collection(db, 'artifacts', APP_ID, 'public', 'data', 'all_users'));
-        const unsub = onSnapshot(q, (snap) => setUsers(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+        let cleaningLegacyFields = false;
+        const unsub = onSnapshot(q, (snap) => {
+            setUsers(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+            const legacyProfiles = snap.docs.filter(snapshot => {
+                const data = snapshot.data();
+                return ['pixType', 'pixKey', 'pixBank', 'pixName', 'paymentSettings', 'financialData'].some(field => Object.prototype.hasOwnProperty.call(data, field));
+            });
+            if (!cleaningLegacyFields && legacyProfiles.length > 0) {
+                cleaningLegacyFields = true;
+                (async () => {
+                    try {
+                        for (let start = 0; start < legacyProfiles.length; start += 400) {
+                            const batch = writeBatch(db);
+                            legacyProfiles.slice(start, start + 400).forEach(snapshot => batch.update(snapshot.ref, {
+                                pixType: deleteField(), pixKey: deleteField(), pixBank: deleteField(), pixName: deleteField(),
+                                paymentSettings: deleteField(), financialData: deleteField(), privacyMigratedAt: serverTimestamp()
+                            }));
+                            await batch.commit();
+                        }
+                    } catch (error) {
+                        console.error('Não foi possível limpar campos privados antigos do diretório:', error);
+                    } finally {
+                        cleaningLegacyFields = false;
+                    }
+                })();
+            }
+        });
         return () => unsub();
     }, []);
 
@@ -148,23 +165,57 @@ export const AdminUsersPanel = ({ onClose }) => {
     const filteredUsers = users.filter(u => u.name?.toLowerCase().includes(searchTerm.toLowerCase()) || u.email?.toLowerCase().includes(searchTerm.toLowerCase()));
     const paginatedUsers = filteredUsers.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
+    const handleOpenEdit = async (directoryUser) => {
+        try {
+            const privateSnapshot = await getDoc(doc(db, 'artifacts', APP_ID, 'users', directoryUser.id, 'profile', 'info'));
+            const privateData = privateSnapshot.exists() ? privateSnapshot.data() : {};
+            setEditingUser({
+                ...directoryUser,
+                ...privateData,
+                id: directoryUser.id,
+                pixType: privateData.pixType || '',
+                pixKey: privateData.pixKey || '',
+                pixBank: privateData.pixBank || '',
+                pixName: privateData.pixName || ''
+            });
+        } catch (error) {
+            console.error('Não foi possível carregar o perfil privado:', error);
+            alert('Não foi possível carregar os dados privados deste usuário.');
+        }
+    };
+
     const handleToggleStatus = async (user) => {
         const newStatus = !user.approved;
-        await updateDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'all_users', user.id), { approved: newStatus });
-        await updateDoc(doc(db, 'artifacts', APP_ID, 'users', user.id, 'profile', 'info'), { approved: newStatus });
+        const statusData = { approved: newStatus, status: newStatus ? 'active' : 'blocked', updatedAt: serverTimestamp() };
+        const batch = writeBatch(db);
+        batch.update(doc(db, 'artifacts', APP_ID, 'public', 'data', 'all_users', user.id), statusData);
+        batch.set(doc(db, 'artifacts', APP_ID, 'users', user.id, 'profile', 'info'), statusData, { merge: true });
+        await batch.commit();
     };
 
     const handleDeleteUser = async (userId) => {
-        if(!confirm("Tem certeza? O usuário perderá o acesso.")) return;
-        await deleteDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'all_users', userId));
+        if(!confirm("Tem certeza? O acesso será revogado imediatamente e o cadastro sairá da lista. Os dados comerciais serão preservados.")) return;
+        const batch = writeBatch(db);
+        batch.set(doc(db, 'artifacts', APP_ID, 'users', userId, 'profile', 'info'), {
+            approved: false,
+            status: 'deleted',
+            deletedAt: serverTimestamp(),
+            deletedBy: auth.currentUser?.uid || null
+        }, { merge: true });
+        batch.delete(doc(db, 'artifacts', APP_ID, 'public', 'data', 'all_users', userId));
+        await batch.commit();
     };
 
     const handleSaveEdit = async () => {
         if (!editingUser) return;
         const { id, name, storeName, phone, pixType, pixKey, pixBank, pixName } = editingUser;
-        const updateData = { name, storeName, phone, pixType, pixKey, pixBank, pixName };
-        await updateDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'all_users', id), updateData);
-        await updateDoc(doc(db, 'artifacts', APP_ID, 'users', id, 'profile', 'info'), updateData);
+        const updatedAt = serverTimestamp();
+        const privateData = { name, storeName, phone, pixType, pixKey, pixBank, pixName, updatedAt };
+        const directoryData = { name, storeName, phone, updatedAt };
+        const batch = writeBatch(db);
+        batch.update(doc(db, 'artifacts', APP_ID, 'public', 'data', 'all_users', id), directoryData);
+        batch.set(doc(db, 'artifacts', APP_ID, 'users', id, 'profile', 'info'), privateData, { merge: true });
+        await batch.commit();
         setEditingUser(null);
     };
 
@@ -179,14 +230,14 @@ export const AdminUsersPanel = ({ onClose }) => {
         React.createElement('div', { className: "admin-content flex-1 overflow-y-auto p-4 md:p-6 bg-transparent" },
             React.createElement('div', { className: "admin-users-table max-w-5xl mx-auto list-shell" },
                 paginatedUsers.map(u => {
-                    const isMe = u.email === ADMIN_EMAIL;
+                    const isMe = u.id === auth.currentUser?.uid || u.email === ADMIN_EMAIL;
                     return React.createElement('div', { key: u.id, className: "admin-user-row flex flex-col md:flex-row justify-between items-start md:items-center gap-4" },
                         React.createElement('div', { className: "flex-1" },
                             React.createElement('div', { className: "flex items-center gap-2" }, React.createElement('h3', { className: "font-bold text-slate-800" }, u.name), u.role === 'admin' && React.createElement('span', { className: "bg-yellow-100 text-yellow-800 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase" }, "Admin"), !u.approved && React.createElement('span', { className: "bg-red-100 text-red-800 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase" }, "Bloqueado")),
                             React.createElement('p', { className: "text-sm text-slate-500" }, u.email),
                             React.createElement('p', { className: "text-xs text-slate-400 mt-1" }, u.storeName || "Sem loja")
                         ),
-                        React.createElement('div', { className: "flex items-center gap-2" }, !isMe && React.createElement('button', { onClick: () => handleToggleStatus(u), className: `px-4 py-2 rounded-lg font-bold text-sm ${u.approved ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'bg-green-50 text-green-600 hover:bg-green-100'}` }, u.approved ? "Bloquear" : "Permitir"), React.createElement('button', { onClick: () => setEditingUser({...u, pixType: u.pixType||'', pixKey: u.pixKey||'', pixBank: u.pixBank||'', pixName: u.pixName||''}), className: "p-2 text-slate-400 hover:text-blue-500" }, React.createElement(Edit2, { size: 18 })), !isMe && React.createElement('button', { onClick: () => handleDeleteUser(u.id), className: "p-2 text-slate-400 hover:text-red-500" }, React.createElement(Trash2, { size: 18 })))
+                        React.createElement('div', { className: "flex items-center gap-2" }, !isMe && React.createElement('button', { onClick: () => handleToggleStatus(u), className: `px-4 py-2 rounded-lg font-bold text-sm ${u.approved ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'bg-green-50 text-green-600 hover:bg-green-100'}` }, u.approved ? "Bloquear" : "Permitir"), React.createElement('button', { onClick: () => handleOpenEdit(u), className: "p-2 text-slate-400 hover:text-blue-500" }, React.createElement(Edit2, { size: 18 })), !isMe && React.createElement('button', { onClick: () => handleDeleteUser(u.id), className: "p-2 text-slate-400 hover:text-red-500" }, React.createElement(Trash2, { size: 18 })))
                     );
                 }),
                 React.createElement(Pagination, { totalItems: filteredUsers.length, itemsPerPage: ITEMS_PER_PAGE, currentPage: currentPage, onPageChange: setCurrentPage })
