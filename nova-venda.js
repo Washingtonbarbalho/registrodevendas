@@ -5,6 +5,38 @@ import { collection, addDoc, serverTimestamp } from "https://www.gstatic.com/fir
 import { formatCurrency, parseMoney, maskPhone, getBrazilDateString, addDays, generatePixPayload, analyzeCustomerCredit } from './utils.js';
 import { MoneyInput } from './components.js';
 import { getCardRate, getCarnetRate, normalizePaymentSettings } from './payment-settings.js';
+import QRCode from 'https://esm.sh/qrcode@1.5.4';
+
+const LocalPixQrCode = ({ payload }) => {
+    const [dataUrl, setDataUrl] = useState('');
+    const [error, setError] = useState('');
+
+    useEffect(() => {
+        let active = true;
+        setDataUrl('');
+        setError('');
+        if (!payload) return () => { active = false; };
+
+        QRCode.toDataURL(payload, { width: 180, margin: 1, errorCorrectionLevel: 'M' })
+            .then(nextDataUrl => { if (active) setDataUrl(nextDataUrl); })
+            .catch(qrError => {
+                console.error('Erro ao gerar QR Code PIX localmente:', qrError);
+                if (active) setError('Não foi possível gerar a imagem. Copie o código PIX abaixo.');
+            });
+
+        return () => { active = false; };
+    }, [payload]);
+
+    return dataUrl
+        ? React.createElement('img', {
+            src: dataUrl,
+            alt: 'QR Code PIX',
+            className: 'mb-4 rounded-lg shadow-sm border border-emerald-200 w-32 h-32'
+        })
+        : React.createElement('div', {
+            className: 'mb-4 flex h-32 w-32 items-center justify-center rounded-lg border border-emerald-200 bg-white p-3 text-center text-[10px] text-slate-500'
+        }, error || 'Gerando QR Code com segurança...');
+};
 
 export const NewSaleScreen = ({ mode, onClose, customers, products, sales, onSaveSale, userProfile, user, paymentSettings }) => {
     useEffect(() => { window.scrollTo(0, 0); }, []);
@@ -77,7 +109,8 @@ export const NewSaleScreen = ({ mode, onClose, customers, products, sales, onSav
     const filteredProducts = products.filter(p => p.name.toLowerCase().includes(productSearch.toLowerCase()) || p.code.includes(productSearch));
     
     const totalCartValue = cart.reduce((acc, item) => acc + item.price, 0);
-    const entryValue = parseMoney(entryAmount) || 0;
+    const acceptsEntry = saleType === 'prazo' || directMethod === 'credit' || directMethod === 'debit';
+    const entryValue = acceptsEntry ? parseMoney(entryAmount) || 0 : 0;
     const totalRemaining = Math.max(0, totalCartValue - entryValue);
     const normalizedPaymentSettings = normalizePaymentSettings(paymentSettings);
     const selectedInstallmentsCount = Math.min(12, Math.max(1, parseInt(installmentsCount, 10) || 1));
@@ -146,13 +179,28 @@ export const NewSaleScreen = ({ mode, onClose, customers, products, sales, onSav
     };
 
     const handleAddItem = () => {
-        const qty = parseInt(currentQty) || 1;
+        const qty = Number(currentQty);
         const unitPrice = parseMoney(currentPrice);
         const unitDiscount = parseMoney(currentDiscount);
         
+        if (!Number.isInteger(qty) || qty < 1) return alert("Informe uma quantidade inteira maior que zero.");
         if(!selectedProductId || unitPrice < 0 || qty <= 0) return;
         
         const prod = products.find(p => p.id === selectedProductId);
+        if (!prod) return alert("O produto selecionado não foi encontrado. Atualize a página e tente novamente.");
+
+        const availableQuantity = Number(prod.quantity);
+        if (!Number.isInteger(availableQuantity) || availableQuantity < 0) {
+            return alert(`${prod.name}: o saldo de estoque está inválido e precisa ser corrigido.`);
+        }
+        const quantityAlreadyInCart = cart.reduce((total, item) => (
+            String(item.productId) === String(prod.id) ? total + Number(item.quantity || 0) : total
+        ), 0);
+        const remainingQuantity = Math.max(0, availableQuantity - quantityAlreadyInCart);
+        if (qty > remainingQuantity) {
+            return alert(`${prod.name}: estoque disponível é ${remainingQuantity} un. para adicionar ao carrinho.`);
+        }
+
         const totalLineCost = currentCost * qty;
         const totalLinePrice = unitPrice * qty;
         
@@ -187,6 +235,7 @@ export const NewSaleScreen = ({ mode, onClose, customers, products, sales, onSav
     const handleFinish = () => {
         if (!customerId) return alert("Selecione um cliente.");
         if (cart.length === 0) return alert("Adicione ao menos um produto no carrinho.");
+        if (entryValue > totalCartValue) return alert("A entrada não pode ser maior que o valor total dos produtos.");
 
         const customer = customers.find(c => c.id === customerId);
         const cName = customer ? customer.name : customerSearch;
@@ -487,10 +536,8 @@ export const NewSaleScreen = ({ mode, onClose, customers, products, sales, onSav
                         directMethod === 'pix' && React.createElement('div', { className: "space-y-4 pt-4 border-t border-slate-100" },
                             userProfile?.pixKey ? React.createElement('div', { className: "bg-emerald-50 p-4 rounded-xl border border-emerald-100 flex flex-col items-center text-center" },
                                 React.createElement('p', { className: "text-xs font-bold text-emerald-700 uppercase mb-3 flex items-center gap-2" }, React.createElement(QrCode, { size: 16 }), "Receber via PIX"),
-                                React.createElement('img', { 
-                                    src: `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(generatePixPayload(userProfile.pixKey, userProfile.pixType, userProfile.pixName, userProfile.city || "BRASIL", totalRemaining, "VND"))}`, 
-                                    alt: "QR Code PIX", 
-                                    className: "mb-4 rounded-lg shadow-sm border border-emerald-200 w-32 h-32" 
+                                React.createElement(LocalPixQrCode, {
+                                    payload: generatePixPayload(userProfile.pixKey, userProfile.pixType, userProfile.pixName, userProfile.city || "BRASIL", totalRemaining, "VND")
                                 }),
                                 React.createElement('div', { className: "w-full relative" },
                                     React.createElement('input', { type: "text", readOnly: true, value: generatePixPayload(userProfile.pixKey, userProfile.pixType, userProfile.pixName, userProfile.city || "BRASIL", totalRemaining, "VND"), className: "w-full text-[10px] p-3 pr-12 border border-emerald-200 rounded-lg bg-white outline-none text-slate-500 font-mono" }),

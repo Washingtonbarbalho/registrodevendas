@@ -1,4 +1,4 @@
-name: Validar v71
+name: Validar v72
 
 on:
   push:
@@ -7,14 +7,14 @@ on:
     branches: [main]
 
 jobs:
-  validate-v71:
+  validate-v72:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Validar sintaxe dos módulos críticos v71
+      - name: Validar sintaxe dos módulos críticos v72
         run: |
           node --check bootstrap-v71.js
           node --check sales-operations-v71.js
@@ -22,6 +22,7 @@ jobs:
           node --check auth-screen-v71.js
           node --check app-patch-operations-v71.js
           node --check app-patch-final-v71.js
+          node --check nova-venda.js
           node --check bootstrap-v70.js
           node --check financial-core-v70.js
           node --check reports-engine-v70.js
@@ -74,13 +75,16 @@ jobs:
           grep -q "batchId" batch-stock-modal-v68.js
           grep -q "applyMobileMenuPatch" bootstrap-v71.js
           grep -q "inset: 72px 0 0" v66-mobile-menu.css
-      - name: Validar vendas unificadas, login e atalhos
+      - name: Validar vendas unificadas, login e atalhos úteis
         run: |
           grep -q "buildSalesView" aba-vendas-v71.js
           grep -q "Mês atual + pendências" aba-vendas-v71.js
           grep -q "mobile-quick-nav" v71-operations.css
           grep -q "sendPasswordResetEmail" auth-screen-v71.js
           grep -q "applyOperationsPatch" bootstrap-v71.js
+          grep -q "'dashboard', 'sales', 'products', 'finance'" app-patch-operations-v71.js
+          grep -q "QRCode.toDataURL" nova-venda.js
+          ! grep -q "api.qrserver.com" nova-venda.js
       - name: Validar segurança, privacidade e estoque
         run: |
           grep -q "status: 'deleted'" auth-admin.js
@@ -91,13 +95,13 @@ jobs:
       - name: Validar versão ativa
         run: |
           grep -q "v71-operations.css?v=71" index.html
-          grep -q "bootstrap-v71.js?v=71" index.html
-          grep -q "aba-vendas-v71.js?v=71" bootstrap-v71.js
-          grep -q "auth-screen-v71.js?v=71" bootstrap-v71.js
-          grep -q "aba-financeiro-v68.js?v=71" bootstrap-v71.js
-          grep -q "batch-stock-modal-v68.js?v=71" bootstrap-v71.js
-          grep -q "stock-movement-modal-v68.js?v=71" bootstrap-v71.js
-          grep -q "modals-fixed-v69.js?v=71" bootstrap-v71.js
-          grep -q "nova-venda-fixed-v70.js?v=71" bootstrap-v71.js
-          grep -q "financial-core-v70.js?v=71" bootstrap-v71.js
-          grep -q "reports-engine-v70.js?v=71" bootstrap-v71.js
+          grep -q "bootstrap-v71.js?v=72" index.html
+          grep -q "aba-vendas-v71.js?v=72" bootstrap-v71.js
+          grep -q "auth-screen-v71.js?v=72" bootstrap-v71.js
+          grep -q "aba-financeiro-v68.js?v=72" bootstrap-v71.js
+          grep -q "batch-stock-modal-v68.js?v=72" bootstrap-v71.js
+          grep -q "stock-movement-modal-v68.js?v=72" bootstrap-v71.js
+          grep -q "modals-fixed-v69.js?v=72" bootstrap-v71.js
+          grep -q "nova-venda-fixed-v70.js?v=72" bootstrap-v71.js
+          grep -q "financial-core-v70.js?v=72" bootstrap-v71.js
+          grep -q "reports-engine-v70.js?v=72" bootstrap-v71.js

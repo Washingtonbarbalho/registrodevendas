@@ -14,6 +14,8 @@ import { applySecurityReliabilityPatch } from '../app-patch-security-v69.js';
 import { applyAccountingPatch } from '../app-patch-accounting-v70.js';
 import { applyOperationsPatch } from '../app-patch-operations-v71.js';
 import { applyFinalPatches } from '../app-patch-final-v71.js';
+import { normalizeSaleMoney } from '../financial-core-v70.js';
+import { aggregateSaleItems, buildSaleInventoryPlan, InventoryReliabilityError } from '../inventory-reliability-v69.js';
 import {
   buildSalesView,
   getOperationalSaleStatus,
@@ -37,6 +39,9 @@ for (const file of [
   'auth-screen-v71.js',
   'app-patch-operations-v71.js',
   'app-patch-final-v71.js',
+  'nova-venda.js',
+  'nova-venda-fixed-v69.js',
+  'nova-venda-fixed-v70.js',
   'tab-persistence.js'
 ]) checkSyntax(new URL(`../${file}`, import.meta.url));
 
@@ -154,11 +159,13 @@ fs.writeFileSync(generatedFile, source);
 checkSyntax(generatedFile);
 
 for (const marker of [
-  'aba-vendas-v71.js?v=71',
-  'auth-screen-v71.js?v=71',
+  'aba-vendas-v71.js?v=72',
+  'auth-screen-v71.js?v=72',
   "{ id: 'sales', label: 'Vendas', shortLabel: 'Vendas'",
   "view === 'sales' ? React.createElement(AbaVendas",
   'mobile-quick-nav',
+  "const mobilePrimaryNav = ['dashboard', 'sales', 'products', 'finance']",
+  "item.id === 'finance' ? 'Financeiro' : item.shortLabel",
   'quick-sale-sheet',
   'buildSaleInventoryPlan(requestedItems, inventoryRecords)',
   'getSalesAccrualSummary(sales, dashStartDate, dashEndDate)',
@@ -171,8 +178,138 @@ for (const obsolete of [
   'AbaVendasCaixa',
   'cashierSearch',
   'salesSearch',
-  "{ id: 'cashier'"
+  "{ id: 'cashier'",
+  "React.createElement('span', null, \"Mais\")",
+  "'aria-label': \"Abrir todos os módulos\""
 ]) assert.ok(!source.includes(obsolete), `Fluxo duplicado ainda presente: ${obsolete}`);
+
+const handlerStart = source.indexOf('    const handleAddSale = async (data) => {');
+const handlerEnd = source.indexOf('    const handleCancelSaleLogic = async', handlerStart);
+assert.ok(handlerStart >= 0 && handlerEnd > handlerStart, 'A rotina real de gravação da venda precisa estar disponível para teste.');
+const saleHandlerSource = source.slice(handlerStart, handlerEnd);
+
+const makeSaleHarness = (initialStock, options = {}) => {
+  const inventory = new Map(Object.entries(initialStock).map(([id, quantity]) => [id, { name: id, quantity }]));
+  const savedSales = new Map();
+  const committedOperations = [];
+  const fakeDb = { name: 'firestore-test' };
+  let saleNumber = 0;
+
+  const collection = (_db, ...segments) => ({ path: segments.join('/') });
+  const doc = (target, ...segments) => {
+    if (segments.length === 0) {
+      const id = `sale-${++saleNumber}`;
+      return { id, path: `${target.path}/${id}` };
+    }
+    return { id: String(segments.at(-1)), path: segments.join('/') };
+  };
+
+  const runTransaction = async (_db, callback) => {
+    const staged = [];
+    const transaction = {
+      get: async ref => ({
+        exists: () => inventory.has(ref.id),
+        data: () => inventory.get(ref.id)
+      }),
+      set: (ref, data) => staged.push({ type: 'set', ref, data }),
+      update: (ref, data) => staged.push({ type: 'update', ref, data })
+    };
+
+    await callback(transaction);
+    if (options.rejectCommit) throw new Error('Commit simulado recusado.');
+    staged.forEach(operation => {
+      if (operation.type === 'set') savedSales.set(operation.ref.id, operation.data);
+      else inventory.set(operation.ref.id, { ...inventory.get(operation.ref.id), ...operation.data });
+      committedOperations.push(operation);
+    });
+  };
+
+  const createHandler = Function('dependencies', `
+    const { db, APP_ID, user, doc, collection, runTransaction, serverTimestamp,
+      aggregateSaleItems, buildSaleInventoryPlan, normalizeSaleMoney } = dependencies;
+    const console = { error() {} };
+    ${saleHandlerSource}
+    return handleAddSale;
+  `);
+
+  const handleAddSale = createHandler({
+    db: fakeDb,
+    APP_ID: 'registro-vendas-test',
+    user: { uid: 'owner-test' },
+    doc,
+    collection,
+    runTransaction,
+    serverTimestamp: () => ({ generatedBy: 'server' }),
+    aggregateSaleItems,
+    buildSaleInventoryPlan,
+    normalizeSaleMoney
+  });
+
+  return { handleAddSale, inventory, savedSales, committedOperations };
+};
+
+const cashSale = {
+  saleType: 'direct',
+  paymentMethod: 'pix',
+  customerId: null,
+  customerName: 'VENDA AVULSA',
+  status: 'completed',
+  totalPrice: 35.55,
+  totalCost: 999,
+  netReceived: 35.55,
+  items: [
+    { productId: 'perfume', productName: 'Perfume', quantity: 2, unitPrice: 10, unitCost: 4, price: 20, cost: 8 },
+    { productId: 'perfume', productName: 'Perfume', quantity: 1, unitPrice: 10, unitCost: 4, price: 10, cost: 4 },
+    { productId: 'creme', productName: 'Creme', quantity: 1, unitPrice: 5.55, unitCost: 2.22, price: 5.55, cost: 2.22 }
+  ],
+  installments: []
+};
+
+const cashHarness = makeSaleHarness({ perfume: 4, creme: 2 });
+const savedCashId = await cashHarness.handleAddSale(cashSale);
+assert.equal(savedCashId, 'sale-1', 'A venda no caixa deve retornar o identificador realmente gravado.');
+assert.equal(cashHarness.savedSales.size, 1, 'A venda precisa ser gravada uma única vez.');
+assert.equal(cashHarness.savedSales.get(savedCashId)?.totalCost, 14.22, 'O custo precisa ser normalizado antes da gravação.');
+assert.equal(cashHarness.savedSales.get(savedCashId)?.inventoryOperationId, savedCashId);
+assert.equal(cashHarness.inventory.get('perfume')?.quantity, 1, 'Produtos repetidos devem gerar apenas uma baixa consolidada.');
+assert.equal(cashHarness.inventory.get('creme')?.quantity, 1);
+assert.deepEqual(cashHarness.committedOperations.map(item => item.type), ['set', 'update', 'update']);
+
+const termHarness = makeSaleHarness({ perfume: 1 });
+const termSaleId = await termHarness.handleAddSale({
+  saleType: 'prazo',
+  customerId: 'customer-1',
+  customerName: 'Cliente a prazo',
+  status: 'active',
+  entryAmount: 5,
+  totalPrice: 999,
+  items: [{ productId: 'perfume', productName: 'Perfume', quantity: 1, unitPrice: 100, unitCost: 60, price: 100, cost: 60 }],
+  installments: [33.34, 33.33, 28.33].map((amount, index) => ({ number: index + 1, amount, paid: false }))
+});
+assert.equal(termHarness.savedSales.get(termSaleId)?.totalPrice, 100, 'A venda a prazo precisa fechar exatamente em centavos.');
+assert.equal(termHarness.inventory.get('perfume')?.quantity, 0, 'A venda da última unidade precisa ser permitida.');
+
+const insufficientHarness = makeSaleHarness({ perfume: 2, creme: 2 });
+await assert.rejects(() => insufficientHarness.handleAddSale(cashSale), error => (
+  error instanceof InventoryReliabilityError && error.code === 'insufficient-stock'
+), 'Estoque insuficiente deve impedir a venda.');
+assert.equal(insufficientHarness.savedSales.size, 0, 'Venda recusada não pode ficar gravada parcialmente.');
+assert.equal(insufficientHarness.inventory.get('perfume')?.quantity, 2);
+assert.equal(insufficientHarness.inventory.get('creme')?.quantity, 2);
+assert.equal(insufficientHarness.committedOperations.length, 0);
+
+const missingHarness = makeSaleHarness({ perfume: 4 });
+await assert.rejects(() => missingHarness.handleAddSale(cashSale), error => (
+  error instanceof InventoryReliabilityError && error.code === 'product-not-found'
+), 'Produtos removidos devem impedir a gravação.');
+assert.equal(missingHarness.savedSales.size, 0);
+assert.equal(missingHarness.inventory.get('perfume')?.quantity, 4);
+
+const failedCommitHarness = makeSaleHarness({ perfume: 4, creme: 2 }, { rejectCommit: true });
+await assert.rejects(() => failedCommitHarness.handleAddSale(cashSale), /Nenhuma venda ou baixa de estoque foi gravada/);
+assert.equal(failedCommitHarness.savedSales.size, 0, 'Falha no banco não pode registrar uma venda incompleta.');
+assert.equal(failedCommitHarness.inventory.get('perfume')?.quantity, 4);
+assert.equal(failedCommitHarness.inventory.get('creme')?.quantity, 2);
 
 const authSource = fs.readFileSync(new URL('../auth-screen-v71.js', import.meta.url), 'utf8');
 for (const marker of ['sendPasswordResetEmail', "autoComplete: 'current-password'", 'Lembrar meu e-mail', "type: 'submit'"]) {
@@ -185,8 +322,103 @@ for (const marker of ['Mês atual + pendências', 'Todo o histórico', 'Período
   assert.ok(salesUi.includes(marker), `Filtro ou ação de vendas ausente: ${marker}`);
 }
 
+const baseSale = fs.readFileSync(new URL('../nova-venda.js', import.meta.url), 'utf8');
+for (const marker of [
+  "import QRCode from 'https://esm.sh/qrcode@1.5.4';",
+  'QRCode.toDataURL(payload',
+  'const LocalPixQrCode = ({ payload }) =>',
+  'const quantityAlreadyInCart = cart.reduce',
+  'if (qty > remainingQuantity)',
+  'if (!Number.isInteger(qty) || qty < 1)',
+  'const acceptsEntry =',
+  'A entrada não pode ser maior que o valor total dos produtos.'
+]) assert.ok(baseSale.includes(marker), `Proteção operacional ausente no formulário: ${marker}`);
+assert.ok(!baseSale.includes('api.qrserver.com'), 'O formulário de vendas não pode enviar dados PIX a um serviço externo.');
+
+const cartHandlerStart = baseSale.indexOf('    const handleAddItem = () => {');
+const cartHandlerEnd = baseSale.indexOf('    const handleRemoveItem =', cartHandlerStart);
+assert.ok(cartHandlerStart >= 0 && cartHandlerEnd > cartHandlerStart);
+const createCartHandler = Function('dependencies', `
+  const { currentQty, currentPrice, currentDiscount, selectedProductId, products, cart, currentCost,
+    parseMoney, alert, setCart, setSelectedProductId, setCurrentQty, setCurrentCost, setCurrentPrice,
+    setBaseUnitPrice, setCurrentDiscount, setProductSearch } = dependencies;
+  ${baseSale.slice(cartHandlerStart, cartHandlerEnd)}
+  return handleAddItem;
+`);
+
+const tryAddingProduct = ({ quantity, available, previousQuantity = 0 }) => {
+  const notices = [];
+  let updatedCart = null;
+  const previousCart = previousQuantity
+    ? [{ productId: 'perfume', productName: 'Perfume', quantity: previousQuantity }]
+    : [];
+  const noop = () => {};
+  const add = createCartHandler({
+    currentQty: quantity,
+    currentPrice: '10',
+    currentDiscount: '0',
+    selectedProductId: 'perfume',
+    products: [{ id: 'perfume', name: 'Perfume', code: '123', quantity: available }],
+    cart: previousCart,
+    currentCost: 4,
+    parseMoney: value => Number(value) || 0,
+    alert: message => notices.push(message),
+    setCart: value => { updatedCart = value; },
+    setSelectedProductId: noop,
+    setCurrentQty: noop,
+    setCurrentCost: noop,
+    setCurrentPrice: noop,
+    setBaseUnitPrice: noop,
+    setCurrentDiscount: noop,
+    setProductSearch: noop
+  });
+  add();
+  return { notices, updatedCart };
+};
+
+const validAddition = tryAddingProduct({ quantity: 1, available: 2, previousQuantity: 1 });
+assert.equal(validAddition.updatedCart?.length, 2, 'A última unidade disponível precisa entrar no carrinho.');
+assert.deepEqual(validAddition.notices, []);
+const duplicateExcess = tryAddingProduct({ quantity: 2, available: 2, previousQuantity: 1 });
+assert.equal(duplicateExcess.updatedCart, null, 'Itens repetidos não podem ultrapassar o estoque.');
+assert.match(duplicateExcess.notices[0], /estoque disponível é 1 un/);
+const fractionalQuantity = tryAddingProduct({ quantity: 1.5, available: 4 });
+assert.equal(fractionalQuantity.updatedCart, null);
+assert.match(fractionalQuantity.notices[0], /quantidade inteira/);
+const emptyStock = tryAddingProduct({ quantity: 1, available: 0 });
+assert.equal(emptyStock.updatedCart, null);
+assert.match(emptyStock.notices[0], /estoque disponível é 0 un/);
+
+const entryCalculationStart = baseSale.indexOf('    const acceptsEntry =');
+const entryCalculationEnd = baseSale.indexOf('    const totalRemaining =', entryCalculationStart);
+assert.ok(entryCalculationStart >= 0 && entryCalculationEnd > entryCalculationStart);
+const getEffectiveEntry = Function('saleType', 'directMethod', 'entryAmount', 'parseMoney', `
+  ${baseSale.slice(entryCalculationStart, entryCalculationEnd)}
+  return entryValue;
+`);
+assert.equal(getEffectiveEntry('direct', 'pix', '25', Number), 0, 'PIX não pode herdar entrada digitada anteriormente no cartão.');
+assert.equal(getEffectiveEntry('direct', 'money', '25', Number), 0);
+assert.equal(getEffectiveEntry('direct', 'credit', '25', Number), 25);
+assert.equal(getEffectiveEntry('prazo', 'pix', '25', Number), 25);
+
+const persistenceSource = fs.readFileSync(new URL('../tab-persistence.js', import.meta.url), 'utf8');
+const normalizeStart = persistenceSource.indexOf('const normalize =');
+const normalizeEnd = persistenceSource.indexOf('const sleep =', normalizeStart);
+const identifyStart = persistenceSource.indexOf('const identifyTab =');
+const identifyEnd = persistenceSource.indexOf('const normalizeTabId =', identifyStart);
+assert.ok(normalizeStart >= 0 && normalizeEnd > normalizeStart && identifyStart >= 0 && identifyEnd > identifyStart);
+const identifyTab = Function(`${persistenceSource.slice(normalizeStart, normalizeEnd)}
+  ${persistenceSource.slice(identifyStart, identifyEnd)}
+  return identifyTab;`)();
+assert.equal(identifyTab('Financeiro'), 'finance');
+assert.equal(identifyTab('Fin.'), 'finance');
+assert.equal(identifyTab('Relatórios'), 'reports');
+assert.equal(identifyTab('Relat.'), 'reports');
+assert.equal(identifyTab('Vendas no caixa'), 'sales');
+assert.ok(persistenceSource.includes('.mobile-menu-nav-button'), 'A navegação pelo menu lateral precisa preservar a aba.');
+
 const index = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-assert.ok(index.includes('bootstrap-v71.js?v=71'), 'A versão v71 precisa estar ativa.');
+assert.ok(index.includes('bootstrap-v71.js?v=72'), 'A correção operacional v72 precisa estar ativa.');
 assert.ok(index.includes('v71-operations.css?v=71'), 'Os estilos operacionais v71 precisam estar ativos.');
 
 const inherited = spawnSync(process.execPath, ['scripts/validate-v70.mjs'], {
@@ -195,4 +427,4 @@ const inherited = spawnSync(process.execPath, ['scripts/validate-v70.mjs'], {
 });
 if (inherited.status !== 0) throw new Error(`Regressão na v70:\n${inherited.stderr || inherited.stdout}`);
 
-console.log('Aplicação v71 validada: vendas unificadas, filtros combinados, navegação mobile rápida e login em uma etapa.');
+console.log('Aplicação v72 validada: venda gravada com baixa atômica, estoque conferido, PIX privado e navegação mobile sem menu duplicado.');

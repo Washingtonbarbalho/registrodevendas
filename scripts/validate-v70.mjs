@@ -440,12 +440,68 @@ assert.ok(patchedPaymentWrapper.includes('const installmentAmounts = splitMoney(
 assert.ok(patchedPaymentWrapper.includes('originalAmount: installmentAmounts[i],'));
 assert.ok(!patchedPaymentWrapper.includes('const amountPerInstallment = total / count;'));
 assert.ok(patchedPaymentWrapper.includes('await persistSale(approvedSaleData)'));
+
+const legacyCalculationStart = patchedPaymentWrapper.indexOf('const calculationPattern =');
+const legacyCalculationEnd = patchedPaymentWrapper.indexOf('\n\nif (!calculationPattern.test(source))', legacyCalculationStart);
+assert.ok(legacyCalculationStart >= 0 && legacyCalculationEnd > legacyCalculationStart, 'O montador antigo de parcelas precisa ser exercitado no teste.');
+const composedSale = Function('source', `${patchedPaymentWrapper.slice(legacyCalculationStart, legacyCalculationEnd)}
+  if (!calculationPattern.test(source)) throw new Error('Cálculo de parcelas não localizado.');
+  return source.replace(calculationPattern, correctedCalculation);`)(patchedBaseSale);
+assert.ok(composedSale.includes('const persistSale = async saleData =>'), 'O formulário montado precisa manter a função que grava a venda.');
+assert.ok(composedSale.indexOf('const persistSale = async saleData =>') < composedSale.indexOf('const calculateInstallments = () => {'));
+assert.ok(composedSale.includes('const installmentAmounts = splitMoney(total, count);'), 'O formulário final deve manter o parcelamento exato.');
+assert.ok(composedSale.includes('if (await persistSale(saleData)) onClose();'), 'A venda no caixa deve aguardar a gravação.');
+assert.ok(composedSale.includes('if (await persistSale(saleDataToSave))'), 'A aprovação manual deve aguardar a gravação.');
+
+const persistenceStart = composedSale.indexOf('    const persistSale = async saleData => {');
+const persistenceEnd = composedSale.indexOf('    const calculateInstallments = () => {', persistenceStart);
+assert.ok(persistenceStart >= 0 && persistenceEnd > persistenceStart);
+const createSalePersistence = Function('dependencies', `
+  const { savingSaleRef, setSavingSale, onSaveSale, alert } = dependencies;
+  const console = { error() {} };
+  ${composedSale.slice(persistenceStart, persistenceEnd)}
+  return persistSale;
+`);
+
+let releaseCommit;
+const pendingCommit = new Promise(resolve => { releaseCommit = resolve; });
+let saveAttempts = 0;
+const busyStates = [];
+const persistenceRef = { current: false };
+const persistSale = createSalePersistence({
+  savingSaleRef: persistenceRef,
+  setSavingSale: value => busyStates.push(value),
+  onSaveSale: () => { saveAttempts += 1; return pendingCommit; },
+  alert: () => {}
+});
+const firstAttempt = persistSale({ id: 'venda-1' });
+assert.equal(await persistSale({ id: 'venda-duplicada' }), false, 'Um segundo clique durante a gravação deve ser ignorado.');
+assert.equal(saveAttempts, 1, 'Dois cliques não podem criar duas vendas.');
+releaseCommit();
+assert.equal(await firstAttempt, true);
+assert.deepEqual(busyStates, [true, false]);
+assert.equal(persistenceRef.current, false, 'O bloqueio deve ser liberado após gravar.');
+
+const failureAlerts = [];
+const failedRef = { current: false };
+const failedPersistence = createSalePersistence({
+  savingSaleRef: failedRef,
+  setSavingSale: () => {},
+  onSaveSale: async () => { throw new Error('Estoque atualizado por outra venda.'); },
+  alert: message => failureAlerts.push(message)
+});
+assert.equal(await failedPersistence({ id: 'venda-com-falha' }), false);
+assert.deepEqual(failureAlerts, ['Estoque atualizado por outra venda.']);
+assert.equal(failedRef.current, false, 'Falhas devem permitir uma nova tentativa.');
+
 fs.writeFileSync('/tmp/registro-vendas-new-sale-base-v70.mjs', patchedBaseSale);
 checkSyntax('/tmp/registro-vendas-new-sale-base-v70.mjs');
+fs.writeFileSync('/tmp/registro-vendas-new-sale-composed-v70.mjs', composedSale);
+checkSyntax('/tmp/registro-vendas-new-sale-composed-v70.mjs');
 
 const index = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 assert.ok(
-  index.includes('bootstrap-v70.js?v=70') || index.includes('bootstrap-v71.js?v=71'),
+  index.includes('bootstrap-v70.js?v=70') || index.includes('bootstrap-v71.js?v=71') || index.includes('bootstrap-v71.js?v=72'),
   'A versão v70 ou uma sucessora compatível precisa estar ativa.'
 );
 

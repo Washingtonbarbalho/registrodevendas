@@ -20,9 +20,9 @@ const patchBaseSale = source => {
     savingCustomerState + "\n    const [savingSale, setSavingSale] = useState(false);\n    const savingSaleRef = React.useRef(false);"
   );
 
-  const finishSignature = "    const handleFinish = () => {";
-  if (!source.includes(finishSignature)) throw new Error('Não foi possível proteger a conclusão da venda.');
-  source = source.replace(finishSignature, `    const persistSale = async saleData => {
+  const calculationSignature = "    const calculateInstallments = () => {";
+  if (!source.includes(calculationSignature)) throw new Error('Não foi possível posicionar a gravação segura da venda.');
+  source = source.replace(calculationSignature, `    const persistSale = async saleData => {
         if (savingSaleRef.current) return false;
         savingSaleRef.current = true;
         setSavingSale(true);
@@ -39,7 +39,11 @@ const patchBaseSale = source => {
         }
     };
 
-    const handleFinish = async () => {`);
+    const calculateInstallments = () => {`);
+
+  const finishSignature = "    const handleFinish = () => {";
+  if (!source.includes(finishSignature)) throw new Error('Não foi possível proteger a conclusão da venda.');
+  source = source.replace(finishSignature, "    const handleFinish = async () => {");
 
   const directSave = `            onSaveSale(saleData);\x20
             onClose();`;

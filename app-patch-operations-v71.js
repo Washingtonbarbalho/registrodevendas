@@ -15,7 +15,7 @@ export const applyOperationsPatch = source => {
   source = replaceRequired(
     source,
     iconImport,
-    "import { Users, User, LogOut, Lock, LayoutDashboard, Receipt, WalletCards, Package, Contact, Store, ShieldCheck, BadgePercent, Banknote, Menu, Plus } from 'https://esm.sh/lucide-react@0.292.0';",
+    "import { Users, User, LogOut, Lock, LayoutDashboard, Receipt, WalletCards, Package, Contact, Store, ShieldCheck, BadgePercent, Banknote, Plus } from 'https://esm.sh/lucide-react@0.292.0';",
     'os atalhos operacionais'
   );
 
@@ -103,7 +103,7 @@ export const applyOperationsPatch = source => {
 
   const currentNav = "    const currentNav = navItems.find(item => item.id === view) || navItems[0];";
   source = replaceRequired(source, currentNav, `${currentNav}
-    const mobilePrimaryNav = ['dashboard', 'sales', 'products']
+    const mobilePrimaryNav = ['dashboard', 'sales', 'products', 'finance']
         .map(id => navItems.find(item => item.id === id))
         .filter(Boolean);`, 'os destinos rápidos do celular');
 
@@ -139,13 +139,7 @@ export const applyOperationsPatch = source => {
                 type: "button",
                 onClick: () => { setView(item.id); setMobileMenuOpen(false); setQuickSaleMenuOpen(false); },
                 className: \`mobile-quick-nav-button \${view === item.id ? 'is-active' : ''}\`
-            }, React.createElement(item.icon, { size: 19 }), React.createElement('span', null, item.shortLabel))),
-            React.createElement('button', {
-                type: "button",
-                onClick: () => { setMobileMenuOpen(true); setQuickSaleMenuOpen(false); },
-                className: \`mobile-quick-nav-button \${!mobilePrimaryNav.some(item => item.id === view) ? 'is-active' : ''}\`,
-                'aria-label': "Abrir todos os módulos"
-            }, React.createElement(Menu, { size: 20 }), React.createElement('span', null, "Mais"))
+            }, React.createElement(item.icon, { size: 19 }), React.createElement('span', null, item.id === 'finance' ? 'Financeiro' : item.shortLabel)))
         ),
 
         quickSaleMenuOpen && React.createElement('div', {

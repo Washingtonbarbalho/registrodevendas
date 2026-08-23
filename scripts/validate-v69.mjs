@@ -132,8 +132,25 @@ for (const marker of ['const persistSale = async saleData =>', 'const handleFini
 if (!patchedPaymentWrapper.includes('await persistSale(approvedSaleData)')) {
   throw new Error('A confirmação da análise de crédito não aguarda a transação da venda.');
 }
+
+const legacyCalculationStart = patchedPaymentWrapper.indexOf('const calculationPattern =');
+const legacyCalculationEnd = patchedPaymentWrapper.indexOf('\n\nif (!calculationPattern.test(source))', legacyCalculationStart);
+if (legacyCalculationStart < 0 || legacyCalculationEnd < 0) {
+  throw new Error('Não foi possível reproduzir a montagem real do formulário de vendas.');
+}
+const composedSale = Function('source', `${patchedPaymentWrapper.slice(legacyCalculationStart, legacyCalculationEnd)}
+  if (!calculationPattern.test(source)) throw new Error('Cálculo de parcelas não localizado.');
+  return source.replace(calculationPattern, correctedCalculation);`)(patchedBaseSale);
+if (!composedSale.includes('const persistSale = async saleData =>')) {
+  throw new Error('A montagem final do formulário removeu a função que grava a venda.');
+}
+if (composedSale.indexOf('const persistSale = async saleData =>') > composedSale.indexOf('const calculateInstallments = () => {')) {
+  throw new Error('A função de gravação precisa ficar fora do bloco substituído pelo parcelamento.');
+}
 fs.writeFileSync('/tmp/registro-vendas-new-sale-base-v69.mjs', patchedBaseSale);
 checkSyntax('/tmp/registro-vendas-new-sale-base-v69.mjs');
+fs.writeFileSync('/tmp/registro-vendas-new-sale-composed-v69.mjs', composedSale);
+checkSyntax('/tmp/registro-vendas-new-sale-composed-v69.mjs');
 
 const rules = fs.readFileSync(new URL('../firestore.rules', import.meta.url), 'utf8');
 for (const marker of ['isApprovedOwner', 'validProductStock', "get('status', 'active') != 'deleted'", 'allow read: if isAdmin(appId);', 'profileAfter(appId, userId)']) {
@@ -148,7 +165,7 @@ if (!rules.includes(protectedSalesRules)) {
 }
 
 const index = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-if (!index.includes('bootstrap-v69.js?v=69') && !index.includes('bootstrap-v70.js?v=70') && !index.includes('bootstrap-v71.js?v=71')) {
+if (!index.includes('bootstrap-v69.js?v=69') && !index.includes('bootstrap-v70.js?v=70') && !index.includes('bootstrap-v71.js?v=71') && !index.includes('bootstrap-v71.js?v=72')) {
   throw new Error('Nenhuma versão compatível com as proteções v69 está ativa no index.html.');
 }
 

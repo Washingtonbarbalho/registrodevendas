@@ -48,7 +48,7 @@ export const applyFinalPatches = source => {
     const moduleName = modulePath.split('/').pop().replace(/\.js$/, '');
     const resolved = fixedPaths[moduleName] || modulePath;
     const url = new URL(resolved, location.href);
-    if (freshModules.has(moduleName) || /v(52|54|59|60|65|66|67|68|69|70|71)/.test(resolved)) url.search = '?v=71';
+    if (freshModules.has(moduleName) || /v(52|54|59|60|65|66|67|68|69|70|71)/.test(resolved)) url.search = '?v=72';
     return `'${url.href}'`;
   });
 
