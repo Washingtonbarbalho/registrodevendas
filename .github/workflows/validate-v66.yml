@@ -1,4 +1,4 @@
-name: Validar v70
+name: Validar v71
 
 on:
   push:
@@ -7,15 +7,21 @@ on:
     branches: [main]
 
 jobs:
-  validate-v70:
+  validate-v71:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Validar sintaxe dos módulos críticos v70
+      - name: Validar sintaxe dos módulos críticos v71
         run: |
+          node --check bootstrap-v71.js
+          node --check sales-operations-v71.js
+          node --check aba-vendas-v71.js
+          node --check auth-screen-v71.js
+          node --check app-patch-operations-v71.js
+          node --check app-patch-final-v71.js
           node --check bootstrap-v70.js
           node --check financial-core-v70.js
           node --check reports-engine-v70.js
@@ -36,12 +42,13 @@ jobs:
           node --check app-patch-stock-v68.js
           node --check app-patch-batch-stock-v68.js
           node --check sale-pdf-v65.js
+          node --check scripts/validate-v71.mjs
           node --check scripts/validate-v70.mjs
           node --check scripts/validate-v69.mjs
-      - name: Validar cálculos, conciliação e montagem completa
+      - name: Validar simplificação e montagem completa
         run: |
-          node scripts/validate-v70.mjs
-          node --check /tmp/registro-vendas-runtime-v70.mjs
+          node scripts/validate-v71.mjs
+          node --check /tmp/registro-vendas-runtime-v71.mjs
       - name: Validar proteções de segurança e estoque
         run: |
           node scripts/validate-v69.mjs
@@ -65,8 +72,15 @@ jobs:
         run: |
           grep -q "runTransaction" batch-stock-modal-v68.js
           grep -q "batchId" batch-stock-modal-v68.js
-          grep -q "applyMobileMenuPatch" bootstrap-v70.js
+          grep -q "applyMobileMenuPatch" bootstrap-v71.js
           grep -q "inset: 72px 0 0" v66-mobile-menu.css
+      - name: Validar vendas unificadas, login e atalhos
+        run: |
+          grep -q "buildSalesView" aba-vendas-v71.js
+          grep -q "Mês atual + pendências" aba-vendas-v71.js
+          grep -q "mobile-quick-nav" v71-operations.css
+          grep -q "sendPasswordResetEmail" auth-screen-v71.js
+          grep -q "applyOperationsPatch" bootstrap-v71.js
       - name: Validar segurança, privacidade e estoque
         run: |
           grep -q "status: 'deleted'" auth-admin.js
@@ -76,12 +90,14 @@ jobs:
           grep -q "QRCode.toDataURL" modals-fixed-v69.js
       - name: Validar versão ativa
         run: |
-          grep -q "v68-stock-installments.css?v=70" index.html
-          grep -q "bootstrap-v70.js?v=70" index.html
-          grep -q "aba-financeiro-v68.js?v=70" bootstrap-v70.js
-          grep -q "batch-stock-modal-v68.js?v=70" bootstrap-v70.js
-          grep -q "stock-movement-modal-v68.js?v=70" bootstrap-v70.js
-          grep -q "modals-fixed-v69.js?v=70" bootstrap-v70.js
-          grep -q "nova-venda-fixed-v70.js?v=70" bootstrap-v70.js
-          grep -q "financial-core-v70.js?v=70" bootstrap-v70.js
-          grep -q "reports-engine-v70.js?v=70" bootstrap-v70.js
+          grep -q "v71-operations.css?v=71" index.html
+          grep -q "bootstrap-v71.js?v=71" index.html
+          grep -q "aba-vendas-v71.js?v=71" bootstrap-v71.js
+          grep -q "auth-screen-v71.js?v=71" bootstrap-v71.js
+          grep -q "aba-financeiro-v68.js?v=71" bootstrap-v71.js
+          grep -q "batch-stock-modal-v68.js?v=71" bootstrap-v71.js
+          grep -q "stock-movement-modal-v68.js?v=71" bootstrap-v71.js
+          grep -q "modals-fixed-v69.js?v=71" bootstrap-v71.js
+          grep -q "nova-venda-fixed-v70.js?v=71" bootstrap-v71.js
+          grep -q "financial-core-v70.js?v=71" bootstrap-v71.js
+          grep -q "reports-engine-v70.js?v=71" bootstrap-v71.js

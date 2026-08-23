@@ -77,18 +77,19 @@ const waitFor = async (finder, timeout = 7000, interval = 100) => {
 const identifyTab = text => {
     const label = normalize(text);
     if (label === 'visao geral' || label === 'inicio') return 'dashboard';
-    if (label === 'vendas a prazo' || label === 'a prazo') return 'sales';
-    if (label === 'vendas no caixa' || label === 'caixa') return 'cashier';
+    if (label === 'vendas' || label === 'vendas a prazo' || label === 'a prazo') return 'sales';
+    if (label === 'vendas no caixa' || label === 'caixa') return 'sales';
     if (label === 'produtos') return 'products';
     if (label === 'clientes') return 'customers';
     if (label === 'taxas e juros' || label === 'taxas') return 'rates';
     return null;
 };
 
-let lastKnownTab = readSession(WORKSPACE_KEY, {})?.tab || 'dashboard';
+const normalizeTabId = tab => tab === 'cashier' ? 'sales' : tab || 'dashboard';
+let lastKnownTab = normalizeTabId(readSession(WORKSPACE_KEY, {})?.tab);
 
 const currentTab = () => {
-    const active = document.querySelector('.app-nav-button.is-active, .mobile-nav-button.is-active');
+    const active = document.querySelector('.app-nav-button.is-active, .mobile-nav-button.is-active, .mobile-quick-nav-button.is-active');
     const identified = identifyTab(active?.textContent);
     if (identified) lastKnownTab = identified;
     return lastKnownTab;
@@ -418,8 +419,8 @@ const restoreWorkspace = async () => {
         return;
     }
 
-    lastKnownTab = workspace.tab || 'dashboard';
-    const navButton = await waitFor(() => Array.from(document.querySelectorAll('.app-nav-button, .mobile-nav-button'))
+    lastKnownTab = normalizeTabId(workspace.tab);
+    const navButton = await waitFor(() => Array.from(document.querySelectorAll('.app-nav-button, .mobile-nav-button, .mobile-quick-nav-button'))
         .find(button => identifyTab(button.textContent) === lastKnownTab));
     navButton?.click();
     await sleep(220);
@@ -439,7 +440,7 @@ const restoreWorkspace = async () => {
 };
 
 document.addEventListener('click', event => {
-    const navButton = event.target.closest('.app-nav-button, .mobile-nav-button');
+    const navButton = event.target.closest('.app-nav-button, .mobile-nav-button, .mobile-quick-nav-button');
     if (navButton) {
         lastKnownTab = identifyTab(navButton.textContent) || lastKnownTab;
         setTimeout(saveWorkspace, 20);

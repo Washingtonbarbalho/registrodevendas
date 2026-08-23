@@ -444,6 +444,9 @@ fs.writeFileSync('/tmp/registro-vendas-new-sale-base-v70.mjs', patchedBaseSale);
 checkSyntax('/tmp/registro-vendas-new-sale-base-v70.mjs');
 
 const index = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-assert.ok(index.includes('bootstrap-v70.js?v=70'), 'A versão v70 precisa estar ativa.');
+assert.ok(
+  index.includes('bootstrap-v70.js?v=70') || index.includes('bootstrap-v71.js?v=71'),
+  'A versão v70 ou uma sucessora compatível precisa estar ativa.'
+);
 
 console.log('Aplicação v70 validada: relatórios conciliados, compras parceladas, cancelamentos por competência, excedentes e centavos exatos.');
