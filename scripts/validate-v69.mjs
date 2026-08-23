@@ -136,7 +136,7 @@ fs.writeFileSync('/tmp/registro-vendas-new-sale-base-v69.mjs', patchedBaseSale);
 checkSyntax('/tmp/registro-vendas-new-sale-base-v69.mjs');
 
 const rules = fs.readFileSync(new URL('../firestore.rules', import.meta.url), 'utf8');
-for (const marker of ['isApprovedOwner', 'validProductStock', "get('status', 'active') != 'deleted'", 'allow read: if isAdmin(appId);']) {
+for (const marker of ['isApprovedOwner', 'validProductStock', "get('status', 'active') != 'deleted'", 'allow read: if isAdmin(appId);', 'profileAfter(appId, userId)']) {
   if (!rules.includes(marker)) throw new Error(`Regra do Firestore ausente: ${marker}`);
 }
 const protectedSalesRules = `    match /artifacts/{appId}/users/{userId}/sales/{saleId} {
