@@ -3,7 +3,7 @@ import { createPortal } from 'https://esm.sh/react-dom@18.2.0';
 import { db, APP_ID } from './firebase-config.js';
 import { doc, onSnapshot } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js';
 import { formatCurrency, getBrazilDateString, getCurrentMonthStart } from './utils.js';
-import { buildReport, PAYMENT_FILTERS, REPORT_DEFINITIONS, reportPeriodLabel } from './reports-engine-v65.js';
+import { buildReport, PAYMENT_FILTERS, REPORT_DEFINITIONS, reportPeriodLabel } from './reports-engine-v70.js';
 
 const h = React.createElement;
 const EMPTY_FINANCIAL = { entries: [], accounts: [] };

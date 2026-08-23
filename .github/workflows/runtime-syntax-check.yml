@@ -20,4 +20,4 @@ jobs:
           node-version: '22'
 
       - name: Validate active runtime
-        run: node scripts/validate-v69.mjs
+        run: node scripts/validate-v70.mjs

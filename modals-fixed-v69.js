@@ -11,7 +11,14 @@ const shouldPatchBase = input => {
 const patchPixPrivacy = source => {
   const componentImport = "import { MoneyInput } from './components.js';";
   if (!source.includes(componentImport)) throw new Error('Não foi possível carregar o gerador privado de QR Code.');
-  source = source.replace(componentImport, componentImport + "\nimport QRCode from 'https://esm.sh/qrcode@1.5.4';");
+  source = source.replace(componentImport, componentImport + "\nimport QRCode from 'https://esm.sh/qrcode@1.5.4';\nimport { getHistoryCashAmount } from './financial-core-v70.js';");
+
+  const paymentHistoryAmount = '                                    React.createElement(\'span\', { className: "font-bold" }, formatCurrency(h.amount))';
+  if (!source.includes(paymentHistoryAmount)) throw new Error('Não foi possível apresentar o valor integral dos pagamentos excedentes.');
+  source = source.replace(
+    paymentHistoryAmount,
+    '                                    React.createElement(\'span\', { className: "font-bold" }, formatCurrency(h.type === \'abatement\' ? h.amount : getHistoryCashAmount(h)))'
+  );
 
   const startMarker = 'export const PixCodeModal = ({ isOpen, onClose, userProfile, amount, txid }) => {';
   const endMarker = 'export const UserProfileModal =';

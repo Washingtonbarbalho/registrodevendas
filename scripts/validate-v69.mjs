@@ -148,6 +148,8 @@ if (!rules.includes(protectedSalesRules)) {
 }
 
 const index = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-if (!index.includes('bootstrap-v69.js?v=69')) throw new Error('A versão v69 não está ativa no index.html.');
+if (!index.includes('bootstrap-v69.js?v=69') && !index.includes('bootstrap-v70.js?v=70')) {
+  throw new Error('Nenhuma versão compatível com as proteções v69 está ativa no index.html.');
+}
 
 console.log('Aplicação v69 validada: revogação ao vivo, privacidade do PIX, estoque não negativo e operações atômicas.');

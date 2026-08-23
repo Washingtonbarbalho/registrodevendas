@@ -5,10 +5,11 @@ import {
   Package, Plus, Receipt, Search, Trash2, Wallet, X
 } from 'https://esm.sh/lucide-react@0.292.0';
 import { db, APP_ID } from './firebase-config.js';
-import { doc, onSnapshot, serverTimestamp, setDoc, writeBatch } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js';
+import { doc, onSnapshot, runTransaction, serverTimestamp, setDoc } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js';
 import { MoneyInput } from './components.js';
 import { formatCurrency, formatDate, getBrazilDateString, getCurrentMonthEnd, getCurrentMonthStart, parseMoney } from './utils.js';
-import { money, normalizePaymentInstallments, splitMoney } from './purchase-payment-v68.js';
+import { normalizePaymentInstallments } from './purchase-payment-v68.js';
+import { buildFinancialLedger, getInstallmentFaceAmount, getPurchaseGroups, money, sumMoney, toCents } from './financial-core-v70.js';
 
 const h = React.createElement;
 const EMPTY_DATA = { entries: [], accounts: [] };
@@ -18,7 +19,6 @@ const makeId = prefix => `${prefix}-${Date.now()}-${Math.random().toString(36).s
 const isPrazo = sale => sale?.saleType === 'prazo' || !sale?.saleType;
 const paymentLabel = method => ({ money: 'Dinheiro', pix: 'PIX', debit: 'Débito', credit: 'Crédito', term: 'A prazo' }[method] || 'Pagamento');
 const normalizeFinancialData = raw => ({ entries: Array.isArray(raw?.entries) ? raw.entries : [], accounts: Array.isArray(raw?.accounts) ? raw.accounts : [] });
-const getHistoryAmount = item => !item || item.type === 'abatement' ? 0 : money(num(item.amount) + (item.type === 'full_surplus' ? num(item.surplus) : 0));
 
 const formatOffset = date => {
   const offset = -date.getTimezoneOffset();
@@ -49,114 +49,6 @@ const formatDateTime = (dateValue, dateTimeValue) => {
     if (!Number.isNaN(parsed.getTime())) return `${formatDate(date)} · ${parsed.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
   }
   return `${formatDate(date)} · --:--`;
-};
-
-const getDirectNet = sale => {
-  const saved = Number(sale?.netReceived);
-  if (sale?.netReceived !== undefined && sale?.netReceived !== null && sale?.netReceived !== '' && Number.isFinite(saved)) return money(saved);
-  return money(Math.max(0, num(sale?.totalPrice) - num(sale?.feeConfig?.value)));
-};
-
-const getPurchaseCancellationEvents = movement => {
-  const current = Array.isArray(movement?.financialCancellations) ? movement.financialCancellations : [];
-  if (current.length) return current;
-  if (!movement?.financialCanceled) return [];
-  const deferred = movement.paymentMethod === 'credit' || movement.paymentMethod === 'term';
-  const quantity = Math.max(0, parseInt(movement.quantity, 10) || 0);
-  const amount = money(quantity * num(movement.unitCost));
-  return [{
-    id: 'legacy-full', quantity, amount,
-    accountReductionAmount: deferred && !movement.financialPaid ? amount : 0,
-    cashRefundAmount: deferred && !movement.financialPaid ? 0 : amount,
-    date: cleanDate(movement.financialCanceledAt),
-    reason: movement.financialCancelReason || 'Compra cancelada',
-    hadCashOut: deferred ? !!movement.financialPaid : true,
-    createdAt: movement.financialCanceledAtDateTime || ''
-  }];
-};
-
-const purchaseItemInfo = (product, movement) => {
-  const originalQuantity = Math.max(0, parseInt(movement.quantity, 10) || 0);
-  const unitCost = Math.max(0, num(movement.unitCost));
-  const originalAmount = money(originalQuantity * unitCost);
-  const events = getPurchaseCancellationEvents(movement);
-  const canceledQuantity = Math.min(originalQuantity, events.reduce((sum, event) => sum + Math.max(0, parseInt(event?.quantity, 10) || 0), 0));
-  const accountReductionAmount = money(events.reduce((sum, event) => {
-    if (event?.accountReductionAmount !== undefined) return sum + num(event.accountReductionAmount);
-    return sum + (event?.hadCashOut === false ? num(event.amount) : 0);
-  }, 0));
-  const cashRefundAmount = money(events.reduce((sum, event) => {
-    if (event?.cashRefundAmount !== undefined) return sum + num(event.cashRefundAmount);
-    return sum + (event?.hadCashOut ? num(event.amount) : 0);
-  }, 0));
-  return { product, movement, originalQuantity, unitCost, originalAmount, events, canceledQuantity, accountReductionAmount, cashRefundAmount };
-};
-
-const makePurchaseGroup = group => {
-  group.items.sort((a, b) => (num(a.movement.batchIndex) - num(b.movement.batchIndex)) || String(a.product.name || '').localeCompare(String(b.product.name || ''), 'pt-BR'));
-  const first = group.items[0];
-  const paymentMethod = first?.movement?.paymentMethod || 'pix';
-  const deferred = paymentMethod === 'credit' || paymentMethod === 'term';
-  const originalAmount = money(group.items.reduce((sum, item) => sum + item.originalAmount, 0));
-  const accountReductionAmount = money(group.items.reduce((sum, item) => sum + item.accountReductionAmount, 0));
-  const adjustedLiability = money(Math.max(0, originalAmount - accountReductionAmount));
-  const rawPlan = deferred ? normalizePaymentInstallments(first?.movement, originalAmount) : [];
-  const paidAmount = money(rawPlan.filter(item => item.paid).reduce((sum, item) => sum + num(item.amount), 0));
-  const unpaidRows = rawPlan.filter(item => !item.paid);
-  const openTotal = money(Math.max(0, adjustedLiability - paidAmount));
-  const openAmounts = unpaidRows.length ? splitMoney(openTotal, unpaidRows.length) : [];
-  let openIndex = 0;
-  const plan = rawPlan.map(item => item.paid ? { ...item, amount: money(item.amount) } : { ...item, amount: money(openAmounts[openIndex++] || 0) });
-  const fullyCanceled = group.items.every(item => item.canceledQuantity >= item.originalQuantity);
-  const partiallyCanceled = !fullyCanceled && group.items.some(item => item.canceledQuantity > 0);
-  const purchaseDate = cleanDate(first?.movement?.date);
-  return {
-    ...group,
-    first,
-    paymentMethod,
-    deferred,
-    originalAmount,
-    adjustedLiability,
-    accountReductionAmount,
-    paidAmount,
-    openTotal,
-    plan,
-    fullyCanceled,
-    partiallyCanceled,
-    purchaseDate,
-    purchaseDateTime: first?.movement?.date || '',
-    itemCount: group.items.length
-  };
-};
-
-const getPurchaseGroups = products => {
-  const groups = new Map();
-  (products || []).forEach(product => (product.movements || []).forEach(movement => {
-    if (movement.type !== 'compra') return;
-    const key = movement.batchId ? `batch:${movement.batchId}` : `single:${product.id}:${movement.id}`;
-    if (!groups.has(key)) groups.set(key, { key, batchId: movement.batchId || null, items: [] });
-    groups.get(key).items.push(purchaseItemInfo(product, movement));
-  }));
-  return [...groups.values()].map(makePurchaseGroup);
-};
-
-const buildSaleReceipts = sale => {
-  const rows = [];
-  if (num(sale.entryAmount) > 0) rows.push({ id: `sale-entry-${sale.id}`, date: cleanDate(sale.saleDate), dateTime: sale.saleDateTime || '', amount: money(sale.entryAmount), description: `Entrada · ${sale.customerName || 'Cliente'}`, detail: 'Venda a prazo', source: 'sale', sale });
-  (sale.installments || []).forEach((installment, index) => {
-    const history = Array.isArray(installment.history) ? installment.history : [];
-    if (history.length) {
-      history.forEach((item, historyIndex) => {
-        const amount = getHistoryAmount(item);
-        const date = cleanDate(item.date || item.timestamp || installment.paidAt);
-        if (amount > 0 && date) rows.push({ id: `sale-payment-${sale.id}-${index}-${historyIndex}`, date, dateTime: item.timestamp || '', amount, description: `Recebimento · ${sale.customerName || 'Cliente'}`, detail: `Parcela ${installment.number || index + 1}`, source: 'sale', sale });
-      });
-    } else if (installment.paid && installment.paidAt) {
-      const amount = money(installment.originalAmount || installment.amount);
-      if (amount > 0) rows.push({ id: `sale-paid-${sale.id}-${index}`, date: cleanDate(installment.paidAt), dateTime: installment.paidAtDateTime || '', amount, description: `Recebimento · ${sale.customerName || 'Cliente'}`, detail: `Parcela ${installment.number || index + 1}`, source: 'sale', sale });
-    }
-  });
-  return rows;
 };
 
 const statusOf = (dueDate, paid, partial = false, canceled = false, paidLabel = 'Recebida') => {
@@ -336,82 +228,19 @@ export const AbaFinanceiro = ({ userId, sales = [], products = [], onOpenSale, o
   };
 
   const purchaseGroups = useMemo(() => getPurchaseGroups(products), [products]);
+  const sharedLedger = useMemo(() => buildFinancialLedger({ sales, products, financialData: data, purchaseGroups }), [sales, products, data, purchaseGroups]);
 
-  const automaticMovements = useMemo(() => {
-    const rows = [];
-    sales.forEach(sale => {
-      const cancellations = Array.isArray(sale.cancellations) ? sale.cancellations : [];
-      const keepOriginal = sale.status !== 'canceled' || cancellations.length > 0;
-      if (keepOriginal) {
-        if (sale.saleType === 'direct') {
-          const amount = getDirectNet(sale);
-          if (amount > 0) rows.push({ id: `direct-${sale.id}`, type: 'income', date: cleanDate(sale.saleDate), dateTime: sale.saleDateTime || '', amount, description: `Venda · ${sale.customerName || 'Venda avulsa'}`, detail: sale.paymentMethod === 'credit' ? `Cartão de crédito · ${sale.cardInstallments || 1}x` : paymentLabel(sale.paymentMethod), source: 'sale', sale });
-        } else if (isPrazo(sale)) {
-          rows.push(...buildSaleReceipts(sale).map(row => ({ ...row, type: 'income' })));
-        }
-      }
-      cancellations.forEach((event, index) => {
-        const amount = money(event.refundAmount);
-        if (amount > 0 && event.date) rows.push({ id: `sale-refund-${sale.id}-${event.id || index}`, type: 'expense', date: cleanDate(event.date), dateTime: event.createdAt || '', amount, description: `Estorno de venda · ${sale.customerName || 'Venda avulsa'}`, detail: `${event.type === 'partial' ? 'Cancelamento parcial' : 'Cancelamento total'}${event.reason ? ` · ${event.reason}` : ''}`, source: 'sale-refund', sale });
-      });
-    });
-
-    purchaseGroups.forEach(group => {
-      if (group.deferred) {
-        group.plan.forEach(planItem => {
-          if (!planItem.paid || !(num(planItem.amount) > 0) || !planItem.paidAt) return;
-          rows.push({
-            id: `stock-${group.key}-installment-${planItem.number}`,
-            type: 'expense',
-            date: cleanDate(planItem.paidAt),
-            dateTime: planItem.paidAtDateTime || '',
-            amount: money(planItem.amount),
-            description: group.batchId ? `Compra de mercadoria em lote · ${group.itemCount} produtos` : `Compra de mercadoria · ${group.first.product.name}`,
-            detail: `${paymentLabel(group.paymentMethod)} · parcela ${planItem.number}/${group.plan.length}`,
-            source: 'stock', product: group.first.product, batchId: group.batchId
-          });
-        });
-      } else if (group.originalAmount > 0 && group.purchaseDate) {
-        rows.push({
-          id: `stock-${group.key}`,
-          type: 'expense', date: group.purchaseDate, dateTime: group.purchaseDateTime,
-          amount: group.originalAmount,
-          description: group.batchId ? `Compra de mercadoria em lote · ${group.itemCount} produtos` : `Compra de mercadoria · ${group.first.product.name}`,
-          detail: paymentLabel(group.paymentMethod), source: 'stock', product: group.first.product, batchId: group.batchId
-        });
-      }
-
-      group.items.forEach(item => item.events.forEach((event, index) => {
-        const refund = event?.cashRefundAmount !== undefined ? money(event.cashRefundAmount) : event?.hadCashOut ? money(event.amount) : 0;
-        if (refund > 0 && event.date) rows.push({
-          id: `stock-refund-${item.product.id}-${item.movement.id}-${event.id || index}`,
-          type: 'income', date: cleanDate(event.date), dateTime: event.createdAt || '', amount: refund,
-          description: `Estorno de compra · ${item.product.name}`,
-          detail: event.reason || 'Devolução ao fornecedor',
-          source: 'stock-refund', product: item.product
-        });
-      }));
-    });
-    return rows;
-  }, [sales, purchaseGroups]);
-
-  const manualMovements = useMemo(() => {
-    const rows = data.entries.map(item => ({ id: item.id, type: item.type, date: cleanDate(item.date), dateTime: item.dateTime || item.createdAt || '', amount: money(item.value), description: item.description, detail: item.category || 'Lançamento manual', source: 'manual', manual: item }));
-    data.accounts.filter(item => item.paid).forEach(item => rows.push({ id: `manual-account-${item.id}`, type: item.direction === 'receivable' ? 'income' : 'expense', date: cleanDate(item.paidAt), dateTime: item.paidAtDateTime || '', amount: money(item.value), description: item.description, detail: item.direction === 'receivable' ? 'Conta recebida' : 'Conta paga', source: 'manual-account', manual: item }));
-    return rows;
-  }, [data]);
-
-  const movements = useMemo(() => [...automaticMovements, ...manualMovements]
+  const movements = useMemo(() => sharedLedger
     .filter(item => item.date && item.date >= startDate && item.date <= endDate)
     .filter(item => !search || `${item.description} ${item.detail}`.toLowerCase().includes(search.toLowerCase()))
     .sort((a, b) => sortTimestamp(b) - sortTimestamp(a) || String(b.id).localeCompare(String(a.id))),
-  [automaticMovements, manualMovements, startDate, endDate, search]);
+  [sharedLedger, startDate, endDate, search]);
 
   const saleReceivables = useMemo(() => {
     const rows = [];
     sales.filter(sale => sale.status !== 'canceled' && isPrazo(sale)).forEach(sale => (sale.installments || []).forEach((inst, index) => {
       const remaining = money(inst.amount);
-      const face = money(inst.originalAmount || remaining);
+      const face = getInstallmentFaceAmount(inst);
       const paid = !!inst.paid || remaining <= 0;
       const history = Array.isArray(inst.history) ? inst.history : [];
       const partial = !paid && history.some(item => item && item.type !== 'abatement' && num(item.amount) > 0);
@@ -425,7 +254,7 @@ export const AbaFinanceiro = ({ userId, sales = [], products = [], onOpenSale, o
     purchaseGroups.filter(group => group.deferred).forEach(group => {
       const purchaseItems = group.items.map(item => ({ productId: item.product.id, movementId: item.movement.id }));
       group.plan.forEach((planItem, planIndex) => {
-        const canceled = group.fullyCanceled && !planItem.paid;
+        const canceled = !planItem.paid && (group.fullyCanceled || toCents(planItem.amount) <= 0);
         rows.push({
           id: `stock-ap-${group.key}-${planItem.number}`,
           source: 'stock', product: group.first.product,
@@ -471,14 +300,14 @@ export const AbaFinanceiro = ({ userId, sales = [], products = [], onOpenSale, o
   }, [tab, receivables, payables, accountFilter, search, startDate, endDate]);
 
   const totals = useMemo(() => {
-    const income = movements.filter(item => item.type === 'income').reduce((sum, item) => sum + item.amount, 0);
-    const expense = movements.filter(item => item.type === 'expense').reduce((sum, item) => sum + item.amount, 0);
+    const income = sumMoney(movements.filter(item => item.type === 'income'), item => item.amount);
+    const expense = sumMoney(movements.filter(item => item.type === 'expense'), item => item.amount);
     return {
       income: money(income),
       expense: money(expense),
       balance: money(income - expense),
-      openReceivable: money(receivables.filter(item => !item.paid && !item.canceled).reduce((sum, item) => sum + item.value, 0)),
-      openPayable: money(payables.filter(item => !item.paid && !item.canceled).reduce((sum, item) => sum + item.value, 0))
+      openReceivable: sumMoney(receivables.filter(item => !item.paid && !item.canceled), item => item.value),
+      openPayable: sumMoney(payables.filter(item => !item.paid && !item.canceled), item => item.value)
     };
   }, [movements, receivables, payables]);
 
@@ -506,40 +335,54 @@ export const AbaFinanceiro = ({ userId, sales = [], products = [], onOpenSale, o
   const toggleStockPayable = async item => {
     if (item.canceled) return;
     const targets = Array.isArray(item.purchaseItems) && item.purchaseItems.length ? item.purchaseItems : [{ productId: item.productId, movementId: item.movementId }];
-    const nextPaid = !item.paid;
     const now = new Date().toISOString();
     const today = getBrazilDateString();
-    const batch = writeBatch(db);
-    let writes = 0;
+    const productIds = [...new Set(targets.map(target => target.productId).filter(Boolean))];
+    if (productIds.length === 0) return;
 
-    targets.forEach(target => {
-      const product = products.find(candidate => candidate.id === target.productId);
-      if (!product) return;
-      const updatedMovements = (product.movements || []).map(movement => {
-        if (movement.id !== target.movementId) return movement;
-        const currentPlan = Array.isArray(movement.financialInstallments) && movement.financialInstallments.length
-          ? movement.financialInstallments.map(planItem => ({ ...planItem }))
-          : normalizePaymentInstallments(movement, item.value);
-        const updatedPlan = currentPlan.map((planItem, index) => index === item.installmentIndex
-          ? { ...planItem, amount: money(item.value), paid: nextPaid, paidAt: nextPaid ? today : null, paidAtDateTime: nextPaid ? now : null }
-          : planItem);
-        const allPaid = updatedPlan.length > 0 && updatedPlan.every(planItem => !!planItem.paid);
-        return {
-          ...movement,
-          financialInstallments: updatedPlan,
-          paymentInstallmentsCount: updatedPlan.length,
-          paymentDueDate: updatedPlan[0]?.dueDate || movement.paymentDueDate || null,
-          paymentFirstDueDate: updatedPlan[0]?.dueDate || movement.paymentFirstDueDate || null,
-          financialPaid: allPaid,
-          financialPaidAt: allPaid ? today : null,
-          financialPaidAtDateTime: allPaid ? now : null
-        };
+    try {
+      await runTransaction(db, async transaction => {
+        const references = productIds.map(productId => doc(db, 'artifacts', APP_ID, 'users', userId, 'products', productId));
+        const snapshots = await Promise.all(references.map(reference => transaction.get(reference)));
+        if (snapshots.some(snapshot => !snapshot.exists())) throw new Error('Um dos produtos desta compra não está mais disponível.');
+
+        const latestProducts = snapshots.map((snapshot, index) => ({ id: productIds[index], ...snapshot.data() }));
+        const groupKey = item.batchId ? `batch:${item.batchId}` : `single:${item.productId}:${item.movementId}`;
+        const latestGroup = getPurchaseGroups(latestProducts).find(group => group.key === groupKey);
+        const currentInstallment = latestGroup?.plan?.[item.installmentIndex];
+        if (!currentInstallment || currentInstallment.paid !== item.paid || (!currentInstallment.paid && toCents(currentInstallment.amount) <= 0)) {
+          throw new Error('Esta parcela foi alterada. Atualize os dados antes de tentar novamente.');
+        }
+
+        const nextPaid = !currentInstallment.paid;
+        const updatedPlan = latestGroup.plan.map((planItem, index) => index === item.installmentIndex
+          ? { ...planItem, amount: money(planItem.amount), paid: nextPaid, paidAt: nextPaid ? today : null, paidAtDateTime: nextPaid ? now : null }
+          : { ...planItem, amount: money(planItem.amount) });
+        const allPaid = updatedPlan.length > 0 && updatedPlan.every(planItem => planItem.paid || toCents(planItem.amount) <= 0);
+
+        latestProducts.forEach((product, index) => {
+          const movementIds = new Set(targets.filter(target => target.productId === product.id).map(target => target.movementId));
+          const updatedMovements = (product.movements || []).map(movement => {
+            if (!movementIds.has(movement.id)) return movement;
+            const existingPlan = normalizePaymentInstallments(movement, latestGroup.originalAmount);
+            return {
+              ...movement,
+              financialInstallments: updatedPlan.map((planItem, planIndex) => ({ ...existingPlan[planIndex], ...planItem })),
+              paymentInstallmentsCount: updatedPlan.length,
+              paymentDueDate: updatedPlan[0]?.dueDate || movement.paymentDueDate || null,
+              paymentFirstDueDate: updatedPlan[0]?.dueDate || movement.paymentFirstDueDate || null,
+              financialPaid: allPaid,
+              financialPaidAt: allPaid ? today : null,
+              financialPaidAtDateTime: allPaid ? now : null
+            };
+          });
+          transaction.update(references[index], { movements: updatedMovements });
+        });
       });
-      batch.update(doc(db, 'artifacts', APP_ID, 'users', userId, 'products', target.productId), { movements: updatedMovements });
-      writes += 1;
-    });
-
-    if (writes > 0) await batch.commit();
+    } catch (transactionError) {
+      console.error(transactionError);
+      setError(transactionError?.message || 'Não foi possível atualizar a parcela da compra.');
+    }
   };
 
   const deleteManual = async (kind, id) => {
