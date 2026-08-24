@@ -165,7 +165,7 @@ if (!rules.includes(protectedSalesRules)) {
 }
 
 const index = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-if (!index.includes('bootstrap-v69.js?v=69') && !index.includes('bootstrap-v70.js?v=70') && !index.includes('bootstrap-v71.js?v=71') && !index.includes('bootstrap-v71.js?v=72') && !index.includes('bootstrap-v71.js?v=73')) {
+if (!index.includes('bootstrap-v69.js?v=69') && !index.includes('bootstrap-v70.js?v=70') && !index.includes('bootstrap-v71.js?v=71') && !index.includes('bootstrap-v71.js?v=72') && !index.includes('bootstrap-v71.js?v=73') && !index.includes('bootstrap-v71.js?v=74')) {
   throw new Error('Nenhuma versão compatível com as proteções v69 está ativa no index.html.');
 }
 

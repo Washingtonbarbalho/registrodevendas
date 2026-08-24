@@ -37,11 +37,12 @@
   <link rel="stylesheet" href="./v68-stock-installments.css?v=71">
   <link rel="stylesheet" href="./v71-operations.css?v=71">
   <link rel="stylesheet" href="./reports-strategic-v73.css?v=73">
+  <link rel="stylesheet" href="./v74-commercial.css?v=74">
 </head>
 <body>
   <div id="root"></div>
   <script type="module">
-    import { startApp } from './bootstrap-v71.js?v=73';
+    import { startApp } from './bootstrap-v71.js?v=74';
     const root = document.getElementById('root');
     const escapeHtml = value => String(value || '').replace(/[&<>]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[character]));
     const showStartupError = error => {

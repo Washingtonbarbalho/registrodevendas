@@ -54,7 +54,8 @@ service cloud.firestore {
     function ownerProfileFieldsOnly() {
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
         'name', 'storeName', 'phone', 'pixType', 'pixKey', 'pixBank', 'pixName', 'city',
-        'paymentSettings', 'paymentSettingsUpdatedAt', 'financialData', 'financialUpdatedAt', 'updatedAt'
+        'paymentSettings', 'paymentSettingsUpdatedAt', 'financialData', 'financialUpdatedAt',
+        'commercialGoals', 'commercialGoalsUpdatedAt', 'updatedAt'
       ]);
     }
 

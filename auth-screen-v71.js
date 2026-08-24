@@ -8,8 +8,8 @@ import {
   sendPasswordResetEmail,
   signInWithEmailAndPassword
 } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js';
-import { APP_ID, auth, db } from './firebase-config.js?v=73';
-import { maskPhone } from './utils.js?v=73';
+import { APP_ID, auth, db } from './firebase-config.js?v=74';
+import { maskPhone } from './utils.js?v=74';
 
 const EMAIL_STORAGE_KEY = 'registro-vendas:login-email:v1';
 

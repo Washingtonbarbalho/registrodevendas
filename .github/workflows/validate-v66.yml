@@ -1,4 +1,4 @@
-name: Validar v73
+name: Validar v74
 
 on:
   push:
@@ -7,20 +7,21 @@ on:
     branches: [main]
 
 jobs:
-  validate-v73:
+  validate-v74:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Validar sintaxe dos módulos críticos v73
+      - name: Validar sintaxe dos módulos críticos v74
         run: |
           node --check bootstrap-v71.js
           node --check sales-operations-v71.js
           node --check aba-vendas-v71.js
           node --check auth-screen-v71.js
           node --check app-patch-operations-v71.js
+          node --check app-patch-commercial-v74.js
           node --check app-patch-final-v71.js
           node --check nova-venda.js
           node --check bootstrap-v70.js
@@ -28,6 +29,9 @@ jobs:
           node --check reports-engine-v70.js
           node --check reports-engine-v73.js
           node --check aba-relatorios-v73.js
+          node --check commercial-engine-v74.js
+          node --check aba-comercial-v74.js
+          node --check report-export-v74.js
           node --check modals.js
           node --check app-patch-accounting-v70.js
           node --check app-patch-final-v70.js
@@ -48,11 +52,12 @@ jobs:
           node --check sale-pdf-v65.js
           node --check scripts/validate-v71.mjs
           node --check scripts/validate-v73.mjs
+          node --check scripts/validate-v74.mjs
           node --check scripts/validate-v70.mjs
           node --check scripts/validate-v69.mjs
-      - name: Validar relatórios estratégicos e montagem completa
+      - name: Validar experiência comercial e montagem completa
         run: |
-          node scripts/validate-v73.mjs
+          node scripts/validate-v74.mjs
           node --check /tmp/registro-vendas-runtime-v71.mjs
       - name: Validar proteções de segurança e estoque
         run: |
@@ -98,6 +103,16 @@ jobs:
           grep -q "getNetOperatingResult" reports-engine-v73.js
           grep -q "buildReplenishmentForecast" reports-engine-v73.js
           grep -q "buildRecurringCustomers" reports-engine-v73.js
+      - name: Validar cobranças, metas, compartilhamento e Excel
+        run: |
+          grep -q "buildCollectionQueue" commercial-engine-v74.js
+          grep -q "buildRepurchaseSuggestions" commercial-engine-v74.js
+          grep -q "calculateMonthlyGoals" commercial-engine-v74.js
+          grep -q "commercialGoalsUpdatedAt" aba-comercial-v74.js
+          grep -q "createReportExcelFile" aba-relatorios-v73.js
+          grep -q "buildReportWorkbookModel" report-export-v74.js
+          grep -q "repurchaseCycleDays" modals.js
+          grep -q "commercialGoals" firestore.rules
       - name: Validar segurança, privacidade e estoque
         run: |
           grep -q "status: 'deleted'" auth-admin.js
@@ -108,15 +123,17 @@ jobs:
       - name: Validar versão ativa
         run: |
           grep -q "v71-operations.css?v=71" index.html
-          grep -q "bootstrap-v71.js?v=73" index.html
+          grep -q "bootstrap-v71.js?v=74" index.html
           grep -q "reports-strategic-v73.css?v=73" index.html
-          grep -q "aba-vendas-v71.js?v=73" bootstrap-v71.js
-          grep -q "auth-screen-v71.js?v=73" bootstrap-v71.js
-          grep -q "aba-financeiro-v68.js?v=73" bootstrap-v71.js
-          grep -q "aba-relatorios-v73.js?v=73" bootstrap-v71.js
-          grep -q "batch-stock-modal-v68.js?v=73" bootstrap-v71.js
-          grep -q "stock-movement-modal-v68.js?v=73" bootstrap-v71.js
-          grep -q "modals-fixed-v69.js?v=73" bootstrap-v71.js
-          grep -q "nova-venda-fixed-v70.js?v=73" bootstrap-v71.js
-          grep -q "financial-core-v70.js?v=73" bootstrap-v71.js
-          grep -q "reports-engine-v73.js?v=73" bootstrap-v71.js
+          grep -q "v74-commercial.css?v=74" index.html
+          grep -q "aba-vendas-v71.js?v=74" bootstrap-v71.js
+          grep -q "auth-screen-v71.js?v=74" bootstrap-v71.js
+          grep -q "aba-financeiro-v68.js?v=74" bootstrap-v71.js
+          grep -q "aba-relatorios-v73.js?v=74" bootstrap-v71.js
+          grep -q "aba-comercial-v74.js?v=74" bootstrap-v71.js
+          grep -q "batch-stock-modal-v68.js?v=74" bootstrap-v71.js
+          grep -q "stock-movement-modal-v68.js?v=74" bootstrap-v71.js
+          grep -q "modals-fixed-v69.js?v=74" bootstrap-v71.js
+          grep -q "nova-venda-fixed-v70.js?v=74" bootstrap-v71.js
+          grep -q "financial-core-v70.js?v=74" bootstrap-v71.js
+          grep -q "reports-engine-v73.js?v=74" bootstrap-v71.js

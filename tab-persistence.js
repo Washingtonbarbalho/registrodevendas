@@ -81,6 +81,7 @@ const identifyTab = text => {
     if (label === 'vendas no caixa' || label === 'caixa') return 'sales';
     if (label === 'produtos') return 'products';
     if (label === 'clientes') return 'customers';
+    if (label === 'comercial') return 'commercial';
     if (label === 'financeiro' || label === 'fin.') return 'finance';
     if (label === 'relatorios' || label === 'relat.') return 'reports';
     if (label === 'taxas e juros' || label === 'taxas') return 'rates';

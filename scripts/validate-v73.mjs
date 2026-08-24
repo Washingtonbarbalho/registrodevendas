@@ -261,21 +261,21 @@ for (const marker of ["useState('presencial')", 'saleChannel,', 'Canal da venda'
   assert.ok(newSaleSource.includes(marker), `Canal de venda ausente no formulário: ${marker}`);
 }
 const productsSource = read('modals.js');
-for (const marker of ['minimumStock', 'replenishmentLeadTimeDays', 'Estoque mínimo', 'Reposição (dias)']) {
+for (const marker of ['minimumStock', 'replenishmentLeadTimeDays', 'repurchaseCycleDays', 'Estoque mínimo', 'Reposição (dias)']) {
   assert.ok(productsSource.includes(marker), `Configuração do produto ausente: ${marker}`);
 }
 const uiSource = read('aba-relatorios-v73.js');
-for (const marker of ['Análises estratégicas', 'Relatórios operacionais', 'Comparar com o período anterior equivalente', 'Comparação com o período anterior', 'Gerar PDF']) {
+for (const marker of ['Análises estratégicas', 'Relatórios operacionais', 'Comparar com o período anterior equivalente', 'Comparação com o período anterior', 'createReportExcelFile', 'Compartilhar']) {
   assert.ok(uiSource.includes(marker), `Recurso da tela de relatórios ausente: ${marker}`);
 }
 const navigation = read('app-patch-operations-v71.js');
 assert.ok(navigation.includes("['dashboard', 'sales', 'products', 'customers']"));
 assert.ok(!navigation.includes("['dashboard', 'sales', 'products', 'finance']"));
 const bootstrap = read('bootstrap-v71.js');
-assert.ok(bootstrap.includes("['Relatórios', './aba-relatorios-v73.js?v=73'"));
-assert.ok(bootstrap.includes("import('./reports-engine-v73.js?v=73')"));
+assert.ok(bootstrap.includes("['Relatórios', './aba-relatorios-v73.js?v=74'"));
+assert.ok(bootstrap.includes("import('./reports-engine-v73.js?v=74')"));
 const index = read('index.html');
-assert.ok(index.includes('bootstrap-v71.js?v=73'));
+assert.ok(index.includes('bootstrap-v71.js?v=74'));
 assert.ok(index.includes('reports-strategic-v73.css?v=73'));
 
 for (const validator of ['scripts/validate-v69.mjs', 'scripts/validate-v71.mjs']) {
@@ -287,4 +287,4 @@ for (const validator of ['scripts/validate-v69.mjs', 'scripts/validate-v71.mjs']
   process.stdout.write(inherited.stdout);
 }
 
-console.log('Aplicação v73 validada: períodos equivalentes, resultado líquido, canais, estoque mínimo, reposição, recorrência e Clientes no mobile.');
+console.log('Aplicação v74 validada: relatórios estratégicos preservados e prontos para a experiência comercial.');

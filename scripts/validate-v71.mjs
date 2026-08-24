@@ -13,6 +13,7 @@ import { applyBatchStockPatch } from '../app-patch-batch-stock-v68.js';
 import { applySecurityReliabilityPatch } from '../app-patch-security-v69.js';
 import { applyAccountingPatch } from '../app-patch-accounting-v70.js';
 import { applyOperationsPatch } from '../app-patch-operations-v71.js';
+import { applyCommercialPatch } from '../app-patch-commercial-v74.js';
 import { applyFinalPatches } from '../app-patch-final-v71.js';
 import { normalizeSaleMoney } from '../financial-core-v70.js';
 import { aggregateSaleItems, buildSaleInventoryPlan, InventoryReliabilityError } from '../inventory-reliability-v69.js';
@@ -38,6 +39,7 @@ for (const file of [
   'aba-vendas-v71.js',
   'auth-screen-v71.js',
   'app-patch-operations-v71.js',
+  'app-patch-commercial-v74.js',
   'app-patch-final-v71.js',
   'nova-venda.js',
   'nova-venda-fixed-v69.js',
@@ -151,6 +153,7 @@ for (const patch of [
   applySecurityReliabilityPatch,
   applyAccountingPatch,
   applyOperationsPatch,
+  applyCommercialPatch,
   applyFinalPatches
 ]) source = patch(source);
 
@@ -159,13 +162,16 @@ fs.writeFileSync(generatedFile, source);
 checkSyntax(generatedFile);
 
 for (const marker of [
-  'aba-vendas-v71.js?v=73',
-  'auth-screen-v71.js?v=73',
-  'aba-relatorios-v73.js?v=73',
+  'aba-vendas-v71.js?v=74',
+  'auth-screen-v71.js?v=74',
+  'aba-relatorios-v73.js?v=74',
+  'aba-comercial-v74.js?v=74',
   "{ id: 'sales', label: 'Vendas', shortLabel: 'Vendas'",
   "view === 'sales' ? React.createElement(AbaVendas",
   'mobile-quick-nav',
   "const mobilePrimaryNav = ['dashboard', 'sales', 'products', 'customers']",
+  "{ id: 'commercial', label: 'Comercial'",
+  "view === 'commercial' ? React.createElement(AbaComercial",
   'quick-sale-sheet',
   'buildSaleInventoryPlan(requestedItems, inventoryRecords)',
   'getSalesAccrualSummary(sales, dashStartDate, dashEndDate)',
@@ -417,13 +423,14 @@ const identifyTab = Function(`${persistenceSource.slice(normalizeStart, normaliz
 assert.equal(identifyTab('Financeiro'), 'finance');
 assert.equal(identifyTab('Fin.'), 'finance');
 assert.equal(identifyTab('Clientes'), 'customers');
+assert.equal(identifyTab('Comercial'), 'commercial');
 assert.equal(identifyTab('Relatórios'), 'reports');
 assert.equal(identifyTab('Relat.'), 'reports');
 assert.equal(identifyTab('Vendas no caixa'), 'sales');
 assert.ok(persistenceSource.includes('.mobile-menu-nav-button'), 'A navegação pelo menu lateral precisa preservar a aba.');
 
 const index = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-assert.ok(index.includes('bootstrap-v71.js?v=73'), 'A versão estratégica v73 precisa estar ativa.');
+assert.ok(index.includes('bootstrap-v71.js?v=74'), 'A experiência comercial v74 precisa estar ativa.');
 assert.ok(index.includes('v71-operations.css?v=71'), 'Os estilos operacionais v71 precisam estar ativos.');
 assert.ok(index.includes('reports-strategic-v73.css?v=73'), 'Os estilos dos relatórios estratégicos precisam estar ativos.');
 
@@ -433,4 +440,4 @@ const inherited = spawnSync(process.execPath, ['scripts/validate-v70.mjs'], {
 });
 if (inherited.status !== 0) throw new Error(`Regressão na v70:\n${inherited.stderr || inherited.stdout}`);
 
-console.log('Aplicação v73 validada: venda e canal gravados com baixa atômica, PIX privado e Clientes na navegação mobile.');
+console.log('Aplicação v74 validada: venda atômica, navegação mobile e integração Comercial preservadas.');

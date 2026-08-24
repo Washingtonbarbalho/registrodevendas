@@ -12,6 +12,7 @@ import {
   shiftReportDate,
   STRATEGIC_REPORTS
 } from './reports-engine-v73.js';
+import { createReportExcelFile, downloadFile, shareFile } from './report-export-v74.js';
 
 const h = React.createElement;
 const EMPTY_FINANCIAL = { entries: [], accounts: [] };
@@ -275,7 +276,9 @@ const generatePdf = async ({ report, storeName, startDate, endDate, paymentFilte
     pdf.setTextColor(148, 163, 184);
     pdf.text(`Gerado em ${new Date().toLocaleString('pt-BR')} · Página ${page}/${pageCount}`, width / 2, height - 7, { align: 'center' });
   }
-  pdf.save(`relatorio-${report.id}-${startDate}-${endDate}.pdf`);
+  const filename = `relatorio-${report.id}-${startDate}-${endDate}.pdf`;
+  const blob = pdf.output('blob');
+  return new File([blob], filename, { type: 'application/pdf' });
 };
 
 const ReportModal = ({ definition, sales, products, customers, financialData, storeName, onClose }) => {
@@ -285,7 +288,7 @@ const ReportModal = ({ definition, sales, products, customers, financialData, st
   const [paymentFilter, setPaymentFilter] = useState('all');
   const [saleChannel, setSaleChannel] = useState('all');
   const [compareWithPrevious, setCompareWithPrevious] = useState(true);
-  const [pdfLoading, setPdfLoading] = useState(false);
+  const [exportLoading, setExportLoading] = useState('');
   useBodyLock(true);
 
   useEffect(() => {
@@ -322,12 +325,50 @@ const ReportModal = ({ definition, sales, products, customers, financialData, st
   const supportsChannel = ['sales', 'sales-channels'].includes(definition.id);
   const canCompare = ['result', 'sales', 'sale-profit', 'products', 'net-result', 'sales-channels', 'repeat-customers']
     .includes(definition.id);
+  const exportInput = {
+    report,
+    storeName,
+    startDate,
+    endDate,
+    paymentFilterLabel: PAYMENT_FILTERS.find(([id]) => id === paymentFilter)?.[1] || 'Todas as formas',
+    saleChannelLabel: SALE_CHANNELS.find(([id]) => id === saleChannel)?.[1] || 'Todos os canais'
+  };
   const handlePdf = async () => {
     if (invalidPeriod) return;
-    setPdfLoading(true);
-    try { await generatePdf({ report, storeName, startDate, endDate, paymentFilter, saleChannel }); }
+    setExportLoading('pdf');
+    try {
+      const file = await generatePdf({ report, storeName, startDate, endDate, paymentFilter, saleChannel });
+      downloadFile(file);
+    }
     catch (error) { console.error(error); alert('Não foi possível gerar o PDF.'); }
-    finally { setPdfLoading(false); }
+    finally { setExportLoading(''); }
+  };
+  const handleExcel = async () => {
+    if (invalidPeriod) return;
+    setExportLoading('excel');
+    try {
+      const file = await createReportExcelFile(exportInput);
+      downloadFile(file);
+    } catch (error) {
+      console.error(error);
+      alert('Não foi possível gerar o arquivo Excel.');
+    } finally { setExportLoading(''); }
+  };
+  const handleShare = async () => {
+    if (invalidPeriod) return;
+    setExportLoading('share');
+    try {
+      const file = await generatePdf({ report, storeName, startDate, endDate, paymentFilter, saleChannel });
+      const result = await shareFile({
+        file,
+        title: report.title,
+        text: `${storeName || 'Registro de Vendas'} · ${reportPeriodLabel(startDate, endDate)}`
+      });
+      if (result.downloaded) alert('O compartilhamento direto não está disponível neste aparelho. O PDF foi baixado para você enviar.');
+    } catch (error) {
+      console.error(error);
+      alert('Não foi possível compartilhar o relatório.');
+    } finally { setExportLoading(''); }
   };
 
   return createPortal(
@@ -390,8 +431,12 @@ const ReportModal = ({ definition, sales, products, customers, financialData, st
           h('div', { className: 'reports62-footer-period' }, invalidPeriod ? 'Período inválido' : reportPeriodLabel(startDate, endDate)),
           h('div', { className: 'reports62-footer-actions' },
             h('button', { type: 'button', className: 'reports62-secondary-btn', onClick: onClose }, 'Fechar'),
-            h('button', { type: 'button', className: 'reports62-pdf-btn', disabled: invalidPeriod || pdfLoading, onClick: handlePdf },
-              pdfLoading ? 'Gerando PDF...' : 'Gerar PDF')
+            h('button', { type: 'button', className: 'reports74-excel-btn', disabled: invalidPeriod || !!exportLoading, onClick: handleExcel },
+              exportLoading === 'excel' ? 'Gerando...' : 'Excel'),
+            h('button', { type: 'button', className: 'reports74-share-btn', disabled: invalidPeriod || !!exportLoading, onClick: handleShare },
+              exportLoading === 'share' ? 'Abrindo...' : 'Compartilhar'),
+            h('button', { type: 'button', className: 'reports62-pdf-btn', disabled: invalidPeriod || !!exportLoading, onClick: handlePdf },
+              exportLoading === 'pdf' ? 'Gerando...' : 'PDF')
           )
         )
       )
