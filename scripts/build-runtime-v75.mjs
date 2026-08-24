@@ -14,7 +14,6 @@ import { applySecurityReliabilityPatch } from '../app-patch-security-v69.js';
 import { applyAccountingPatch } from '../app-patch-accounting-v70.js';
 import { applyOperationsPatch } from '../app-patch-operations-v71.js';
 import { applyCommercialPatch } from '../app-patch-commercial-v74.js';
-import { applyBackupPatch } from '../app-patch-backup-v75.js';
 import { applyFinalPatches } from '../app-patch-final-v71.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -40,8 +39,7 @@ const patches = [
   ['segurança e confiabilidade', applySecurityReliabilityPatch],
   ['conciliação financeira', applyAccountingPatch],
   ['simplificação operacional', applyOperationsPatch],
-  ['experiência comercial', applyCommercialPatch],
-  ['backup e restauração', applyBackupPatch]
+  ['experiência comercial', applyCommercialPatch]
 ];
 
 let runtime = read('app.js');
@@ -52,8 +50,8 @@ for (const [label, patch] of patches) {
     throw new Error(`Falha ao consolidar ${label}: ${error?.message || error}`);
   }
 }
-runtime = applyFinalPatches(runtime, { staticBuild: true, version: '75' });
-runtime = `// Runtime estático v75 — gerado por scripts/build-runtime-v75.mjs.\n${runtime}`;
+runtime = applyFinalPatches(runtime, { staticBuild: true, version: '76' });
+runtime = `// Runtime estático v76 — gerado por scripts/build-runtime-v75.mjs.\n${runtime}`;
 
 for (const forbidden of [
   'example.test',
@@ -62,16 +60,17 @@ for (const forbidden of [
   'applySetupPatches(',
   'modals-fixed-v69.js',
   'nova-venda-fixed-v70.js',
-  'aba-clientes-fixed-v52.js'
+  'aba-clientes-fixed-v52.js',
+  'aba-backup-v75.js',
+  "id: 'backup'"
 ]) {
   if (runtime.includes(forbidden)) throw new Error(`O runtime consolidado ainda contém uma etapa dinâmica: ${forbidden}.`);
 }
 
 for (const required of [
-  "from './modals-runtime-v75.js?v=75'",
-  "from './nova-venda-runtime-v75.js?v=75'",
-  "from './aba-clientes-runtime-v75.js?v=75'",
-  "from './aba-backup-v75.js?v=75'",
+  "from './modals-runtime-v75.js?v=76'",
+  "from './nova-venda-runtime-v75.js?v=76'",
+  "from './aba-clientes-runtime-v75.js?v=76'",
   "const mobilePrimaryNav = ['dashboard', 'sales', 'products', 'customers']"
 ]) {
   if (!runtime.includes(required)) throw new Error(`Integração ausente no runtime v75: ${required}.`);
@@ -102,8 +101,7 @@ const styleFiles = [
   'v68-stock-installments.css',
   'v71-operations.css',
   'reports-strategic-v73.css',
-  'v74-commercial.css',
-  'v75-technical.css'
+  'v74-commercial.css'
 ];
 
 const consolidatedStyles = styleFiles.map(file => {
@@ -112,7 +110,7 @@ const consolidatedStyles = styleFiles.map(file => {
 }).join('\n');
 fs.writeFileSync(
   path.join(root, 'styles-runtime-v75.css'),
-  `/* Estilos consolidados v75 — gerado por scripts/build-runtime-v75.mjs. */\n${consolidatedStyles}`
+  `/* Estilos consolidados v76 — gerado por scripts/build-runtime-v75.mjs. */\n${consolidatedStyles}`
 );
 
-console.log(`Runtime v75 consolidado: ${runtime.length} bytes de JS e ${consolidatedStyles.length} bytes de CSS.`);
+console.log(`Runtime v76 consolidado: ${runtime.length} bytes de JS e ${consolidatedStyles.length} bytes de CSS.`);

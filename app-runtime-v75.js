@@ -1,44 +1,43 @@
-// Runtime estático v75 — gerado por scripts/build-runtime-v75.mjs.
+// Runtime estático v76 — gerado por scripts/build-runtime-v75.mjs.
 import React, { useState, useEffect, useMemo } from 'https://esm.sh/react@18.2.0';
 import { createRoot } from 'https://esm.sh/react-dom@18.2.0/client';
 import { Users, User, LogOut, Lock, LayoutDashboard, Receipt, WalletCards, Package, Contact, Store, ShieldCheck, BadgePercent, Banknote, Plus } from 'https://esm.sh/lucide-react@0.292.0';
 
 // Firebase
-import { app, db, auth, APP_ID } from './firebase-config.js?v=75';
+import { app, db, auth, APP_ID } from './firebase-config.js?v=76';
 import { collection, onSnapshot, query, doc, getDoc, updateDoc, deleteDoc, addDoc, serverTimestamp, setDoc, runTransaction, writeBatch } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js";
 
 // Utils
-import { getCurrentMonthStart, getCurrentMonthEnd, getBrazilDateString, addDays, formatCurrency, formatDate } from './utils.js?v=75';
-import { aggregateSaleItems, buildSaleInventoryPlan } from './inventory-reliability-v69.js?v=75';
-import { applyInstallmentPayment, buildFinancialLedger, fromCents, getHistoryCashAmount, getInstallmentFaceAmount, getRealizedSalesProfit, getSalesAccrualSummary, isTermSale, normalizeSaleMoney, reverseInstallmentPayment, sumMoney, summarizeFinancialLedger, toCents } from './financial-core-v70.js?v=75';
+import { getCurrentMonthStart, getCurrentMonthEnd, getBrazilDateString, addDays, formatCurrency, formatDate } from './utils.js?v=76';
+import { aggregateSaleItems, buildSaleInventoryPlan } from './inventory-reliability-v69.js?v=76';
+import { applyInstallmentPayment, buildFinancialLedger, fromCents, getHistoryCashAmount, getInstallmentFaceAmount, getRealizedSalesProfit, getSalesAccrualSummary, isTermSale, normalizeSaleMoney, reverseInstallmentPayment, sumMoney, summarizeFinancialLedger, toCents } from './financial-core-v70.js?v=76';
 
 // Modais
 import { 
     UserProfileModal, CustomerFormModal, ProductDetailsModal, EditInstallmentModal, 
     SaleDetailsModal, PixCodeModal, InstallmentListModal, PaymentConfirmationModal, 
     ConfirmModal, WhatsAppChooserModal, ProductModal
-} from './modals-runtime-v75.js?v=75';
-import { StockMovementModal } from './stock-movement-modal-v68.js?v=75';
+} from './modals-runtime-v75.js?v=76';
+import { StockMovementModal } from './stock-movement-modal-v68.js?v=76';
 
 // Telas Secundárias
-import { AdminUsersPanel } from './auth-admin.js?v=75';
-import { AuthScreen } from './auth-screen-v71.js?v=75';
-import { NewSaleScreen } from './nova-venda-runtime-v75.js?v=75';
+import { AdminUsersPanel } from './auth-admin.js?v=76';
+import { AuthScreen } from './auth-screen-v71.js?v=76';
+import { NewSaleScreen } from './nova-venda-runtime-v75.js?v=76';
 
 // Abas do Dashboard
-import { AbaVisaoGeral } from './aba-visao-geral-fixed.js?v=75';
-import { AbaVendas } from './aba-vendas-v71.js?v=75';
-import { AbaProdutos } from './aba-produtos-v67.js?v=75';
-import { AbaClientes } from './aba-clientes-runtime-v75.js?v=75';
-import { AbaTaxas } from './aba-taxas.js?v=75';
-import { AbaFinanceiro } from './aba-financeiro-v68.js?v=75';
-import { BatchStockModal } from './batch-stock-modal-v68.js?v=75';
-import { AbaRelatorios } from './aba-relatorios-v73.js?v=75';
-import { AbaComercial } from './aba-comercial-v74.js?v=75';
-import { AbaBackup, BackupAutoSnapshot } from './aba-backup-v75.js?v=75';
-import { normalizePaymentSettings } from './payment-settings.js?v=75';
-import { shareSalePdf } from './sale-pdf-v65.js?v=75';
+import { AbaVisaoGeral } from './aba-visao-geral-fixed.js?v=76';
+import { AbaVendas } from './aba-vendas-v71.js?v=76';
+import { AbaProdutos } from './aba-produtos-v67.js?v=76';
+import { AbaClientes } from './aba-clientes-runtime-v75.js?v=76';
+import { AbaTaxas } from './aba-taxas.js?v=76';
+import { AbaFinanceiro } from './aba-financeiro-v68.js?v=76';
+import { BatchStockModal } from './batch-stock-modal-v68.js?v=76';
+import { AbaRelatorios } from './aba-relatorios-v73.js?v=76';
+import { AbaComercial } from './aba-comercial-v74.js?v=76';
+import { normalizePaymentSettings } from './payment-settings.js?v=76';
+import { shareSalePdf } from './sale-pdf-v65.js?v=76';
 
 const Dashboard = ({ user, userProfile, onLogout }) => {
     const [view, setView] = useState('dashboard');
@@ -895,7 +894,6 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         { id: 'finance', label: 'Financeiro', shortLabel: 'Fin.', icon: Banknote },
         { id: 'commercial', label: 'Comercial', shortLabel: 'Comercial', icon: Store },
         { id: 'reports', label: 'Relatórios', shortLabel: 'Relat.', icon: LayoutDashboard },
-        { id: 'backup', label: 'Backup e dados', shortLabel: 'Backup', icon: ShieldCheck },
         { id: 'rates', label: 'Taxas e juros', shortLabel: 'Taxas', icon: BadgePercent }
     ];
     const currentNav = navItems.find(item => item.id === view) || navItems[0];
@@ -904,15 +902,6 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         .filter(Boolean);
 
     return React.createElement('div', { className: "app-shell" },
-        React.createElement(BackupAutoSnapshot, {
-            ready: !loadingData,
-            userId: user.uid,
-            userEmail: user.email,
-            userProfile,
-            sales,
-            products,
-            customers
-        }),
         React.createElement('aside', { className: "app-sidebar" },
             React.createElement('div', { className: "app-brand" },
                 React.createElement('div', { className: "app-brand-mark" }, React.createElement(Store, { size: 22 })),
@@ -1066,14 +1055,6 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
                         products,
                         customers,
                         userProfile
-                    })
-                    : view === 'backup' ? React.createElement(AbaBackup, {
-                        userId: user.uid,
-                        userEmail: user.email,
-                        userProfile,
-                        sales,
-                        products,
-                        customers
                     })
                     : view === 'finance' ? React.createElement(AbaFinanceiro, {
                         userId: user.uid,

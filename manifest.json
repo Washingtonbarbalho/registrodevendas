@@ -1,7 +1,7 @@
 {
   "name": "Registro de Vendas",
   "short_name": "Vendas App",
-  "description": "Gestão de vendas, estoque, clientes e financeiro com suporte offline.",
+  "description": "Gestão de vendas, estoque, clientes, relatórios e financeiro.",
   "id": "./",
   "start_url": "./",
   "display": "standalone",
@@ -11,7 +11,7 @@
   "scope": "./",
   "icons": [
     {
-      "src": "app-icon.svg?v=75",
+      "src": "app-icon.svg?v=76",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"

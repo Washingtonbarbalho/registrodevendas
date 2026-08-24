@@ -8,6 +8,7 @@ if (typeof vm.SourceTextModule !== 'function') {
 }
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const RELEASE_VERSION = '76';
 const blobStore = new Map();
 const capturedBlobs = [];
 let blobSequence = 0;
@@ -189,8 +190,8 @@ if (!modalCore || !modalWrapper || !saleRuntime || !customerRuntime || !customer
 }
 
 const localizeImports = source => source
-  .replace(/(['"])http:\/\/localhost\/registrodevendas\/([^'"]+?\.js)(?:\?[^'"]*)?\1/g, (_match, _quote, file) => `'./${file}?v=75'`)
-  .replace(/(['"])(\.\/[^'"]+?\.js)(?:\?[^'"]*)?\1/g, (_match, _quote, file) => `'${file}?v=75'`);
+  .replace(/(['"])http:\/\/localhost\/registrodevendas\/([^'"]+?\.js)(?:\?[^'"]*)?\1/g, (_match, _quote, file) => `'./${file}?v=${RELEASE_VERSION}'`)
+  .replace(/(['"])(\.\/[^'"]+?\.js)(?:\?[^'"]*)?\1/g, (_match, _quote, file) => `'${file}?v=${RELEASE_VERSION}'`);
 
 const wrapperDynamicStart = modalWrapper.indexOf("const VERSION = '21';");
 const wrapperExportsStart = modalWrapper.indexOf('export const UserProfileModal = originalModule.UserProfileModal;');
@@ -199,7 +200,7 @@ if (wrapperDynamicStart < 0 || wrapperExportsStart < wrapperDynamicStart) {
 }
 
 const staticModalWrapper = modalWrapper.slice(0, wrapperDynamicStart)
-  + "import * as originalModule from './modals-core-runtime-v75.js?v=75';\n\n"
+  + `import * as originalModule from './modals-core-runtime-v75.js?v=${RELEASE_VERSION}';\n\n`
   + modalWrapper.slice(wrapperExportsStart);
 
 const generated = [
@@ -212,11 +213,14 @@ const generated = [
 
 for (const [file, source, label] of generated) {
   const preparedSource = file === 'aba-clientes-runtime-v75.js'
-    ? source.replace(/\.\/customer-history-modal-v52\.js(?:\?[^'"]*)?/g, './customer-history-runtime-v75.js?v=75')
+    ? source.replace(/\.\/customer-history-modal-v52\.js(?:\?[^'"]*)?/g, `./customer-history-runtime-v75.js?v=${RELEASE_VERSION}`)
     : source;
   let localizedSource = localizeImports(preparedSource);
   if (file === 'aba-clientes-runtime-v75.js') {
-    localizedSource = localizedSource.replace('./customer-history-modal-v52.js?v=75', './customer-history-runtime-v75.js?v=75');
+    localizedSource = localizedSource.replace(
+      `./customer-history-modal-v52.js?v=${RELEASE_VERSION}`,
+      `./customer-history-runtime-v75.js?v=${RELEASE_VERSION}`
+    );
   }
   const finalSource = `// Gerado por scripts/consolidate-legacy-runtime-v75.mjs — ${label}.\n${localizedSource}`;
   for (const forbidden of ['http://localhost', 'URL.createObjectURL', 'new Blob([source]']) {
@@ -225,4 +229,4 @@ for (const [file, source, label] of generated) {
   fs.writeFileSync(path.join(root, file), finalSource);
 }
 
-console.log('Modais e Nova Venda consolidados em módulos estáticos v75.');
+console.log(`Modais e Nova Venda consolidados em módulos estáticos v${RELEASE_VERSION}.`);

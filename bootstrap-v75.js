@@ -1,6 +1,4 @@
-import { registerOfflineSupport } from './offline-status-v75.js?v=75';
-
-const VERSION = '75';
+const VERSION = '76';
 
 const withStage = async (label, task) => {
   try {
@@ -13,10 +11,6 @@ const withStage = async (label, task) => {
 
 export const startApp = async () => {
   performance.mark?.('registro-vendas:start');
-  registerOfflineSupport().catch(error => {
-    console.warn('O aplicativo abriu sem o suporte offline completo.', error);
-  });
-
   await withStage('Falha ao carregar a aplicação consolidada', async () => {
     await import(`./app-runtime-v75.js?v=${VERSION}`);
   });

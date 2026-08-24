@@ -1,4 +1,4 @@
-name: Validar v75
+name: Validar versão técnica
 
 on:
   push:
@@ -10,11 +10,11 @@ permissions:
   contents: read
 
 concurrency:
-  group: validate-v75-${{ github.ref }}
+  group: validate-technical-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  validate-v75:
+  validate-technical:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

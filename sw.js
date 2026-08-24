@@ -1,63 +1,15 @@
-const CACHE_NAME = 'registro-vendas-modern-v7';
-const APP_SHELL = [
-  './',
-  './index.html',
-  './styles.css?v=7',
-  './manifest.json'
-];
-
+// Arquivo de retirada para instalações antigas que ainda apontam para sw.js.
 self.addEventListener('install', event => {
-  self.skipWaiting();
-  event.waitUntil(
-    caches.open(CACHE_NAME).then(cache =>
-      Promise.allSettled(APP_SHELL.map(asset => cache.add(asset)))
-    )
-  );
+  event.waitUntil(self.skipWaiting());
 });
 
 self.addEventListener('activate', event => {
-  event.waitUntil(
-    caches.keys()
-      .then(names => Promise.all(names.filter(name => name !== CACHE_NAME).map(name => caches.delete(name))))
-      .then(() => self.clients.claim())
-  );
-});
-
-self.addEventListener('fetch', event => {
-  if (event.request.method !== 'GET') return;
-
-  const url = new URL(event.request.url);
-  const isLocal = url.origin === self.location.origin;
-
-  if (!isLocal) {
-    event.respondWith(fetch(event.request));
-    return;
-  }
-
-  if (event.request.mode === 'navigate') {
-    event.respondWith(
-      fetch(event.request)
-        .then(response => {
-          if (response.ok) {
-            const copy = response.clone();
-            caches.open(CACHE_NAME).then(cache => cache.put('./index.html', copy));
-          }
-          return response;
-        })
-        .catch(() => caches.match('./index.html'))
-    );
-    return;
-  }
-
-  event.respondWith(
-    fetch(event.request)
-      .then(response => {
-        if (response.ok) {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
-        }
-        return response;
-      })
-      .catch(() => caches.match(event.request))
-  );
+  event.waitUntil((async () => {
+    const cacheNames = await caches.keys();
+    await Promise.all(cacheNames
+      .filter(name => name.startsWith('registro-vendas-'))
+      .map(name => caches.delete(name)));
+    await self.registration.unregister();
+    await self.clients.claim();
+  })());
 });

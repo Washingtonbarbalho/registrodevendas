@@ -1,35 +1,32 @@
-REGISTRO DE VENDAS — VERSÃO 75
+REGISTRO DE VENDAS — VERSÃO 76
 
 ARQUITETURA ATIVA
 - app-runtime-v75.js reúne, em tempo de compilação, as correções das etapas anteriores.
-- styles-runtime-v75.css reúne as folhas de estilo na ordem original.
-- bootstrap-v75.js apenas registra o suporte offline, abre o runtime e restaura a última aba.
-- Os arquivos antigos continuam no repositório como fontes e rota de reversão, mas não são montados no navegador.
+- styles-runtime-v75.css reúne as folhas de estilo ativas na ordem original.
+- bootstrap-v75.js abre o runtime consolidado e restaura a última aba utilizada.
+- Os antigos carregadores dinâmicos não são executados no navegador.
 
 DESENVOLVIMENTO E TESTES
 1. Execute: npm run build
 2. Execute: npm test
 3. Para fazer as duas verificações: npm run check
 
-O gerador também consolida Modais, Nova Venda e Clientes, removendo os antigos carregadores por fetch/blob do caminho de produção. Os arquivos gerados são versionados para que o GitHub Pages publique exatamente o código testado.
+O gerador consolida Modais, Nova Venda e Clientes e remove os antigos carregadores por fetch/blob do caminho de produção. Os arquivos gerados são versionados para que o GitHub Pages publique exatamente o código testado.
 
-FUNCIONAMENTO OFFLINE
-- O service worker mantém somente o aplicativo e os arquivos estáticos em cache HTTP.
-- Dados de clientes, vendas, produtos e financeiro não entram nesse cache.
-- Na aba “Backup e dados”, o usuário pode marcar o aparelho como confiável. Só então o Firestore guarda os dados no IndexedDB para consulta e sincronização offline.
-- A primeira abertura e o primeiro carregamento dos dados precisam ser feitos com internet.
-- Ao desativar o aparelho confiável, o sistema encerra o Firestore e limpa a persistência e os backups locais daquele usuário.
+FUNCIONAMENTO SOMENTE ONLINE
+- O sistema depende de internet para abrir e consultar os dados do Firebase.
+- O Firestore usa a configuração padrão em memória; não existe persistência permanente de vendas, produtos, clientes ou dados financeiros no navegador.
+- A página remove registros antigos de service worker, caches “registro-vendas-*” e cópias locais da versão anterior.
+- O Firebase limpa a antiga persistência IndexedDB antes de iniciar o sistema; se outra aba impedir a limpeza, ele tenta novamente na próxima abertura.
+- service-worker-v75.js e sw.js permanecem apenas como arquivos de retirada: se algum navegador antigo tentar atualizá-los, eles limpam o cache anterior e se desregistram.
 
 BACKUPS
-- Em aparelho confiável, o sistema mantém automaticamente até cinco cópias locais validadas.
-- “Baixar backup agora” gera um JSON completo para ser guardado fora do aparelho.
-- A restauração exige internet, confere sistema, proprietário, estrutura, estoque e integridade.
-- A restauração usa mesclagem: recria e atualiza registros, sem excluir os dados atuais.
-- Antes de restaurar, o sistema salva uma cópia local ou baixa um arquivo de segurança.
-- O arquivo contém dados privados; deve ser armazenado em local protegido.
+- A aba “Backup e dados” e as cópias locais foram removidas da navegação e do runtime.
+- O sistema não cria nem restaura arquivos de backup no navegador.
+- Caso backups em nuvem sejam necessários futuramente, devem ser implementados no ambiente Firebase, separados da interface operacional.
 
 FIREBASE
-Esta versão não exige alteração no Console do Firebase nem novas regras. O modo offline usa a persistência oficial do SDK já conectado ao projeto. Backups em nuvem, caso sejam adicionados no futuro, exigirão escolher um destino e configurar permissões específicas.
+Esta versão não exige alteração no Console do Firebase, novas regras ou novos índices. A aplicação continua usando o mesmo projeto, autenticação e estrutura do Firestore.
 
 PUBLICAÇÃO
-O GitHub Pages continua publicando a raiz do repositório. O workflow “Validar v75” executa a suíte completa e confirma que os artefatos consolidados estão atualizados.
+O GitHub Pages continua publicando a raiz do repositório. O workflow “Validar versão técnica” executa a suíte completa e confirma que os artefatos consolidados estão atualizados.

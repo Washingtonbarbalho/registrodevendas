@@ -1,12 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
-import {
-    clearIndexedDbPersistence,
-    getFirestore,
-    initializeFirestore,
-    persistentLocalCache,
-    persistentMultipleTabManager,
-    terminate
-} from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
+import { clearIndexedDbPersistence, getFirestore } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
 import { getAuth } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js";
 
 const firebaseConfig = {
@@ -19,45 +12,22 @@ const firebaseConfig = {
 };
 
 export const app = initializeApp(firebaseConfig);
-export const OFFLINE_TRUST_KEY = 'registro-vendas:trusted-device:v75';
-const offlinePersistenceRequested = (() => {
-    try { return localStorage.getItem(OFFLINE_TRUST_KEY) === 'yes'; }
-    catch (_) { return false; }
-})();
-let offlinePersistenceActive = false;
+const firestore = getFirestore(app);
+const LEGACY_OFFLINE_KEY = 'registro-vendas:trusted-device:v75';
+const OFFLINE_CLEANUP_KEY = 'registro-vendas:firestore-offline-removed:v76';
 
-export const db = (() => {
-    if (!offlinePersistenceRequested) return getFirestore(app);
-    try {
-        const firestore = initializeFirestore(app, {
-            localCache: persistentLocalCache({
-                tabManager: persistentMultipleTabManager()
-            })
-        });
-        offlinePersistenceActive = true;
-        return firestore;
-    } catch (error) {
-        console.warn('Persistência offline indisponível; usando cache temporário nesta sessão.', error);
-        return getFirestore(app);
+try {
+    localStorage.removeItem(LEGACY_OFFLINE_KEY);
+    if (localStorage.getItem(OFFLINE_CLEANUP_KEY) !== 'done') {
+        await clearIndexedDbPersistence(firestore);
+        localStorage.setItem(OFFLINE_CLEANUP_KEY, 'done');
     }
-})();
+} catch (error) {
+    console.warn('O cache persistente antigo do Firebase será limpo em uma próxima abertura.', error);
+}
+
+export const db = firestore;
 export const auth = getAuth(app);
-
-export const isOfflineDataEnabled = () => offlinePersistenceActive;
-export const isOfflineDataRequested = () => offlinePersistenceRequested;
-export const enableOfflineData = () => {
-    localStorage.setItem(OFFLINE_TRUST_KEY, 'yes');
-    location.reload();
-};
-export const disableOfflineData = async () => {
-    await terminate(db);
-    try {
-        await clearIndexedDbPersistence(db);
-    } finally {
-        localStorage.removeItem(OFFLINE_TRUST_KEY);
-        location.reload();
-    }
-};
 
 export const APP_ID = 'vendas-aura-main';
 export const ADMIN_EMAIL = "washington.wn8@gmail.com";

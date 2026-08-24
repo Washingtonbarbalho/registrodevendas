@@ -45,7 +45,6 @@ export const applyFinalPatches = (source, options = {}) => {
     'stock-movement-modal-v52', 'stock-movement-modal-v68', 'batch-stock-modal-v68', 'purchase-payment-v68',
     'aba-relatorios-v65', 'aba-relatorios-v73', 'reports-engine-v65', 'reports-engine-v70', 'reports-engine-v73', 'financial-core-v70', 'sale-pdf-v65',
     'aba-comercial-v74', 'commercial-engine-v74', 'report-export-v74',
-    'aba-backup-v75', 'backup-engine-v75', 'backup-storage-v75',
     'aba-taxas', 'payment-settings', 'utils', 'components', 'inventory-reliability-v69'
   ]);
 

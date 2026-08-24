@@ -8,37 +8,61 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Vendas App">
-  <link rel="manifest" href="./manifest.json?v=75">
-  <link rel="icon" type="image/svg+xml" href="./app-icon.svg?v=75">
-  <link rel="apple-touch-icon" href="./app-icon.svg?v=75">
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.__registroVendasEarlyServiceWorker = navigator.serviceWorker.register(
-        './service-worker-v75.js?v=75',
-        { scope: './', updateViaCache: 'none' }
-      ).catch(error => {
-        console.warn('Suporte offline será tentado novamente após a abertura.', error);
-        return null;
-      });
-    }
-  </script>
+  <link rel="manifest" href="./manifest.json?v=76">
+  <link rel="icon" type="image/svg+xml" href="./app-icon.svg?v=76">
+  <link rel="apple-touch-icon" href="./app-icon.svg?v=76">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="./styles-runtime-v75.css?v=75">
+  <link rel="stylesheet" href="./styles-runtime-v75.css?v=76">
 </head>
 <body>
   <div id="root"></div>
   <script type="module">
-    import { startApp } from './bootstrap-v75.js?v=75';
     const root = document.getElementById('root');
     const escapeHtml = value => String(value || '').replace(/[&<>]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[character]));
     const showStartupError = error => {
       console.error('Erro ao iniciar o sistema:', error);
       root.innerHTML = `<main style="min-height:100vh;display:grid;place-items:center;padding:24px;background:#f8fafc;font-family:Inter,Arial,sans-serif"><section style="width:100%;max-width:520px;background:white;border:1px solid #e2e8f0;border-radius:20px;padding:24px;box-shadow:0 16px 45px rgba(15,23,42,.10)"><h1 style="margin:0 0 10px;color:#0f172a;font-size:22px">Não foi possível iniciar o sistema</h1><p style="margin:0 0 16px;color:#64748b;line-height:1.5">Um arquivo do sistema não carregou corretamente. Atualize a página.</p><button onclick="location.reload()" style="border:0;border-radius:12px;background:#0f172a;color:white;font-weight:700;padding:12px 16px;width:100%">Tentar novamente</button><pre style="white-space:pre-wrap;margin:16px 0 0;padding:12px;border-radius:12px;background:#f1f5f9;color:#b91c1c;font-size:11px;overflow:auto">${escapeHtml(error?.message || error || 'Erro desconhecido')}</pre></section></main>`;
     };
-    startApp().catch(showStartupError);
+    const removeLegacyOfflineSupport = async () => {
+      try {
+        const hadController = 'serviceWorker' in navigator && Boolean(navigator.serviceWorker.controller);
+        if ('serviceWorker' in navigator) {
+          const registrations = await navigator.serviceWorker.getRegistrations();
+          await Promise.allSettled(registrations.map(registration => registration.unregister()));
+        }
+        if ('caches' in globalThis) {
+          const names = await caches.keys();
+          await Promise.allSettled(names
+            .filter(name => name.startsWith('registro-vendas-'))
+            .map(name => caches.delete(name)));
+        }
+        if ('indexedDB' in globalThis) {
+          await new Promise(resolve => {
+            const request = indexedDB.deleteDatabase('registro-vendas-backups-v75');
+            request.onsuccess = request.onerror = request.onblocked = () => resolve();
+          });
+        }
+        const reloadKey = 'registro-vendas:offline-removal-reload:v76';
+        if (hadController && sessionStorage.getItem(reloadKey) !== 'done') {
+          sessionStorage.setItem(reloadKey, 'done');
+          location.reload();
+          return false;
+        }
+        sessionStorage.removeItem(reloadKey);
+      } catch (error) {
+        console.warn('Não foi possível concluir a limpeza do cache antigo.', error);
+      }
+      return true;
+    };
+
+    removeLegacyOfflineSupport().then(async ready => {
+      if (!ready) return;
+      const { startApp } = await import('./bootstrap-v75.js?v=76');
+      await startApp();
+    }).catch(showStartupError);
   </script>
 </body>
 </html>
