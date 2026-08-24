@@ -1,13 +1,35 @@
-CORREÇÃO DE COMPATIBILIDADE DOS ÍCONES — LAYOUT MODERNO V7
+REGISTRO DE VENDAS — VERSÃO 75
 
-Esta versão corrige os erros de inicialização causados por ícones inexistentes no lucide-react 0.292.0:
-- ReceiptText foi substituído por Receipt em app.js e aba-vendas-prazo.js.
-- UsersRound foi substituído por Users em aba-clientes.js.
+ARQUITETURA ATIVA
+- app-runtime-v75.js reúne, em tempo de compilação, as correções das etapas anteriores.
+- styles-runtime-v75.css reúne as folhas de estilo na ordem original.
+- bootstrap-v75.js apenas registra o suporte offline, abre o runtime e restaura a última aba.
+- Os arquivos antigos continuam no repositório como fontes e rota de reversão, mas não são montados no navegador.
 
-Também mantém a correção do parêntese excedente do app.js e renova o cache para V7.
+DESENVOLVIMENTO E TESTES
+1. Execute: npm run build
+2. Execute: npm test
+3. Para fazer as duas verificações: npm run check
 
-Para instalar:
-1. Extraia o ZIP.
-2. Substitua TODOS os arquivos correspondentes na raiz do repositório registrodevendas.
-3. Aguarde o GitHub Pages publicar.
-4. Feche totalmente o navegador/app e abra novamente.
+O gerador também consolida Modais, Nova Venda e Clientes, removendo os antigos carregadores por fetch/blob do caminho de produção. Os arquivos gerados são versionados para que o GitHub Pages publique exatamente o código testado.
+
+FUNCIONAMENTO OFFLINE
+- O service worker mantém somente o aplicativo e os arquivos estáticos em cache HTTP.
+- Dados de clientes, vendas, produtos e financeiro não entram nesse cache.
+- Na aba “Backup e dados”, o usuário pode marcar o aparelho como confiável. Só então o Firestore guarda os dados no IndexedDB para consulta e sincronização offline.
+- A primeira abertura e o primeiro carregamento dos dados precisam ser feitos com internet.
+- Ao desativar o aparelho confiável, o sistema encerra o Firestore e limpa a persistência e os backups locais daquele usuário.
+
+BACKUPS
+- Em aparelho confiável, o sistema mantém automaticamente até cinco cópias locais validadas.
+- “Baixar backup agora” gera um JSON completo para ser guardado fora do aparelho.
+- A restauração exige internet, confere sistema, proprietário, estrutura, estoque e integridade.
+- A restauração usa mesclagem: recria e atualiza registros, sem excluir os dados atuais.
+- Antes de restaurar, o sistema salva uma cópia local ou baixa um arquivo de segurança.
+- O arquivo contém dados privados; deve ser armazenado em local protegido.
+
+FIREBASE
+Esta versão não exige alteração no Console do Firebase nem novas regras. O modo offline usa a persistência oficial do SDK já conectado ao projeto. Backups em nuvem, caso sejam adicionados no futuro, exigirão escolher um destino e configurar permissões específicas.
+
+PUBLICAÇÃO
+O GitHub Pages continua publicando a raiz do repositório. O workflow “Validar v75” executa a suíte completa e confirma que os artefatos consolidados estão atualizados.

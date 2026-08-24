@@ -221,8 +221,8 @@ for (const marker of ['repurchaseCycleDays', 'Recompra do cliente (dias)', 'use 
 const rules = read('firestore.rules');
 assert.ok(rules.includes("'commercialGoals', 'commercialGoalsUpdatedAt'"));
 const index = read('index.html');
-assert.ok(index.includes('v74-commercial.css?v=74'));
-assert.ok(index.includes('bootstrap-v71.js?v=74'));
+assert.ok(index.includes('styles-runtime-v75.css?v=75'));
+assert.ok(index.includes('bootstrap-v75.js?v=75'));
 const bootstrap = read('bootstrap-v71.js');
 assert.ok(bootstrap.includes('applyCommercialPatch'));
 assert.ok(bootstrap.includes("['Comercial', './aba-comercial-v74.js?v=74'"));

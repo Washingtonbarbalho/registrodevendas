@@ -162,10 +162,10 @@ fs.writeFileSync(generatedFile, source);
 checkSyntax(generatedFile);
 
 for (const marker of [
-  'aba-vendas-v71.js?v=74',
-  'auth-screen-v71.js?v=74',
-  'aba-relatorios-v73.js?v=74',
-  'aba-comercial-v74.js?v=74',
+  'aba-vendas-v71.js?v=75',
+  'auth-screen-v71.js?v=75',
+  'aba-relatorios-v73.js?v=75',
+  'aba-comercial-v74.js?v=75',
   "{ id: 'sales', label: 'Vendas', shortLabel: 'Vendas'",
   "view === 'sales' ? React.createElement(AbaVendas",
   'mobile-quick-nav',
@@ -430,9 +430,8 @@ assert.equal(identifyTab('Vendas no caixa'), 'sales');
 assert.ok(persistenceSource.includes('.mobile-menu-nav-button'), 'A navegação pelo menu lateral precisa preservar a aba.');
 
 const index = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-assert.ok(index.includes('bootstrap-v71.js?v=74'), 'A experiência comercial v74 precisa estar ativa.');
-assert.ok(index.includes('v71-operations.css?v=71'), 'Os estilos operacionais v71 precisam estar ativos.');
-assert.ok(index.includes('reports-strategic-v73.css?v=73'), 'Os estilos dos relatórios estratégicos precisam estar ativos.');
+assert.ok(index.includes('bootstrap-v75.js?v=75'), 'O runtime técnico consolidado v75 precisa estar ativo.');
+assert.ok(index.includes('styles-runtime-v75.css?v=75'), 'Os estilos consolidados precisam estar ativos.');
 
 const inherited = spawnSync(process.execPath, ['scripts/validate-v70.mjs'], {
   cwd: fileURLToPath(new URL('..', import.meta.url)),

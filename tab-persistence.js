@@ -84,6 +84,7 @@ const identifyTab = text => {
     if (label === 'comercial') return 'commercial';
     if (label === 'financeiro' || label === 'fin.') return 'finance';
     if (label === 'relatorios' || label === 'relat.') return 'reports';
+    if (label === 'backup e dados' || label === 'backup') return 'backup';
     if (label === 'taxas e juros' || label === 'taxas') return 'rates';
     return null;
 };

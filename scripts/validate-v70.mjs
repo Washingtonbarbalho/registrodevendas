@@ -501,7 +501,7 @@ checkSyntax('/tmp/registro-vendas-new-sale-composed-v70.mjs');
 
 const index = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 assert.ok(
-  index.includes('bootstrap-v70.js?v=70') || index.includes('bootstrap-v71.js?v=71') || index.includes('bootstrap-v71.js?v=72') || index.includes('bootstrap-v71.js?v=73') || index.includes('bootstrap-v71.js?v=74'),
+  index.includes('bootstrap-v70.js?v=70') || index.includes('bootstrap-v71.js?v=71') || index.includes('bootstrap-v71.js?v=72') || index.includes('bootstrap-v71.js?v=73') || index.includes('bootstrap-v71.js?v=74') || index.includes('bootstrap-v75.js?v=75'),
   'A versão v70 ou uma sucessora compatível precisa estar ativa.'
 );
 
