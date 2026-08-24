@@ -35,32 +35,6 @@ export const applyOperationsPatch = source => {
     'a área única de vendas'
   );
 
-  const mobileState = "    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);";
-  source = replaceRequired(
-    source,
-    mobileState,
-    `${mobileState}\n    const [quickSaleMenuOpen, setQuickSaleMenuOpen] = useState(false);`,
-    'o atalho mobile de nova venda'
-  );
-
-  const mobileMenuEffectEnd = "    }, [mobileMenuOpen]);\n    const [customers, setCustomers] = useState([]);";
-  source = replaceRequired(source, mobileMenuEffectEnd, `    }, [mobileMenuOpen]);
-
-    useEffect(() => {
-        if (!quickSaleMenuOpen) return undefined;
-        const previousOverflow = document.body.style.overflow;
-        document.body.style.overflow = 'hidden';
-        const closeQuickSale = event => {
-            if (event.key === 'Escape') setQuickSaleMenuOpen(false);
-        };
-        window.addEventListener('keydown', closeQuickSale);
-        return () => {
-            document.body.style.overflow = previousOverflow;
-            window.removeEventListener('keydown', closeQuickSale);
-        };
-    }, [quickSaleMenuOpen]);
-    const [customers, setCustomers] = useState([]);`, 'o fechamento seguro do atalho de venda');
-
   source = replaceRequired(source,
     "    const [salesPage, setSalesPage] = useState(1);\n    const [cashierPage, setCashierPage] = useState(1);\n",
     '',
@@ -125,55 +99,21 @@ export const applyOperationsPatch = source => {
             mobilePrimaryNav.slice(0, 2).map(item => React.createElement('button', {
                 key: item.id,
                 type: "button",
-                onClick: () => { setView(item.id); setMobileMenuOpen(false); setQuickSaleMenuOpen(false); },
+                onClick: () => { setView(item.id); setMobileMenuOpen(false); },
                 className: \`mobile-quick-nav-button \${view === item.id ? 'is-active' : ''}\`
             }, React.createElement(item.icon, { size: 19 }), React.createElement('span', null, item.shortLabel))),
             React.createElement('button', {
                 type: "button",
-                onClick: () => { setQuickSaleMenuOpen(true); setMobileMenuOpen(false); },
+                onClick: () => { setNewSaleMode('unified'); setMobileMenuOpen(false); },
                 className: "mobile-quick-sale-button",
                 'aria-label': "Registrar nova venda"
             }, React.createElement('span', { className: "mobile-quick-sale-icon" }, React.createElement(Plus, { size: 23 })), React.createElement('span', null, "Nova")),
             mobilePrimaryNav.slice(2).map(item => React.createElement('button', {
                 key: item.id,
                 type: "button",
-                onClick: () => { setView(item.id); setMobileMenuOpen(false); setQuickSaleMenuOpen(false); },
+                onClick: () => { setView(item.id); setMobileMenuOpen(false); },
                 className: \`mobile-quick-nav-button \${view === item.id ? 'is-active' : ''}\`
             }, React.createElement(item.icon, { size: 19 }), React.createElement('span', null, item.shortLabel)))
-        ),
-
-        quickSaleMenuOpen && React.createElement('div', {
-            className: "quick-sale-backdrop",
-            onClick: () => setQuickSaleMenuOpen(false),
-            role: "presentation"
-        },
-            React.createElement('section', {
-                className: "quick-sale-sheet",
-                role: "dialog",
-                'aria-modal': "true",
-                'aria-labelledby': "quick-sale-title",
-                onClick: event => event.stopPropagation()
-            },
-                React.createElement('div', { className: "quick-sale-sheet-heading" },
-                    React.createElement('div', null,
-                        React.createElement('h2', { id: "quick-sale-title" }, "Qual venda deseja registrar?"),
-                        React.createElement('p', null, "Escolha o tipo para abrir o formulário correto.")
-                    ),
-                    React.createElement('button', { type: "button", onClick: () => setQuickSaleMenuOpen(false), 'aria-label': "Fechar" }, "×")
-                ),
-                React.createElement('div', { className: "quick-sale-options" },
-                    React.createElement('button', {
-                        type: "button",
-                        className: "quick-sale-option is-direct",
-                        onClick: () => { setQuickSaleMenuOpen(false); setNewSaleMode('direct'); }
-                    }, React.createElement('span', null, React.createElement(WalletCards, { size: 23 })), React.createElement('strong', null, "Venda no caixa"), React.createElement('small', null, "PIX, dinheiro ou cartão")),
-                    React.createElement('button', {
-                        type: "button",
-                        className: "quick-sale-option is-term",
-                        onClick: () => { setQuickSaleMenuOpen(false); setNewSaleMode('prazo'); }
-                    }, React.createElement('span', null, React.createElement(Receipt, { size: 23 })), React.createElement('strong', null, "Venda a prazo"), React.createElement('small', null, "Entrada e parcelas"))
-                )
-            )
         ),
 
 `;

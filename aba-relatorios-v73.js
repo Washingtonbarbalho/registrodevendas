@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'https://esm.sh/react@18.2.0';
 import { createPortal } from 'https://esm.sh/react-dom@18.2.0';
-import { db, APP_ID } from './firebase-config.js?v=76';
+import { db, APP_ID } from './firebase-config.js?v=77';
 import { doc, onSnapshot } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js';
 import { formatCurrency, getBrazilDateString, getCurrentMonthStart } from './utils.js';
 import {

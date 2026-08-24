@@ -5,7 +5,7 @@ import {
   isTermSale,
   sumMoney,
   toCents
-} from './financial-core-v70.js?v=74';
+} from './financial-core-v70.js?v=77';
 
 export const SALES_VIEW_DEFAULTS = Object.freeze({
   query: '',
@@ -55,7 +55,7 @@ export const getSalePaymentLabel = sale => {
     return `${count}x a prazo`;
   }
   if (sale?.paymentMethod === 'credit') return `Crédito ${Number(sale?.cardInstallments) || 1}x`;
-  return paymentLabels[sale?.paymentMethod] || 'Venda no caixa';
+  return paymentLabels[sale?.paymentMethod] || 'À vista';
 };
 
 export const getNextOpenDueDate = sale => (Array.isArray(sale?.installments) ? sale.installments : [])
@@ -129,6 +129,8 @@ export const summarizeSalesView = (sales = []) => {
     directCount: list.filter(sale => getOperationalSaleType(sale) === 'direct').length,
     termCount: list.filter(sale => getOperationalSaleType(sale) === 'term').length,
     openCount: list.filter(sale => getOperationalSaleStatus(sale) === 'open').length,
+    completedCount: list.filter(sale => getOperationalSaleStatus(sale) === 'completed').length,
+    canceledCount: list.filter(sale => getOperationalSaleStatus(sale) === 'canceled').length,
     pendingAmount: sumMoney(valid, getSalePendingAmount),
     cashNetAmount: sumMoney(
       valid.filter(sale => getOperationalSaleType(sale) === 'direct'),

@@ -131,14 +131,32 @@ assert.equal(allHistory.length, 5);
 assert.equal(allHistory[0].id, 'term-completed-old');
 
 const summary = summarizeSalesView(defaultView);
-assert.deepEqual({ count: summary.count, direct: summary.directCount, term: summary.termCount, open: summary.openCount }, {
+assert.deepEqual({
+  count: summary.count,
+  direct: summary.directCount,
+  term: summary.termCount,
+  open: summary.openCount,
+  completed: summary.completedCount,
+  canceled: summary.canceledCount
+}, {
   count: 3,
   direct: 2,
   term: 1,
-  open: 1
+  open: 1,
+  completed: 1,
+  canceled: 1
 });
 assert.equal(summary.pendingAmount, 60);
 assert.equal(summary.cashNetAmount, 100, 'Vendas canceladas não podem entrar no resumo de caixa.');
+
+assert.deepEqual(buildSalesView({ sales, ...period, type: 'direct' }).map(sale => sale.id),
+  ['direct-august', 'canceled-august'], 'O filtro À vista deve reunir vendas diretas, inclusive canceladas.');
+assert.deepEqual(buildSalesView({ sales, ...period, type: 'term' }).map(sale => sale.id),
+  ['term-open'], 'O filtro A prazo deve manter as pendências antigas visíveis.');
+assert.deepEqual(buildSalesView({ sales, ...period, status: 'completed' }).map(sale => sale.id),
+  ['direct-august'], 'O filtro Concluídas deve mostrar apenas vendas quitadas no período.');
+assert.deepEqual(buildSalesView({ sales, ...period, status: 'canceled' }).map(sale => sale.id),
+  ['canceled-august'], 'O filtro Canceladas deve isolar vendas canceladas.');
 
 let source = fs.readFileSync(new URL('../app.js', import.meta.url), 'utf8');
 for (const patch of [
@@ -172,7 +190,7 @@ for (const marker of [
   "const mobilePrimaryNav = ['dashboard', 'sales', 'products', 'customers']",
   "{ id: 'commercial', label: 'Comercial'",
   "view === 'commercial' ? React.createElement(AbaComercial",
-  'quick-sale-sheet',
+  "setNewSaleMode('unified')",
   'buildSaleInventoryPlan(requestedItems, inventoryRecords)',
   'getSalesAccrualSummary(sales, dashStartDate, dashEndDate)',
   "setAccessDenied('deleted')"
@@ -188,7 +206,12 @@ for (const obsolete of [
   "const mobilePrimaryNav = ['dashboard', 'sales', 'products', 'finance']",
   "item.id === 'finance' ? 'Financeiro' : item.shortLabel",
   "React.createElement('span', null, \"Mais\")",
-  "'aria-label': \"Abrir todos os módulos\""
+  "'aria-label': \"Abrir todos os módulos\"",
+  'quick-sale-sheet',
+  'quickSaleMenuOpen',
+  'Qual venda deseja registrar?',
+  "setNewSaleMode('direct')",
+  "setNewSaleMode('prazo')"
 ]) assert.ok(!source.includes(obsolete), `Fluxo duplicado ainda presente: ${obsolete}`);
 
 const handlerStart = source.indexOf('    const handleAddSale = async (data) => {');
@@ -328,9 +351,17 @@ for (const marker of ['sendPasswordResetEmail', "autoComplete: 'current-password
 assert.ok(!authSource.includes("localStorage.setItem('password'"), 'A senha nunca pode ser persistida no aparelho.');
 
 const salesUi = fs.readFileSync(new URL('../aba-vendas-v71.js', import.meta.url), 'utf8');
-for (const marker of ['Mês atual + pendências', 'Todo o histórico', 'Período personalizado', 'Venda no caixa', 'Venda a prazo']) {
+for (const marker of [
+  'Mês atual + pendências', 'Todo o histórico', 'Período personalizado',
+  'Todas', 'À vista', 'A prazo', 'Em aberto', 'Concluídas', 'Canceladas',
+  'Nova venda', "setNewSaleMode('unified')"
+]) {
   assert.ok(salesUi.includes(marker), `Filtro ou ação de vendas ausente: ${marker}`);
 }
+assert.equal((salesUi.match(/setNewSaleMode\(/g) || []).length, 1,
+  'A área de vendas deve apresentar uma única entrada para cadastrar uma venda.');
+assert.ok(!salesUi.includes("React.createElement('select', { value: status"),
+  'Os estados da venda devem ser acessados diretamente nas abas, sem filtro duplicado.');
 
 const baseSale = fs.readFileSync(new URL('../nova-venda.js', import.meta.url), 'utf8');
 for (const marker of [
@@ -341,9 +372,40 @@ for (const marker of [
   'if (qty > remainingQuantity)',
   'if (!Number.isInteger(qty) || qty < 1)',
   'const acceptsEntry =',
-  'A entrada não pode ser maior que o valor total dos produtos.'
+  'A entrada não pode ser maior que o valor total dos produtos.',
+  "const [paymentMethod, setPaymentMethod] = useState(initialMode === 'prazo' ? 'crediario' : 'pix');",
+  "const mode = paymentMethod === 'crediario' ? 'prazo' : 'direct';",
+  "['pix', 'PIX', QrCode]",
+  "['money', 'Dinheiro', Banknote]",
+  "['debit', 'Débito', CreditCard]",
+  "['credit', 'Crédito', CreditCard]",
+  "['crediario', 'Crediário', Calendar]",
+  'const selectPaymentMethod = method =>'
 ]) assert.ok(baseSale.includes(marker), `Proteção operacional ausente no formulário: ${marker}`);
 assert.ok(!baseSale.includes('api.qrserver.com'), 'O formulário de vendas não pode enviar dados PIX a um serviço externo.');
+assert.ok(!baseSale.includes('Nova Venda Direta (Caixa)'), 'A nova venda não deve exigir a escolha antecipada do tipo.');
+
+const methodSelectorStart = baseSale.indexOf('    const selectPaymentMethod = method => {');
+const methodSelectorEnd = baseSale.indexOf('\n    };', methodSelectorStart);
+assert.ok(methodSelectorStart >= 0 && methodSelectorEnd > methodSelectorStart,
+  'A seleção interna da forma de pagamento deve estar disponível.');
+const buildMethodSelector = Function('setPaymentMethod', 'setDirectMethod', `
+  ${baseSale.slice(methodSelectorStart, methodSelectorEnd + '\n    };'.length)}
+  return selectPaymentMethod;
+`);
+const paymentSelections = [];
+const directSelections = [];
+const changePayment = buildMethodSelector(
+  method => paymentSelections.push(method),
+  method => directSelections.push(method)
+);
+changePayment('crediario');
+assert.deepEqual(paymentSelections, ['crediario']);
+assert.deepEqual(directSelections, [], 'Crediário não pode ser gravado como pagamento direto.');
+for (const method of ['pix', 'money', 'debit', 'credit']) changePayment(method);
+assert.deepEqual(paymentSelections, ['crediario', 'pix', 'money', 'debit', 'credit']);
+assert.deepEqual(directSelections, ['pix', 'money', 'debit', 'credit'],
+  'Cada forma de pagamento direta deve atualizar corretamente os dados da venda.');
 
 const cartHandlerStart = baseSale.indexOf('    const handleAddItem = () => {');
 const cartHandlerEnd = baseSale.indexOf('    const handleRemoveItem =', cartHandlerStart);
@@ -430,8 +492,8 @@ assert.equal(identifyTab('Vendas no caixa'), 'sales');
 assert.ok(persistenceSource.includes('.mobile-menu-nav-button'), 'A navegação pelo menu lateral precisa preservar a aba.');
 
 const index = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-assert.ok(index.includes('bootstrap-v75.js?v=76'), 'O runtime técnico consolidado v76 precisa estar ativo.');
-assert.ok(index.includes('styles-runtime-v75.css?v=76'), 'Os estilos consolidados precisam estar ativos.');
+assert.ok(index.includes('bootstrap-v75.js?v=77'), 'O runtime técnico consolidado v77 precisa estar ativo.');
+assert.ok(index.includes('styles-runtime-v75.css?v=77'), 'Os estilos consolidados precisam estar ativos.');
 
 const inherited = spawnSync(process.execPath, ['scripts/validate-v70.mjs'], {
   cwd: fileURLToPath(new URL('..', import.meta.url)),

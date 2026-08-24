@@ -2,7 +2,7 @@ const response = await fetch('./customer-history-modal.js?v=52', { cache: 'no-st
 if (!response.ok) throw new Error('Não foi possível carregar o histórico de compras do cliente.');
 let source = await response.text();
 
-const typeMarker = "const getSaleTypeLabel = sale => sale.saleType === 'direct' ? 'Venda no caixa' : 'Venda a prazo';";
+const typeMarker = "const getSaleTypeLabel = sale => sale.saleType === 'direct' ? 'Venda à vista' : 'Venda a prazo';";
 if (!source.includes(typeMarker)) throw new Error('Não foi possível preparar a data e hora do histórico de compras.');
 source = source.replace(typeMarker, `${typeMarker}\n\nconst formatSaleMoment = sale => {\n    const date = formatDate(sale?.saleDate);\n    if (sale?.saleDateTime) {\n        const parsed = new Date(sale.saleDateTime);\n        if (!Number.isNaN(parsed.getTime())) return date + ' · ' + parsed.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });\n    }\n    return date + ' · --:--';\n};`);
 

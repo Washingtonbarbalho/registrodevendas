@@ -16,7 +16,7 @@ const runBuild = () => {
     cwd: root,
     encoding: 'utf8'
   });
-  if (result.status !== 0) throw new Error(`Falha ao gerar o runtime v76:\n${result.stderr || result.stdout}`);
+  if (result.status !== 0) throw new Error(`Falha ao gerar o runtime v77:\n${result.stderr || result.stdout}`);
 };
 
 runBuild();
@@ -35,6 +35,7 @@ const criticalFiles = [
   'customer-history-runtime-v75.js',
   'scripts/build-runtime-v75.mjs',
   'scripts/consolidate-legacy-runtime-v75.mjs',
+  'scripts/validate-unified-sales-v77.mjs',
   'scripts/validate-v75.mjs'
 ];
 criticalFiles.forEach(checkSyntax);
@@ -56,11 +57,12 @@ for (const file of generatedFiles) {
 
 const runtime = read('app-runtime-v75.js');
 for (const marker of [
-  'Runtime estático v76',
-  "from './modals-runtime-v75.js?v=76'",
-  "from './nova-venda-runtime-v75.js?v=76'",
-  "from './aba-clientes-runtime-v75.js?v=76'",
-  "const mobilePrimaryNav = ['dashboard', 'sales', 'products', 'customers']"
+  'Runtime estático v77',
+  "from './modals-runtime-v75.js?v=77'",
+  "from './nova-venda-runtime-v75.js?v=77'",
+  "from './aba-clientes-runtime-v75.js?v=77'",
+  "const mobilePrimaryNav = ['dashboard', 'sales', 'products', 'customers']",
+  "setNewSaleMode('unified')"
 ]) assert.ok(runtime.includes(marker), `Runtime técnico incompleto: ${marker}`);
 
 for (const obsolete of [
@@ -71,7 +73,9 @@ for (const obsolete of [
   'aba-clientes-fixed-v52.js',
   'aba-backup-v75.js',
   "id: 'backup'",
-  'BackupAutoSnapshot'
+  'BackupAutoSnapshot',
+  'quick-sale-sheet',
+  'quickSaleMenuOpen'
 ]) assert.ok(!runtime.includes(obsolete), `Recurso antigo ainda ativo: ${obsolete}`);
 
 for (const staticRuntimeFile of [
@@ -98,21 +102,21 @@ for (const firebaseConsumer of [
   'aba-financeiro-v68.js',
   'aba-comercial-v74.js'
 ]) {
-  assert.ok(read(firebaseConsumer).includes("firebase-config.js?v=76"),
+  assert.ok(read(firebaseConsumer).includes("firebase-config.js?v=77"),
     `${firebaseConsumer} não usa a configuração atual do Firebase.`);
 }
 
 const bootstrap = read('bootstrap-v75.js');
-assert.ok(bootstrap.includes("const VERSION = '76'"));
+assert.ok(bootstrap.includes("const VERSION = '77'"));
 assert.ok(bootstrap.includes("import(`./app-runtime-v75.js?v=${VERSION}`)"));
 for (const obsolete of ['registerOfflineSupport', 'serviceWorker', 'offline-status', 'URL.createObjectURL']) {
   assert.ok(!bootstrap.includes(obsolete), `Bootstrap ainda contém suporte removido: ${obsolete}`);
 }
 
 const index = read('index.html');
-assert.ok(index.includes("import('./bootstrap-v75.js?v=76')"));
-assert.ok(index.includes('styles-runtime-v75.css?v=76'));
-assert.ok(index.includes('manifest.json?v=76'));
+assert.ok(index.includes("import('./bootstrap-v75.js?v=77')"));
+assert.ok(index.includes('styles-runtime-v75.css?v=77'));
+assert.ok(index.includes('manifest.json?v=77'));
 assert.equal([...index.matchAll(/<link\s+rel="stylesheet"\s+href="\.\/[^"]+"/g)].length, 1,
   'A página deve carregar apenas um pacote local de CSS.');
 for (const cleanupMarker of ['getRegistrations()', 'registration.unregister()', "startsWith('registro-vendas-')", "deleteDatabase('registro-vendas-backups-v75')", 'location.reload()']) {
@@ -122,11 +126,12 @@ assert.ok(!index.includes('serviceWorker.register'), 'O sistema não deve regist
 assert.ok(!index.includes('offline-status-v75.js'), 'O aviso de modo offline não deve ser carregado.');
 
 const styles = read('styles-runtime-v75.css');
-for (const marker of ['Estilos consolidados v76', 'Fonte: styles.css', 'Fonte: v74-commercial.css']) {
+for (const marker of ['Estilos consolidados v77', 'Fonte: styles.css', 'Fonte: v74-commercial.css', '.sale-payment-methods']) {
   assert.ok(styles.includes(marker), `Pacote CSS incompleto: ${marker}`);
 }
 assert.ok(!styles.includes('.backup-'), 'Estilos da aba de backup não devem permanecer no pacote.');
 assert.ok(!styles.includes('.offline-status-'), 'Estilos do modo offline não devem permanecer no pacote.');
+assert.ok(!styles.includes('.quick-sale-sheet'), 'A escolha antecipada do tipo de venda não deve manter estilos ativos.');
 
 const firebase = read('firebase-config.js');
 assert.ok(firebase.includes('const firestore = getFirestore(app);'));
@@ -160,7 +165,14 @@ assert.equal(manifest.id, './');
 assert.equal(manifest.start_url, './');
 assert.equal(manifest.display, 'standalone');
 assert.ok(!manifest.description.toLowerCase().includes('offline'));
-assert.equal(manifest.icons[0].src, 'app-icon.svg?v=76');
+assert.equal(manifest.icons[0].src, 'app-icon.svg?v=77');
+
+const unifiedSales = spawnSync(process.execPath, ['scripts/validate-unified-sales-v77.mjs'], {
+  cwd: root,
+  encoding: 'utf8'
+});
+if (unifiedSales.status !== 0) throw new Error(`Falha no fluxo unificado de vendas:\n${unifiedSales.stderr || unifiedSales.stdout}`);
+process.stdout.write(unifiedSales.stdout);
 
 const inherited = spawnSync(process.execPath, ['scripts/validate-v74.mjs'], {
   cwd: root,
@@ -169,4 +181,4 @@ const inherited = spawnSync(process.execPath, ['scripts/validate-v74.mjs'], {
 if (inherited.status !== 0) throw new Error(`Regressão herdada da v74:\n${inherited.stderr || inherited.stdout}`);
 process.stdout.write(inherited.stdout);
 
-console.log('Aplicação v76 validada: runtime consolidado, somente online, sem backup na navegação e com regressões cobertas.');
+console.log('Aplicação v77 validada: vendas unificadas, pagamento no formulário, runtime somente online e regressões cobertas.');

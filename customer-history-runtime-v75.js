@@ -4,9 +4,9 @@ import { createPortal } from 'https://esm.sh/react-dom@18.2.0';
 import {
     X, ShoppingBag, Receipt, CreditCard, Banknote, QrCode, ChevronRight
 } from 'https://esm.sh/lucide-react@0.292.0';
-import { formatCurrency, formatDate } from './utils.js?v=76';
+import { formatCurrency, formatDate } from './utils.js?v=77';
 
-const getSaleTypeLabel = sale => sale.saleType === 'direct' ? 'Venda no caixa' : 'Venda a prazo';
+const getSaleTypeLabel = sale => sale.saleType === 'direct' ? 'Venda à vista' : 'Venda a prazo';
 
 const formatSaleMoment = sale => {
     const date = formatDate(sale?.saleDate);
@@ -95,7 +95,7 @@ export const CustomerPurchaseHistoryModal = ({ isOpen, onClose, customer, sales 
                     React.createElement('strong', null, termPurchases)
                 ),
                 React.createElement('div', { className: 'customer-history-metric' },
-                    React.createElement('span', null, 'No caixa'),
+                    React.createElement('span', null, 'À vista'),
                     React.createElement('strong', null, directPurchases)
                 )
             ),
@@ -105,7 +105,7 @@ export const CustomerPurchaseHistoryModal = ({ isOpen, onClose, customer, sales 
                     ? React.createElement('div', { className: 'empty-state py-12' },
                         React.createElement('div', { className: 'empty-state-icon' }, React.createElement(ShoppingBag, { size: 22 })),
                         React.createElement('p', { className: 'empty-state-title' }, 'Nenhuma compra encontrada'),
-                        React.createElement('p', { className: 'empty-state-copy' }, 'As vendas a prazo e no caixa deste cliente aparecerão aqui.')
+                        React.createElement('p', { className: 'empty-state-copy' }, 'As vendas à vista e a prazo deste cliente aparecerão aqui.')
                     )
                     : React.createElement('div', { className: 'customer-purchase-history' },
                         React.createElement('div', { className: 'customer-purchase-history-header', 'aria-hidden': 'true' },

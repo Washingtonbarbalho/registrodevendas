@@ -26,18 +26,48 @@
 }
 
 .sales-create-button:hover { transform: translateY(-1px); }
-.sales-create-button.is-direct {
+.sales-create-button.is-unified {
     color: #fff;
-    background: #047857;
-    box-shadow: 0 7px 18px rgba(4, 120, 87, .18);
+    background: #0f172a;
+    box-shadow: 0 7px 18px rgba(15, 23, 42, .18);
 }
-.sales-create-button.is-direct:hover { background: #065f46; }
-.sales-create-button.is-term {
-    color: #1e293b;
-    background: #fbbf24;
-    box-shadow: 0 7px 18px rgba(217, 119, 6, .16);
+.sales-create-button.is-unified:hover { background: #1e293b; }
+
+.sale-payment-methods {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 16px;
 }
-.sales-create-button.is-term:hover { background: #f59e0b; }
+.sale-payment-method {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    min-width: 0;
+    min-height: 76px;
+    padding: 10px 6px;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    color: #64748b;
+    background: #fff;
+    transition: border-color .15s ease, color .15s ease, background .15s ease, box-shadow .15s ease;
+}
+.sale-payment-method:hover { border-color: #cbd5e1; background: #f8fafc; }
+.sale-payment-method > span { overflow: hidden; max-width: 100%; text-overflow: ellipsis; white-space: nowrap; font-size: 10px; font-weight: 800; }
+.sale-payment-method.is-selected {
+    border-color: #10b981;
+    color: #047857;
+    background: #ecfdf5;
+    box-shadow: 0 0 0 1px rgba(16, 185, 129, .13);
+}
+.sale-payment-method.is-term.is-selected {
+    border-color: #f59e0b;
+    color: #92400e;
+    background: #fffbeb;
+    box-shadow: 0 0 0 1px rgba(245, 158, 11, .13);
+}
 
 .sales-filter-panel {
     overflow: hidden;
@@ -168,7 +198,7 @@
 
 .sales-advanced-filters {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
     padding: 13px;
     border-top: 1px solid #eef2f7;
@@ -436,8 +466,7 @@
 .auth71-register-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 
 /* Acessos rápidos no celular */
-.mobile-quick-nav,
-.quick-sale-backdrop { display: none; }
+.mobile-quick-nav { display: none; }
 
 @media (max-width: 1023px) {
     .app-main { padding-bottom: calc(72px + env(safe-area-inset-bottom)); }
@@ -489,56 +518,13 @@
         background: #fbbf24;
         box-shadow: 0 7px 18px rgba(217, 119, 6, .28);
     }
-    .quick-sale-backdrop {
-        position: fixed;
-        z-index: 82;
-        inset: 0;
-        display: flex;
-        align-items: flex-end;
-        padding: 16px 12px calc(12px + env(safe-area-inset-bottom));
-        background: rgba(15, 23, 42, .54);
-        backdrop-filter: blur(3px);
-        -webkit-backdrop-filter: blur(3px);
-    }
-    .quick-sale-sheet {
-        width: 100%;
-        max-width: 520px;
-        margin: 0 auto;
-        padding: 17px;
-        border: 1px solid rgba(255, 255, 255, .7);
-        border-radius: 22px;
-        background: #fff;
-        box-shadow: 0 24px 70px rgba(15, 23, 42, .3);
-        animation: quick-sale-rise .2s ease-out both;
-    }
-    .quick-sale-sheet-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
-    .quick-sale-sheet-heading h2 { margin: 0; color: #1e293b; font-size: 15px; font-weight: 850; }
-    .quick-sale-sheet-heading p { margin: 3px 0 0; color: #94a3b8; font-size: 9px; font-weight: 650; }
-    .quick-sale-sheet-heading > button { display: grid; place-items: center; width: 34px; height: 34px; flex: 0 0 34px; border-radius: 10px; color: #64748b; background: #f1f5f9; font-size: 24px; line-height: 1; }
-    .quick-sale-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
-    .quick-sale-option {
-        display: grid;
-        grid-template-columns: 42px minmax(0, 1fr);
-        grid-template-rows: auto auto;
-        align-items: center;
-        column-gap: 9px;
-        min-height: 76px;
-        padding: 10px;
-        border: 1px solid #e2e8f0;
-        border-radius: 15px;
-        text-align: left;
-    }
-    .quick-sale-option > span { grid-row: 1 / 3; display: grid; place-items: center; width: 42px; height: 42px; border-radius: 13px; }
-    .quick-sale-option strong { align-self: end; color: #1e293b; font-size: 11px; font-weight: 850; }
-    .quick-sale-option small { align-self: start; margin-top: 2px; color: #64748b; font-size: 8px; font-weight: 650; }
-    .quick-sale-option.is-direct > span { color: #047857; background: #d1fae5; }
-    .quick-sale-option.is-term > span { color: #a16207; background: #fef3c7; }
 }
 
 @media (max-width: 767px) {
     .sales-unified-heading { align-items: stretch; }
-    .sales-create-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; }
+    .sales-create-actions { display: grid; grid-template-columns: 1fr; width: 100%; }
     .sales-create-button { min-width: 0; padding: 10px 8px; font-size: 10px; }
+    .sale-payment-methods { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     .sales-search-line { grid-template-columns: minmax(0, 1fr) 46px; gap: 7px; padding: 10px; }
     .sales-search-box { grid-template-columns: 20px minmax(0, 1fr) 28px; min-height: 42px; padding-left: 10px; }
     .sales-search-box input { font-size: 11px; }
@@ -582,17 +568,12 @@
 }
 
 @media (max-width: 390px) {
-    .quick-sale-options { grid-template-columns: 1fr; }
+    .sale-payment-methods { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .sales-pending-summary span { overflow: hidden; text-overflow: ellipsis; }
     .auth71-options { align-items: flex-start; }
 }
 
-@keyframes quick-sale-rise {
-    from { opacity: 0; transform: translateY(24px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
 @media (prefers-reduced-motion: reduce) {
-    .quick-sale-sheet,
-    .sales-create-button { animation: none; transition: none; }
+    .sales-create-button,
+    .sale-payment-method { animation: none; transition: none; }
 }

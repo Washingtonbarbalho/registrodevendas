@@ -38,7 +38,7 @@ const LocalPixQrCode = ({ payload }) => {
         }, error || 'Gerando QR Code com segurança...');
 };
 
-export const NewSaleScreen = ({ mode, onClose, customers, products, sales, onSaveSale, userProfile, user, paymentSettings }) => {
+export const NewSaleScreen = ({ mode: initialMode, onClose, customers, products, sales, onSaveSale, userProfile, user, paymentSettings }) => {
     useEffect(() => { window.scrollTo(0, 0); }, []);
 
     const [customerId, setCustomerId] = useState('');
@@ -63,6 +63,8 @@ export const NewSaleScreen = ({ mode, onClose, customers, products, sales, onSav
     const [currentDiscount, setCurrentDiscount] = useState(''); 
     
     const [saleDate, setSaleDate] = useState(getBrazilDateString()); 
+    const [paymentMethod, setPaymentMethod] = useState(initialMode === 'prazo' ? 'crediario' : 'pix');
+    const mode = paymentMethod === 'crediario' ? 'prazo' : 'direct';
     const saleType = mode === 'prazo' ? 'prazo' : 'direct';
     const [entryAmount, setEntryAmount] = useState('');
     
@@ -81,6 +83,11 @@ export const NewSaleScreen = ({ mode, onClose, customers, products, sales, onSav
     const [isAnalyzingCredit, setIsAnalyzingCredit] = useState(false);
     const [approvedSaleData, setApprovedSaleData] = useState(null);
     const [creditModal, setCreditModal] = useState({ open: false, result: null, pendingSaleData: null, manualReason: '' });
+
+    const selectPaymentMethod = method => {
+        setPaymentMethod(method);
+        if (method !== 'crediario') setDirectMethod(method);
+    };
 
     useEffect(() => { 
         const today = getBrazilDateString(); 
@@ -389,7 +396,7 @@ export const NewSaleScreen = ({ mode, onClose, customers, products, sales, onSav
         React.createElement('div', { className: `sale-screen-header p-4 shrink-0 flex items-center justify-between text-white ${mode === 'prazo' ? 'bg-slate-900' : 'bg-emerald-700'}` },
             React.createElement('div', { className: "flex items-center gap-3" },
                 React.createElement('button', { onClick: onClose, className: "p-2 hover:bg-black/10 rounded-full transition-colors" }, React.createElement(ChevronLeft, { size: 24 })),
-                React.createElement('h2', { className: "text-lg md:text-xl font-bold" }, mode === 'prazo' ? "Nova Venda à Prazo" : "Nova Venda Direta (Caixa)")
+                React.createElement('h2', { className: "text-lg md:text-xl font-bold" }, "Nova venda")
             )
         ),
         
@@ -511,9 +518,26 @@ export const NewSaleScreen = ({ mode, onClose, customers, products, sales, onSav
                 ),
 
                 React.createElement('div', { className: "sale-section bg-white p-5 border" },
-                    React.createElement('div', { className: "flex justify-between items-center mb-4" },
-                        React.createElement('h3', { className: "font-bold text-slate-800 flex items-center gap-2" }, React.createElement(CreditCard, { className: "text-slate-400" }), "3. Pagamento"),
-                        React.createElement('div', { className: "flex items-center gap-2" }, React.createElement(Calendar, { size: 14, className: "text-slate-400"}), React.createElement('input', { type: "date", className: "text-xs font-bold text-slate-600 outline-none bg-transparent w-28", value: saleDate, onChange: e => setSaleDate(e.target.value) }))
+                    React.createElement(React.Fragment, null,
+                        React.createElement('div', { className: "flex justify-between items-center mb-4" },
+                            React.createElement('h3', { className: "font-bold text-slate-800 flex items-center gap-2" }, React.createElement(CreditCard, { className: "text-slate-400" }), "3. Pagamento"),
+                            React.createElement('div', { className: "flex items-center gap-2" }, React.createElement(Calendar, { size: 14, className: "text-slate-400"}), React.createElement('input', { type: "date", className: "text-xs font-bold text-slate-600 outline-none bg-transparent w-28", value: saleDate, onChange: e => setSaleDate(e.target.value) }))
+                        ),
+                        React.createElement('div', { className: "sale-payment-methods", role: "group", 'aria-label': "Forma de pagamento" },
+                            [
+                                ['pix', 'PIX', QrCode],
+                                ['money', 'Dinheiro', Banknote],
+                                ['debit', 'Débito', CreditCard],
+                                ['credit', 'Crédito', CreditCard],
+                                ['crediario', 'Crediário', Calendar]
+                            ].map(([method, label, Icon]) => React.createElement('button', {
+                                key: method,
+                                type: "button",
+                                onClick: () => selectPaymentMethod(method),
+                                'aria-pressed': paymentMethod === method,
+                                className: `sale-payment-method ${paymentMethod === method ? 'is-selected' : ''} ${method === 'crediario' ? 'is-term' : ''}`
+                            }, React.createElement(Icon, { size: 20 }), React.createElement('span', null, label)))
+                        )
                     ),
 
                     mode === 'prazo' && React.createElement('div', { className: "space-y-4 animate-fade-in" },
@@ -546,10 +570,6 @@ export const NewSaleScreen = ({ mode, onClose, customers, products, sales, onSav
                     ),
 
                     mode === 'direct' && React.createElement('div', { className: "space-y-4 animate-fade-in" },
-                        React.createElement('div', { className: "grid grid-cols-2 lg:grid-cols-4 gap-3" },
-                            ['pix','money','debit','credit'].map(m => React.createElement('button', { key: m, onClick: () => setDirectMethod(m), className: `p-4 rounded-xl border flex flex-col items-center gap-2 ${directMethod === m ? 'border-emerald-500 bg-emerald-50 text-emerald-700 shadow-sm' : 'border-slate-200 text-slate-500 hover:bg-slate-50'}` }, React.createElement(m === 'pix' ? QrCode : m === 'money' ? Banknote : CreditCard, { size: 24 }), React.createElement('span', { className: "text-xs font-bold uppercase" }, m === 'money' ? 'Dinheiro' : m === 'debit' ? 'Débito' : m === 'credit' ? 'Crédito' : 'PIX')))
-                        ),
-                        
                         directMethod === 'pix' && React.createElement('div', { className: "space-y-4 pt-4 border-t border-slate-100" },
                             userProfile?.pixKey ? React.createElement('div', { className: "bg-emerald-50 p-4 rounded-xl border border-emerald-100 flex flex-col items-center text-center" },
                                 React.createElement('p', { className: "text-xs font-bold text-emerald-700 uppercase mb-3 flex items-center gap-2" }, React.createElement(QrCode, { size: 16 }), "Receber via PIX"),

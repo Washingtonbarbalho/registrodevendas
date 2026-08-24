@@ -5,7 +5,7 @@ import {
   RefreshCw, Search, ShoppingBag, Target, TrendingUp, Users, X
 } from 'https://esm.sh/lucide-react@0.292.0';
 import { doc, onSnapshot, serverTimestamp, updateDoc } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js';
-import { db, APP_ID } from './firebase-config.js?v=76';
+import { db, APP_ID } from './firebase-config.js?v=77';
 import { formatCurrency, formatDate, getBrazilDateString } from './utils.js';
 import {
   buildCollectionMessage,

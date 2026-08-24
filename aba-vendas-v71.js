@@ -3,8 +3,8 @@ import {
   ArrowDownUp, Banknote, CalendarDays, CheckCircle2, ChevronRight, CreditCard,
   Plus, Receipt, RotateCcw, Search, SlidersHorizontal, WalletCards, X, XCircle
 } from 'https://esm.sh/lucide-react@0.292.0';
-import { Pagination } from './components.js?v=74';
-import { formatCurrency, formatDate, getCurrentMonthEnd, getCurrentMonthStart } from './utils.js?v=74';
+import { Pagination } from './components.js?v=77';
+import { formatCurrency, formatDate, getCurrentMonthEnd, getCurrentMonthStart } from './utils.js?v=77';
 import {
   buildSalesView,
   getNextOpenDueDate,
@@ -14,8 +14,8 @@ import {
   getSalePendingAmount,
   SALES_VIEW_DEFAULTS,
   summarizeSalesView
-} from './sales-operations-v71.js?v=74';
-import { getDirectSaleNet } from './financial-core-v70.js?v=74';
+} from './sales-operations-v71.js?v=77';
+import { getDirectSaleNet } from './financial-core-v70.js?v=77';
 
 const ITEMS_PER_PAGE = 12;
 
@@ -37,13 +37,16 @@ const statusPresentation = sale => {
   return { label: 'Em aberto', className: 'status-open', icon: Receipt };
 };
 
-const TypeTabs = ({ value, onChange, summary }) => {
+const SalesFilterTabs = ({ value, onChange, summary }) => {
   const options = [
     ['all', 'Todas', summary.count],
-    ['direct', 'No caixa', summary.directCount],
-    ['term', 'A prazo', summary.termCount]
+    ['direct', 'À vista', summary.directCount],
+    ['term', 'A prazo', summary.termCount],
+    ['open', 'Em aberto', summary.openCount],
+    ['completed', 'Concluídas', summary.completedCount],
+    ['canceled', 'Canceladas', summary.canceledCount]
   ];
-  return React.createElement('div', { className: 'sales-type-tabs', role: 'tablist', 'aria-label': 'Tipo de venda' },
+  return React.createElement('div', { className: 'sales-type-tabs', role: 'tablist', 'aria-label': 'Filtrar vendas' },
     options.map(([id, label, count]) => React.createElement('button', {
       key: id,
       type: 'button',
@@ -83,7 +86,7 @@ const SaleRow = ({ sale, onOpen }) => {
         React.createElement('p', { className: 'sales-row-title' }, customer),
         React.createElement('span', { className: `sales-kind-badge ${type === 'direct' ? 'is-direct' : 'is-term'}` },
           type === 'direct' ? React.createElement(WalletCards, { size: 12 }) : React.createElement(Receipt, { size: 12 }),
-          type === 'direct' ? 'No caixa' : 'A prazo'
+          type === 'direct' ? 'À vista' : 'A prazo'
         )
       ),
       React.createElement('p', { className: 'sales-row-subtitle' }, `${formatSaleMoment(sale)}${channel ? ` · ${channel}` : ''}`),
@@ -127,18 +130,18 @@ export const AbaVendas = ({ sales, setNewSaleMode, setSelectedSaleDetail }) => {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [page, setPage] = useState(1);
 
-  const typeSummary = useMemo(() => summarizeSalesView(buildSalesView({
+  const tabsSummary = useMemo(() => summarizeSalesView(buildSalesView({
     sales,
     query,
     type: 'all',
-    status,
+    status: 'all',
     period,
     sort,
     startDate,
     endDate,
     currentStart: getCurrentMonthStart(),
     currentEnd: getCurrentMonthEnd()
-  })), [sales, query, status, period, sort, startDate, endDate]);
+  })), [sales, query, period, sort, startDate, endDate]);
   const filteredSales = useMemo(() => buildSalesView({
     sales,
     query,
@@ -158,10 +161,19 @@ export const AbaVendas = ({ sales, setNewSaleMode, setSelectedSaleDetail }) => {
   useEffect(() => { if (page > totalPages) setPage(totalPages); }, [page, totalPages]);
 
   const paginated = filteredSales.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
-  const advancedCount = Number(status !== SALES_VIEW_DEFAULTS.status)
-    + Number(period !== SALES_VIEW_DEFAULTS.period)
+  const selectedTab = status !== SALES_VIEW_DEFAULTS.status ? status : type;
+  const selectTab = value => {
+    if (value === 'direct' || value === 'term') {
+      setType(value);
+      setStatus(SALES_VIEW_DEFAULTS.status);
+      return;
+    }
+    setType(SALES_VIEW_DEFAULTS.type);
+    setStatus(value === 'all' ? SALES_VIEW_DEFAULTS.status : value);
+  };
+  const advancedCount = Number(period !== SALES_VIEW_DEFAULTS.period)
     + Number(sort !== SALES_VIEW_DEFAULTS.sort);
-  const hasFilters = !!query || type !== SALES_VIEW_DEFAULTS.type || advancedCount > 0;
+  const hasFilters = !!query || selectedTab !== 'all' || advancedCount > 0;
   const resetFilters = () => {
     setQuery('');
     setType(SALES_VIEW_DEFAULTS.type);
@@ -176,14 +188,11 @@ export const AbaVendas = ({ sales, setNewSaleMode, setSelectedSaleDetail }) => {
     React.createElement('div', { className: 'page-heading sales-unified-heading' },
       React.createElement('div', { className: 'page-heading-copy' },
         React.createElement('h2', { className: 'page-title' }, 'Vendas'),
-        React.createElement('p', { className: 'page-description' }, 'Caixa e vendas a prazo no mesmo lugar, com acesso direto aos detalhes.')
+        React.createElement('p', { className: 'page-description' }, 'Acompanhe todas as vendas e escolha a forma de pagamento somente ao registrar.')
       ),
       React.createElement('div', { className: 'sales-create-actions' },
-        React.createElement('button', { type: 'button', onClick: () => setNewSaleMode('direct'), className: 'sales-create-button is-direct' },
-          React.createElement(WalletCards, { size: 18 }), React.createElement('span', null, 'Venda no caixa')
-        ),
-        React.createElement('button', { type: 'button', onClick: () => setNewSaleMode('prazo'), className: 'sales-create-button is-term' },
-          React.createElement(Plus, { size: 18 }), React.createElement('span', null, 'Venda a prazo')
+        React.createElement('button', { type: 'button', onClick: () => setNewSaleMode('unified'), className: 'sales-create-button is-unified' },
+          React.createElement(Plus, { size: 18 }), React.createElement('span', null, 'Nova venda')
         )
       )
     ),
@@ -209,18 +218,9 @@ export const AbaVendas = ({ sales, setNewSaleMode, setSelectedSaleDetail }) => {
         }, React.createElement(SlidersHorizontal, { size: 17 }), React.createElement('span', null, 'Filtros'), advancedCount > 0 && React.createElement('strong', null, advancedCount))
       ),
 
-      React.createElement(TypeTabs, { value: type, onChange: setType, summary: typeSummary }),
+      React.createElement(SalesFilterTabs, { value: selectedTab, onChange: selectTab, summary: tabsSummary }),
 
       filtersOpen && React.createElement('div', { className: 'sales-advanced-filters animate-fade-in' },
-        React.createElement('label', { className: 'sales-filter-field' },
-          React.createElement('span', null, 'Status'),
-          React.createElement('select', { value: status, onChange: event => setStatus(event.target.value) },
-            React.createElement('option', { value: 'all' }, 'Todos os status'),
-            React.createElement('option', { value: 'open' }, 'Em aberto'),
-            React.createElement('option', { value: 'completed' }, 'Recebidas / quitadas'),
-            React.createElement('option', { value: 'canceled' }, 'Canceladas')
-          )
-        ),
         React.createElement('label', { className: 'sales-filter-field' },
           React.createElement('span', null, 'Período'),
           React.createElement('select', { value: period, onChange: event => setPeriod(event.target.value) },

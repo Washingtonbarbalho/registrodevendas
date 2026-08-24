@@ -1,4 +1,4 @@
-REGISTRO DE VENDAS — VERSÃO 76
+REGISTRO DE VENDAS — VERSÃO 77
 
 ARQUITETURA ATIVA
 - app-runtime-v75.js reúne, em tempo de compilação, as correções das etapas anteriores.
@@ -12,6 +12,14 @@ DESENVOLVIMENTO E TESTES
 3. Para fazer as duas verificações: npm run check
 
 O gerador consolida Modais, Nova Venda e Clientes e remove os antigos carregadores por fetch/blob do caminho de produção. Os arquivos gerados são versionados para que o GitHub Pages publique exatamente o código testado.
+
+VENDAS UNIFICADAS
+- A área Vendas reúne os filtros Todas, À vista, A prazo, Em aberto, Concluídas e Canceladas.
+- O botão Nova venda e o atalho central do celular abrem diretamente o mesmo formulário.
+- PIX, dinheiro, débito, crédito e crediário são escolhidos na própria seção de pagamento.
+- Vendas diretas mantêm cliente opcional, taxas da maquininha e parcelamento no cartão.
+- O crediário mantém cliente obrigatório, análise de crédito, regras de entrada e parcelas exatas.
+- npm test simula a gravação das cinco formas de pagamento e preserva as verificações anteriores.
 
 FUNCIONAMENTO SOMENTE ONLINE
 - O sistema depende de internet para abrir e consultar os dados do Firebase.

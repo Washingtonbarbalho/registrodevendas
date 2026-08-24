@@ -1,48 +1,47 @@
-// Runtime estático v76 — gerado por scripts/build-runtime-v75.mjs.
+// Runtime estático v77 — gerado por scripts/build-runtime-v75.mjs.
 import React, { useState, useEffect, useMemo } from 'https://esm.sh/react@18.2.0';
 import { createRoot } from 'https://esm.sh/react-dom@18.2.0/client';
 import { Users, User, LogOut, Lock, LayoutDashboard, Receipt, WalletCards, Package, Contact, Store, ShieldCheck, BadgePercent, Banknote, Plus } from 'https://esm.sh/lucide-react@0.292.0';
 
 // Firebase
-import { app, db, auth, APP_ID } from './firebase-config.js?v=76';
+import { app, db, auth, APP_ID } from './firebase-config.js?v=77';
 import { collection, onSnapshot, query, doc, getDoc, updateDoc, deleteDoc, addDoc, serverTimestamp, setDoc, runTransaction, writeBatch } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js";
 
 // Utils
-import { getCurrentMonthStart, getCurrentMonthEnd, getBrazilDateString, addDays, formatCurrency, formatDate } from './utils.js?v=76';
-import { aggregateSaleItems, buildSaleInventoryPlan } from './inventory-reliability-v69.js?v=76';
-import { applyInstallmentPayment, buildFinancialLedger, fromCents, getHistoryCashAmount, getInstallmentFaceAmount, getRealizedSalesProfit, getSalesAccrualSummary, isTermSale, normalizeSaleMoney, reverseInstallmentPayment, sumMoney, summarizeFinancialLedger, toCents } from './financial-core-v70.js?v=76';
+import { getCurrentMonthStart, getCurrentMonthEnd, getBrazilDateString, addDays, formatCurrency, formatDate } from './utils.js?v=77';
+import { aggregateSaleItems, buildSaleInventoryPlan } from './inventory-reliability-v69.js?v=77';
+import { applyInstallmentPayment, buildFinancialLedger, fromCents, getHistoryCashAmount, getInstallmentFaceAmount, getRealizedSalesProfit, getSalesAccrualSummary, isTermSale, normalizeSaleMoney, reverseInstallmentPayment, sumMoney, summarizeFinancialLedger, toCents } from './financial-core-v70.js?v=77';
 
 // Modais
 import { 
     UserProfileModal, CustomerFormModal, ProductDetailsModal, EditInstallmentModal, 
     SaleDetailsModal, PixCodeModal, InstallmentListModal, PaymentConfirmationModal, 
     ConfirmModal, WhatsAppChooserModal, ProductModal
-} from './modals-runtime-v75.js?v=76';
-import { StockMovementModal } from './stock-movement-modal-v68.js?v=76';
+} from './modals-runtime-v75.js?v=77';
+import { StockMovementModal } from './stock-movement-modal-v68.js?v=77';
 
 // Telas Secundárias
-import { AdminUsersPanel } from './auth-admin.js?v=76';
-import { AuthScreen } from './auth-screen-v71.js?v=76';
-import { NewSaleScreen } from './nova-venda-runtime-v75.js?v=76';
+import { AdminUsersPanel } from './auth-admin.js?v=77';
+import { AuthScreen } from './auth-screen-v71.js?v=77';
+import { NewSaleScreen } from './nova-venda-runtime-v75.js?v=77';
 
 // Abas do Dashboard
-import { AbaVisaoGeral } from './aba-visao-geral-fixed.js?v=76';
-import { AbaVendas } from './aba-vendas-v71.js?v=76';
-import { AbaProdutos } from './aba-produtos-v67.js?v=76';
-import { AbaClientes } from './aba-clientes-runtime-v75.js?v=76';
-import { AbaTaxas } from './aba-taxas.js?v=76';
-import { AbaFinanceiro } from './aba-financeiro-v68.js?v=76';
-import { BatchStockModal } from './batch-stock-modal-v68.js?v=76';
-import { AbaRelatorios } from './aba-relatorios-v73.js?v=76';
-import { AbaComercial } from './aba-comercial-v74.js?v=76';
-import { normalizePaymentSettings } from './payment-settings.js?v=76';
-import { shareSalePdf } from './sale-pdf-v65.js?v=76';
+import { AbaVisaoGeral } from './aba-visao-geral-fixed.js?v=77';
+import { AbaVendas } from './aba-vendas-v71.js?v=77';
+import { AbaProdutos } from './aba-produtos-v67.js?v=77';
+import { AbaClientes } from './aba-clientes-runtime-v75.js?v=77';
+import { AbaTaxas } from './aba-taxas.js?v=77';
+import { AbaFinanceiro } from './aba-financeiro-v68.js?v=77';
+import { BatchStockModal } from './batch-stock-modal-v68.js?v=77';
+import { AbaRelatorios } from './aba-relatorios-v73.js?v=77';
+import { AbaComercial } from './aba-comercial-v74.js?v=77';
+import { normalizePaymentSettings } from './payment-settings.js?v=77';
+import { shareSalePdf } from './sale-pdf-v65.js?v=77';
 
 const Dashboard = ({ user, userProfile, onLogout }) => {
     const [view, setView] = useState('dashboard');
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-    const [quickSaleMenuOpen, setQuickSaleMenuOpen] = useState(false);
     const [showAdminPanel, setShowAdminPanel] = useState(false);
 
     useEffect(() => {
@@ -63,20 +62,6 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
             window.removeEventListener('resize', closeOnDesktop);
         };
     }, [mobileMenuOpen]);
-
-    useEffect(() => {
-        if (!quickSaleMenuOpen) return undefined;
-        const previousOverflow = document.body.style.overflow;
-        document.body.style.overflow = 'hidden';
-        const closeQuickSale = event => {
-            if (event.key === 'Escape') setQuickSaleMenuOpen(false);
-        };
-        window.addEventListener('keydown', closeQuickSale);
-        return () => {
-            document.body.style.overflow = previousOverflow;
-            window.removeEventListener('keydown', closeQuickSale);
-        };
-    }, [quickSaleMenuOpen]);
     const [customers, setCustomers] = useState([]);
     const [products, setProducts] = useState([]);
     const [sales, setSales] = useState([]);
@@ -1075,55 +1060,21 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
             mobilePrimaryNav.slice(0, 2).map(item => React.createElement('button', {
                 key: item.id,
                 type: "button",
-                onClick: () => { setView(item.id); setMobileMenuOpen(false); setQuickSaleMenuOpen(false); },
+                onClick: () => { setView(item.id); setMobileMenuOpen(false); },
                 className: `mobile-quick-nav-button ${view === item.id ? 'is-active' : ''}`
             }, React.createElement(item.icon, { size: 19 }), React.createElement('span', null, item.shortLabel))),
             React.createElement('button', {
                 type: "button",
-                onClick: () => { setQuickSaleMenuOpen(true); setMobileMenuOpen(false); },
+                onClick: () => { setNewSaleMode('unified'); setMobileMenuOpen(false); },
                 className: "mobile-quick-sale-button",
                 'aria-label': "Registrar nova venda"
             }, React.createElement('span', { className: "mobile-quick-sale-icon" }, React.createElement(Plus, { size: 23 })), React.createElement('span', null, "Nova")),
             mobilePrimaryNav.slice(2).map(item => React.createElement('button', {
                 key: item.id,
                 type: "button",
-                onClick: () => { setView(item.id); setMobileMenuOpen(false); setQuickSaleMenuOpen(false); },
+                onClick: () => { setView(item.id); setMobileMenuOpen(false); },
                 className: `mobile-quick-nav-button ${view === item.id ? 'is-active' : ''}`
             }, React.createElement(item.icon, { size: 19 }), React.createElement('span', null, item.shortLabel)))
-        ),
-
-        quickSaleMenuOpen && React.createElement('div', {
-            className: "quick-sale-backdrop",
-            onClick: () => setQuickSaleMenuOpen(false),
-            role: "presentation"
-        },
-            React.createElement('section', {
-                className: "quick-sale-sheet",
-                role: "dialog",
-                'aria-modal': "true",
-                'aria-labelledby': "quick-sale-title",
-                onClick: event => event.stopPropagation()
-            },
-                React.createElement('div', { className: "quick-sale-sheet-heading" },
-                    React.createElement('div', null,
-                        React.createElement('h2', { id: "quick-sale-title" }, "Qual venda deseja registrar?"),
-                        React.createElement('p', null, "Escolha o tipo para abrir o formulário correto.")
-                    ),
-                    React.createElement('button', { type: "button", onClick: () => setQuickSaleMenuOpen(false), 'aria-label': "Fechar" }, "×")
-                ),
-                React.createElement('div', { className: "quick-sale-options" },
-                    React.createElement('button', {
-                        type: "button",
-                        className: "quick-sale-option is-direct",
-                        onClick: () => { setQuickSaleMenuOpen(false); setNewSaleMode('direct'); }
-                    }, React.createElement('span', null, React.createElement(WalletCards, { size: 23 })), React.createElement('strong', null, "Venda no caixa"), React.createElement('small', null, "PIX, dinheiro ou cartão")),
-                    React.createElement('button', {
-                        type: "button",
-                        className: "quick-sale-option is-term",
-                        onClick: () => { setQuickSaleMenuOpen(false); setNewSaleMode('prazo'); }
-                    }, React.createElement('span', null, React.createElement(Receipt, { size: 23 })), React.createElement('strong', null, "Venda a prazo"), React.createElement('small', null, "Entrada e parcelas"))
-                )
-            )
         ),
 
         React.createElement(UserProfileModal, { isOpen: profileModalOpen, onClose: () => setProfileModalOpen(false), userProfile: userProfile, onSave: handleUpdateProfile }),

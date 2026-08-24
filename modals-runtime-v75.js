@@ -8,9 +8,9 @@ import {
 } from 'https://esm.sh/lucide-react@0.292.0';
 import {
     formatCurrency, getBrazilDateString, formatDate, analyzeCustomerCredit
-} from './utils.js?v=76';
+} from './utils.js?v=77';
 
-import * as originalModule from './modals-core-runtime-v75.js?v=76';
+import * as originalModule from './modals-core-runtime-v75.js?v=77';
 
 export const UserProfileModal = originalModule.UserProfileModal;
 export const CustomerFormModal = originalModule.CustomerFormModal;
@@ -216,7 +216,7 @@ export const ProductDetailsModal = ({ isOpen, onClose, product, salesHistory, on
     );
 };
 
-const getSaleTypeLabel = sale => sale.saleType === 'direct' ? 'Venda no caixa' : 'Venda a prazo';
+const getSaleTypeLabel = sale => sale.saleType === 'direct' ? 'Venda à vista' : 'Venda a prazo';
 
 const getPaymentLabel = sale => {
     if (sale.saleType !== 'direct') {
@@ -341,7 +341,7 @@ export const CustomerDetailsModal = ({
                             React.createElement('div', null, React.createElement('span', null, "Compras realizadas"), React.createElement('strong', null, activeSales.length)),
                             React.createElement('div', null, React.createElement('span', null, "Total comprado"), React.createElement('strong', null, formatCurrency(totalPurchased))),
                             React.createElement('div', null, React.createElement('span', null, "A prazo"), React.createElement('strong', null, termPurchases)),
-                            React.createElement('div', null, React.createElement('span', null, "No caixa"), React.createElement('strong', null, directPurchases))
+                            React.createElement('div', null, React.createElement('span', null, "À vista"), React.createElement('strong', null, directPurchases))
                         )
                     ),
                     React.createElement('div', { className: "customer-detail-actions desktop-span-full" },

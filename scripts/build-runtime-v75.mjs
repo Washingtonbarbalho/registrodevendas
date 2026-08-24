@@ -50,8 +50,8 @@ for (const [label, patch] of patches) {
     throw new Error(`Falha ao consolidar ${label}: ${error?.message || error}`);
   }
 }
-runtime = applyFinalPatches(runtime, { staticBuild: true, version: '76' });
-runtime = `// Runtime estático v76 — gerado por scripts/build-runtime-v75.mjs.\n${runtime}`;
+runtime = applyFinalPatches(runtime, { staticBuild: true, version: '77' });
+runtime = `// Runtime estático v77 — gerado por scripts/build-runtime-v75.mjs.\n${runtime}`;
 
 for (const forbidden of [
   'example.test',
@@ -68,9 +68,9 @@ for (const forbidden of [
 }
 
 for (const required of [
-  "from './modals-runtime-v75.js?v=76'",
-  "from './nova-venda-runtime-v75.js?v=76'",
-  "from './aba-clientes-runtime-v75.js?v=76'",
+  "from './modals-runtime-v75.js?v=77'",
+  "from './nova-venda-runtime-v75.js?v=77'",
+  "from './aba-clientes-runtime-v75.js?v=77'",
   "const mobilePrimaryNav = ['dashboard', 'sales', 'products', 'customers']"
 ]) {
   if (!runtime.includes(required)) throw new Error(`Integração ausente no runtime v75: ${required}.`);
@@ -110,7 +110,7 @@ const consolidatedStyles = styleFiles.map(file => {
 }).join('\n');
 fs.writeFileSync(
   path.join(root, 'styles-runtime-v75.css'),
-  `/* Estilos consolidados v76 — gerado por scripts/build-runtime-v75.mjs. */\n${consolidatedStyles}`
+  `/* Estilos consolidados v77 — gerado por scripts/build-runtime-v75.mjs. */\n${consolidatedStyles}`
 );
 
-console.log(`Runtime v76 consolidado: ${runtime.length} bytes de JS e ${consolidatedStyles.length} bytes de CSS.`);
+console.log(`Runtime v77 consolidado: ${runtime.length} bytes de JS e ${consolidatedStyles.length} bytes de CSS.`);
