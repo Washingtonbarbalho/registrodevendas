@@ -51,6 +51,74 @@ export const readSelectOptions = select => {
   return rows;
 };
 
+const ISO_CALENDAR_DATE = /^\d{4}-\d{2}-\d{2}$/;
+const CALENDAR_WEEKDAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+
+export const isCalendarDate = value => {
+  if (!ISO_CALENDAR_DATE.test(String(value || ''))) return false;
+  const [year, month, day] = value.split('-').map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return date.getUTCFullYear() === year
+    && date.getUTCMonth() === month - 1
+    && date.getUTCDate() === day;
+};
+
+const brazilCalendarToday = () => new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'America/Fortaleza', year: 'numeric', month: '2-digit', day: '2-digit'
+}).format(new Date());
+
+export const moveCalendarDate = (value, offset = 0) => {
+  if (!isCalendarDate(value)) return '';
+  const [year, month, day] = value.split('-').map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day + Number(offset || 0)));
+  return date.toISOString().slice(0, 10);
+};
+
+export const moveCalendarMonth = (value, offset = 0) => {
+  if (!isCalendarDate(value)) return '';
+  const [year, month] = value.split('-').map(Number);
+  const date = new Date(Date.UTC(year, month - 1 + Number(offset || 0), 1));
+  return date.toISOString().slice(0, 10);
+};
+
+export const buildCalendarMonth = value => {
+  const reference = isCalendarDate(value) ? value : brazilCalendarToday();
+  const firstDate = `${reference.slice(0, 7)}-01`;
+  const [year, month] = firstDate.split('-').map(Number);
+  const firstWeekday = new Date(Date.UTC(year, month - 1, 1)).getUTCDay();
+  const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  const visibleDays = Math.ceil((firstWeekday + daysInMonth) / 7) * 7;
+  const firstVisible = moveCalendarDate(firstDate, -firstWeekday);
+  const label = new Intl.DateTimeFormat('pt-BR', {
+    month: 'long', year: 'numeric', timeZone: 'UTC'
+  }).format(new Date(`${firstDate}T12:00:00Z`));
+
+  return {
+    month: firstDate.slice(0, 7),
+    label: label.charAt(0).toUpperCase() + label.slice(1),
+    firstWeekday,
+    daysInMonth,
+    days: Array.from({ length: visibleDays }, (_, index) => {
+      const date = moveCalendarDate(firstVisible, index);
+      return {
+        date,
+        day: Number(date.slice(8)),
+        currentMonth: date.startsWith(firstDate.slice(0, 7))
+      };
+    })
+  };
+};
+
+export const advanceCalendarRange = (selection, date) => {
+  if (!isCalendarDate(date)) return null;
+  const startDate = isCalendarDate(selection?.startDate) ? selection.startDate : '';
+  const endDate = isCalendarDate(selection?.endDate) ? selection.endDate : '';
+  if (!startDate || endDate) return { startDate: date, endDate: '' };
+  return date < startDate
+    ? { startDate: date, endDate: startDate }
+    : { startDate, endDate: date };
+};
+
 let installed = false;
 let host = null;
 let activeTask = null;
@@ -282,10 +350,165 @@ const renderSelect = descriptor => {
   });
 };
 
+const displayCalendarDate = value => isCalendarDate(value)
+  ? `${value.slice(8, 10)}/${value.slice(5, 7)}/${value.slice(0, 4)}`
+  : 'Escolha um dia';
+
+const renderDateRange = descriptor => {
+  const today = brazilCalendarToday();
+  let selection = {
+    startDate: isCalendarDate(descriptor.startDate) ? descriptor.startDate : '',
+    endDate: isCalendarDate(descriptor.endDate) ? descriptor.endDate : ''
+  };
+  if (selection.startDate && selection.endDate && selection.startDate > selection.endDate) {
+    selection = { startDate: selection.endDate, endDate: selection.startDate };
+  }
+  let choosingEnd = false;
+  let visibleMonth = selection.startDate || today;
+
+  const frame = buildDialogFrame({
+    tone: 'info',
+    title: descriptor.title || 'Selecione o período',
+    message: 'Escolha a data inicial e depois a data final.',
+    dismissible: true,
+    cancelValue: null
+  });
+  frame.panel.classList.add('app82-calendar-panel');
+  frame.panel.querySelector('.app81-dialog-icon').textContent = '▦';
+  const instruction = frame.panel.querySelector('.app81-dialog-message');
+  instruction.setAttribute('aria-live', 'polite');
+
+  const body = makeElement('div', 'app82-calendar-body');
+  const preview = makeElement('div', 'app82-calendar-preview');
+  const startCard = makeElement('div', 'app82-calendar-preview-item is-start');
+  const endCard = makeElement('div', 'app82-calendar-preview-item is-end');
+  const startValue = makeElement('strong');
+  const endValue = makeElement('strong');
+  startCard.append(makeElement('span', '', 'Data inicial'), startValue);
+  endCard.append(makeElement('span', '', 'Data final'), endValue);
+  preview.append(startCard, makeElement('span', 'app82-calendar-preview-arrow', '→'), endCard);
+  body.appendChild(preview);
+
+  const navigation = makeElement('div', 'app82-calendar-navigation');
+  const previous = makeElement('button', 'app82-calendar-nav-button', '‹');
+  previous.type = 'button';
+  previous.setAttribute('aria-label', 'Mês anterior');
+  const monthTitle = makeElement('strong', 'app82-calendar-month');
+  monthTitle.setAttribute('aria-live', 'polite');
+  const next = makeElement('button', 'app82-calendar-nav-button', '›');
+  next.type = 'button';
+  next.setAttribute('aria-label', 'Próximo mês');
+  navigation.append(previous, monthTitle, next);
+  body.appendChild(navigation);
+
+  const weekdays = makeElement('div', 'app82-calendar-weekdays');
+  CALENDAR_WEEKDAYS.forEach(day => weekdays.appendChild(makeElement('span', '', day)));
+  body.appendChild(weekdays);
+
+  const grid = makeElement('div', 'app82-calendar-grid');
+  grid.setAttribute('role', 'grid');
+  grid.setAttribute('aria-label', 'Seleção de datas');
+  body.appendChild(grid);
+  frame.panel.appendChild(body);
+
+  const updateSelectionSummary = () => {
+    startValue.textContent = displayCalendarDate(selection.startDate);
+    endValue.textContent = displayCalendarDate(selection.endDate);
+    startCard.classList.toggle('is-current-step', !choosingEnd);
+    endCard.classList.toggle('is-current-step', choosingEnd);
+    instruction.textContent = choosingEnd
+      ? 'Agora escolha a data final. O período será aplicado automaticamente.'
+      : 'Escolha a data inicial e depois a data final.';
+  };
+
+  const focusDate = date => requestAnimationFrame(() => {
+    grid.querySelector(`[data-calendar-date="${date}"]`)?.focus({ preventScroll: true });
+  });
+
+  const renderMonth = preferredFocus => {
+    const month = buildCalendarMonth(visibleMonth);
+    monthTitle.textContent = month.label;
+    grid.replaceChildren();
+
+    month.days.forEach(day => {
+      const isStart = day.date === selection.startDate;
+      const isEnd = day.date === selection.endDate;
+      const isBetween = !!selection.startDate && !!selection.endDate
+        && day.date > selection.startDate && day.date < selection.endDate;
+      const classes = [
+        'app82-calendar-day',
+        !day.currentMonth && 'is-outside',
+        day.date === today && 'is-today',
+        isStart && 'is-start',
+        isEnd && 'is-end',
+        isBetween && 'is-between'
+      ].filter(Boolean).join(' ');
+      const button = makeElement('button', classes, String(day.day));
+      button.type = 'button';
+      button.dataset.calendarDate = day.date;
+      button.setAttribute('role', 'gridcell');
+      button.setAttribute('aria-selected', isStart || isEnd || isBetween ? 'true' : 'false');
+      button.setAttribute('aria-label', new Intl.DateTimeFormat('pt-BR', {
+        weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC'
+      }).format(new Date(`${day.date}T12:00:00Z`)));
+      if (day.date === today) button.setAttribute('aria-current', 'date');
+
+      button.addEventListener('click', () => {
+        const nextSelection = advanceCalendarRange(choosingEnd ? selection : null, day.date);
+        if (!nextSelection) return;
+        selection = nextSelection;
+        if (selection.endDate) {
+          updateSelectionSummary();
+          finishActiveTask(selection);
+          return;
+        }
+        choosingEnd = true;
+        visibleMonth = day.date;
+        updateSelectionSummary();
+        renderMonth(day.date);
+      });
+
+      button.addEventListener('keydown', event => {
+        const offsets = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 };
+        if (!(event.key in offsets)) return;
+        event.preventDefault();
+        const nextDate = moveCalendarDate(day.date, offsets[event.key]);
+        visibleMonth = nextDate;
+        renderMonth(nextDate);
+      });
+
+      grid.appendChild(button);
+    });
+
+    if (preferredFocus) focusDate(preferredFocus);
+  };
+
+  previous.addEventListener('click', () => {
+    visibleMonth = moveCalendarMonth(visibleMonth, -1);
+    renderMonth();
+  });
+  next.addEventListener('click', () => {
+    visibleMonth = moveCalendarMonth(visibleMonth, 1);
+    renderMonth();
+  });
+
+  const footer = makeElement('footer', 'app81-dialog-footer');
+  const cancel = makeElement('button', 'app81-dialog-button is-secondary', 'Cancelar');
+  cancel.type = 'button';
+  cancel.addEventListener('click', () => finishActiveTask(null));
+  footer.appendChild(cancel);
+  frame.panel.appendChild(footer);
+
+  updateSelectionSummary();
+  renderMonth();
+  focusDate(selection.startDate || today);
+};
+
 function runNextTask() {
   if (activeTask || dialogQueue.length === 0) return;
   activeTask = dialogQueue.shift();
   if (activeTask.descriptor.kind === 'select') renderSelect(activeTask.descriptor);
+  else if (activeTask.descriptor.kind === 'date-range') renderDateRange(activeTask.descriptor);
   else renderFeedback(activeTask.descriptor);
 }
 
@@ -308,6 +531,8 @@ export const showAppConfirm = (message, options = {}) => enqueueDialog({
 });
 
 export const showAppSelect = select => enqueueDialog({ kind: 'select', select });
+
+export const showAppDateRange = options => enqueueDialog({ kind: 'date-range', ...(options || {}) });
 
 const selectFromEvent = event => {
   const target = event.target;
@@ -366,6 +591,7 @@ export const installUiInteractions = () => {
   window.RegistroVendasUI = Object.freeze({
     alert: showAppAlert,
     confirm: showAppConfirm,
-    select: showAppSelect
+    select: showAppSelect,
+    dateRange: showAppDateRange
   });
 };

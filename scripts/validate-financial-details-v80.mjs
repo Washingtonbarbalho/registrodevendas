@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { buildFinancialAccountDetails } from '../financial-account-details-v80.js';
+import { buildFinancialAccountDetails, filterFinancialAccounts } from '../financial-account-details-v80.js';
 import { applyInstallmentPayment, getPurchaseGroups } from '../financial-core-v70.js';
 
 const today = '2026-08-25';
@@ -210,6 +210,26 @@ assert.equal(paidPurchase.remainingAmount, 0);
 assert.equal(paidPurchase.paidAmount, 40);
 assert.equal(paidPurchase.historyTotal, 40);
 
+const portfolio = [
+  { id: 'current', description: 'Parcela de agosto', party: 'Ana', dueDate: '2026-08-20', paid: false },
+  { id: 'future', description: 'Parcela de setembro', party: 'Bruna', dueDate: '2026-09-20', paid: false },
+  { id: 'distant', description: 'Parcela de outubro', party: 'Carla', dueDate: '2026-10-20', paid: false },
+  { id: 'paid', description: 'Conta já paga', party: 'Davi', dueDate: '2026-09-10', paid: true },
+  { id: 'canceled', description: 'Conta cancelada', party: 'Elisa', dueDate: '2026-10-10', paid: false, canceled: true }
+];
+const august = { startDate: '2026-08-01', endDate: '2026-08-31' };
+assert.deepEqual(filterFinancialAccounts(portfolio, august).map(account => account.id), ['current'],
+  'A visualização comum deve continuar respeitando o período selecionado.');
+assert.deepEqual(filterFinancialAccounts(portfolio, { ...august, scope: 'all' }).map(account => account.id),
+  ['current', 'future', 'distant'],
+  'Os cartões precisam abrir todas as contas pendentes, inclusive parcelas de meses futuros.');
+assert.deepEqual(filterFinancialAccounts(portfolio, { ...august, scope: 'all', status: 'paid' })
+  .map(account => account.id), ['paid'],
+  'Os filtros de contas pagas devem continuar funcionando na carteira completa.');
+assert.deepEqual(filterFinancialAccounts(portfolio, { ...august, scope: 'all', search: 'Bruna' })
+  .map(account => account.id), ['future'],
+  'A busca continua disponível quando todas as datas são exibidas.');
+
 const source = fs.readFileSync(new URL('../aba-financeiro-v68.js', import.meta.url), 'utf8');
 for (const marker of [
   'const AccountDetailsModal =',
@@ -220,7 +240,11 @@ for (const marker of [
   'Histórico da conta',
   'Saldo em aberto',
   'Produtos da venda',
-  'Produtos da compra'
+  'Produtos da compra',
+  'openCompletePortfolio',
+  "setAccountScope('all')",
+  'finance82-summary-action',
+  'Carteira completa: todos os vencimentos'
 ]) assert.ok(source.includes(marker), `Detalhe financeiro ausente na interface: ${marker}`);
 
-console.log('Financeiro validado: detalhes de contas manuais, crediário, parcelas, pagamentos, compras em lote e cancelamentos.');
+console.log('Financeiro validado: detalhes completos e carteira clicável com contas futuras a receber e a pagar.');

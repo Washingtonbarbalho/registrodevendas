@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'https://esm.sh/react@18.2.0';
 import { createPortal } from 'https://esm.sh/react-dom@18.2.0';
-import { db, APP_ID } from './firebase-config.js?v=81';
+import { db, APP_ID } from './firebase-config.js?v=82';
 import { doc, onSnapshot } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js';
 import { formatCurrency, getBrazilDateString, getCurrentMonthEnd, getCurrentMonthStart } from './utils.js';
-import { DateRangeFilter } from './components.js?v=81';
+import { DateRangeFilter, DateRangePicker } from './components.js?v=82';
 import {
   buildReport,
   PAYMENT_FILTERS,
@@ -11,12 +11,13 @@ import {
   REPORT_GROUPS,
   reportPeriodLabel,
   SALE_CHANNELS
-} from './reports-engine-v73.js?v=81';
-import { createReportCsvFile, createReportExcelFile, downloadFile, shareFile } from './report-export-v74.js?v=81';
-import { buildRepurchaseSuggestions, buildWhatsappUrl } from './commercial-engine-v74.js?v=81';
-import { buildExecutiveInsights } from './executive-insights-v79.js?v=81';
-import { getReportCategories, getReportFilterCapabilities } from './report-filters-v79.js?v=81';
-import { resolveAnalysisPeriod } from './analysis-period-v79.js?v=81';
+} from './reports-engine-v73.js?v=82';
+import { createReportCsvFile, createReportExcelFile, downloadFile, shareFile } from './report-export-v74.js?v=82';
+import { buildRepurchaseSuggestions, buildWhatsappUrl } from './commercial-engine-v74.js?v=82';
+import { buildExecutiveInsights } from './executive-insights-v79.js?v=82';
+import { getReportCategories, getReportFilterCapabilities } from './report-filters-v79.js?v=82';
+import { resolveAnalysisPeriod } from './analysis-period-v79.js?v=82';
+import { showAppDateRange } from './ui-interactions-v81.js?v=82';
 
 const h = React.createElement;
 const EMPTY_FINANCIAL = { entries: [], accounts: [] };
@@ -343,27 +344,27 @@ const ReportModal = ({
     setCompareWithPrevious(true);
   }, [definition?.id]);
 
-  const applyPeriod = next => {
+  const applyDateRange = selection => {
+    setLocalPeriod('custom');
+    setLocalStartDate(selection.startDate);
+    setLocalEndDate(selection.endDate);
+    onAnalysisPeriodChange?.('custom');
+    onAnalysisStartDateChange?.(selection.startDate);
+    onAnalysisEndDateChange?.(selection.endDate);
+  };
+  const applyPeriod = async next => {
+    if (next === 'custom') {
+      const selection = await showAppDateRange({ startDate, endDate });
+      if (selection) applyDateRange(selection);
+      return;
+    }
     setLocalPeriod(next);
     onAnalysisPeriodChange?.(next);
-    if (next === 'custom') return;
     const selection = resolveAnalysisPeriod(next, getBrazilDateString());
     setLocalStartDate(selection.startDate);
     setLocalEndDate(selection.endDate);
     onAnalysisStartDateChange?.(selection.startDate);
     onAnalysisEndDateChange?.(selection.endDate);
-  };
-  const changeStartDate = value => {
-    setLocalPeriod('custom');
-    setLocalStartDate(value);
-    onAnalysisPeriodChange?.('custom');
-    onAnalysisStartDateChange?.(value);
-  };
-  const changeEndDate = value => {
-    setLocalPeriod('custom');
-    setLocalEndDate(value);
-    onAnalysisPeriodChange?.('custom');
-    onAnalysisEndDateChange?.(value);
   };
   const repurchaseSuggestions = useMemo(() => buildRepurchaseSuggestions({
     sales, products, customers, today: getBrazilDateString(), horizonDays: 14
@@ -459,12 +460,9 @@ const ReportModal = ({
               )
             ),
             h('div', { className: 'reports62-filter-grid reports73-filter-grid' },
-              h('label', null, h('span', null, 'Data inicial'), h('input', {
-                type: 'date', value: startDate, onChange: event => changeStartDate(event.target.value)
-              })),
-              h('label', null, h('span', null, 'Data final'), h('input', {
-                type: 'date', value: endDate, onChange: event => changeEndDate(event.target.value)
-              })),
+              h('div', { className: 'period82-report-field' },
+                h('span', { className: 'period82-field-label' }, 'Período selecionado'),
+                h(DateRangePicker, { startDate, endDate, onChange: applyDateRange })),
               capabilities.product && h('label', null, h('span', null, 'Produto'), h('select', {
                 value: productFilter, onChange: event => setProductFilter(event.target.value)
               }, h('option', { value: 'all' }, 'Todos os produtos'), [...products]

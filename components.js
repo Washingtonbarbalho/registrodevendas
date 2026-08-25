@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'https://esm.sh/react@18.2.0';
 import { ChevronLeft, ChevronRight, MoreHorizontal, LayoutGrid, X, SlidersHorizontal, ChevronDown, CalendarDays } from 'https://esm.sh/lucide-react@0.292.0';
 import { maskMoney, formatDate } from './utils.js';
+import { showAppDateRange } from './ui-interactions-v81.js?v=82';
 
 export const MoneyInput = ({ value, onChange, placeholder, className, autoFocus, disabled }) => {
     const [display, setDisplay] = useState(typeof value === 'number' ? maskMoney((value * 100).toFixed(0)) : value);
@@ -102,10 +103,45 @@ export const Pagination = ({ totalItems, itemsPerPage, currentPage, onPageChange
     );
 };
 
+export const DateRangePicker = ({ startDate, endDate, onChange, label, className = '', title }) => {
+    const openCalendar = async () => {
+        const selection = await showAppDateRange({ startDate, endDate, title });
+        if (selection) onChange?.(selection);
+    };
+    const formattedRange = startDate && endDate
+        ? `${formatDate(startDate)} até ${formatDate(endDate)}`
+        : 'Selecionar período';
+
+    return React.createElement('button', {
+        type: 'button',
+        onClick: openCalendar,
+        className: `period82-trigger ${className}`.trim(),
+        'aria-haspopup': 'dialog',
+        'aria-label': `${label || 'Selecionar período'}: ${formattedRange}`
+    },
+        React.createElement(CalendarDays, { size: 17, 'aria-hidden': true }),
+        React.createElement('span', { className: 'period82-trigger-label' }, label || formattedRange),
+        React.createElement(ChevronRight, { size: 16, className: 'period82-trigger-chevron', 'aria-hidden': true })
+    );
+};
+
 export const DateRangeFilter = ({ period, startDate, endDate, onPeriodChange, onStartChange, onEndChange }) => {
     const [expanded, setExpanded] = useState(false);
     const periodLabels = { week: 'Últimos 7 dias', month: 'Mês atual', last30: 'Últimos 30 dias' };
     const summary = periodLabels[period] || `${formatDate(startDate)} até ${formatDate(endDate)}`;
+    const applyCustomRange = selection => {
+        onPeriodChange?.('custom');
+        onStartChange?.(selection.startDate);
+        onEndChange?.(selection.endDate);
+    };
+    const choosePeriod = async value => {
+        if (value !== 'custom') {
+            onPeriodChange?.(value);
+            return;
+        }
+        const selection = await showAppDateRange({ startDate, endDate });
+        if (selection) applyCustomRange(selection);
+    };
 
     return React.createElement('div', { className: "date-filter" },
         React.createElement('div', { className: "date-filter-summary", onClick: () => setExpanded(!expanded) },
@@ -122,20 +158,14 @@ export const DateRangeFilter = ({ period, startDate, endDate, onPeriodChange, on
                     React.createElement('button', {
                         key: value,
                         type: "button",
-                        onClick: () => onPeriodChange(value),
+                        onClick: () => choosePeriod(value),
                         className: `min-h-10 rounded-xl text-xs font-extrabold transition-colors ${period === value ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`
                     }, label)
                 )
             ),
-            period === 'custom' && React.createElement('div', { className: "grid grid-cols-1 sm:grid-cols-2 gap-3" },
-                React.createElement('label', { className: "block" },
-                    React.createElement('span', { className: "text-[10px] uppercase font-extrabold text-slate-400 flex items-center gap-1 mb-1" }, React.createElement(CalendarDays, { size: 12 }), "Início"),
-                    React.createElement('input', { type: "date", className: "w-full px-3 border rounded-xl text-sm bg-white", value: startDate, onChange: event => onStartChange(event.target.value) })
-                ),
-                React.createElement('label', { className: "block" },
-                    React.createElement('span', { className: "text-[10px] uppercase font-extrabold text-slate-400 flex items-center gap-1 mb-1" }, React.createElement(CalendarDays, { size: 12 }), "Fim"),
-                    React.createElement('input', { type: "date", className: "w-full px-3 border rounded-xl text-sm bg-white", value: endDate, onChange: event => onEndChange(event.target.value) })
-                )
+            period === 'custom' && React.createElement('div', { className: 'period82-custom-filter' },
+                React.createElement('span', { className: 'period82-field-label' }, 'Intervalo selecionado'),
+                React.createElement(DateRangePicker, { startDate, endDate, onChange: applyCustomRange })
             )
         )
     );

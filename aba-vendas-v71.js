@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'https://esm.sh/react@18.2.0';
 import {
-  ArrowDownUp, Banknote, CalendarDays, CheckCircle2, ChevronRight, CreditCard,
+  ArrowDownUp, Banknote, CheckCircle2, ChevronRight, CreditCard,
   Plus, Receipt, RotateCcw, Search, SlidersHorizontal, WalletCards, X, XCircle
 } from 'https://esm.sh/lucide-react@0.292.0';
-import { Pagination } from './components.js?v=81';
-import { formatCurrency, formatDate, getCurrentMonthEnd, getCurrentMonthStart } from './utils.js?v=81';
+import { DateRangePicker, Pagination } from './components.js?v=82';
+import { formatCurrency, formatDate, getCurrentMonthEnd, getCurrentMonthStart } from './utils.js?v=82';
 import {
   buildSalesView,
   getNextOpenDueDate,
@@ -14,8 +14,9 @@ import {
   getSalePendingAmount,
   SALES_VIEW_DEFAULTS,
   summarizeSalesView
-} from './sales-operations-v71.js?v=81';
-import { getDirectSaleNet } from './financial-core-v70.js?v=81';
+} from './sales-operations-v71.js?v=82';
+import { getDirectSaleNet } from './financial-core-v70.js?v=82';
+import { showAppDateRange } from './ui-interactions-v81.js?v=82';
 
 const ITEMS_PER_PAGE = 12;
 
@@ -141,20 +142,22 @@ export const AbaVendas = ({
     setPeriod(analysisPeriod === 'month' ? SALES_VIEW_DEFAULTS.period : 'custom');
   }, [analysisPeriod, analysisStartDate, analysisEndDate]);
 
-  const choosePeriod = value => {
+  const applyDateRange = selection => {
+    setPeriod('custom');
+    setStartDate(selection.startDate);
+    setEndDate(selection.endDate);
+    onAnalysisPeriodChange?.('custom');
+    onAnalysisStartDateChange?.(selection.startDate);
+    onAnalysisEndDateChange?.(selection.endDate);
+  };
+  const choosePeriod = async value => {
+    if (value === 'custom') {
+      const selection = await showAppDateRange({ startDate, endDate });
+      if (selection) applyDateRange(selection);
+      return;
+    }
     setPeriod(value);
     if (value === 'current') onAnalysisPeriodChange?.('month');
-    if (value === 'custom') onAnalysisPeriodChange?.('custom');
-  };
-  const changeStartDate = value => {
-    setStartDate(value);
-    onAnalysisPeriodChange?.('custom');
-    onAnalysisStartDateChange?.(value);
-  };
-  const changeEndDate = value => {
-    setEndDate(value);
-    onAnalysisPeriodChange?.('custom');
-    onAnalysisEndDateChange?.(value);
   };
 
   const tabsSummary = useMemo(() => summarizeSalesView(buildSalesView({
@@ -269,15 +272,9 @@ export const AbaVendas = ({
             )
           )
         ),
-        period === 'custom' && React.createElement(React.Fragment, null,
-          React.createElement('label', { className: 'sales-filter-field' },
-            React.createElement('span', null, 'Data inicial'),
-            React.createElement('div', { className: 'sales-select-with-icon' }, React.createElement(CalendarDays, { size: 14 }), React.createElement('input', { type: 'date', value: startDate, onChange: event => changeStartDate(event.target.value) }))
-          ),
-          React.createElement('label', { className: 'sales-filter-field' },
-            React.createElement('span', null, 'Data final'),
-            React.createElement('div', { className: 'sales-select-with-icon' }, React.createElement(CalendarDays, { size: 14 }), React.createElement('input', { type: 'date', value: endDate, onChange: event => changeEndDate(event.target.value) }))
-          )
+        period === 'custom' && React.createElement('div', { className: 'sales-filter-field period82-sales-field' },
+          React.createElement('span', null, 'Intervalo de datas'),
+          React.createElement(DateRangePicker, { startDate, endDate, onChange: applyDateRange })
         )
       ),
 

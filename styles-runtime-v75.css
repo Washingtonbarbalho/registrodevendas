@@ -1,4 +1,4 @@
-/* Estilos consolidados v81 — folha de estilo principal do sistema. */
+/* Estilos consolidados v82 — folha de estilo principal do sistema. */
 :root {
     --app-bg: #f6f7fb;
     --surface: #ffffff;
@@ -6577,4 +6577,195 @@ body > div[id="root"] > div[class*="bg-slate-900"][class*="z-[100]"] {
 @media (prefers-reduced-motion: reduce) {
   .app81-dialog-overlay,
   .app81-dialog-panel { animation: none; }
+}
+
+/* Carteira financeira completa e calendário visual compartilhado. */
+.period82-trigger {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) 16px;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  min-height: 43px;
+  padding: 0 12px;
+  border: 1px solid #dbe3ed;
+  border-radius: 12px;
+  color: #475569;
+  background: #fff;
+  text-align: left;
+  transition: border-color .16s ease, box-shadow .16s ease, background .16s ease;
+}
+.period82-trigger:hover { border-color: #fbbf24; background: #fffdf6; }
+.period82-trigger:focus-visible {
+  outline: 3px solid rgba(245, 158, 11, .23);
+  outline-offset: 2px;
+}
+.period82-trigger > svg:first-child { color: #d97706; }
+.period82-trigger-label {
+  overflow: hidden;
+  color: #334155;
+  font-size: 11px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.period82-trigger-chevron { color: #94a3b8; }
+.period82-custom-filter,
+.period82-report-field { display: grid; min-width: 0; gap: 6px; }
+.period82-field-label {
+  color: #64748b;
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: .055em;
+  text-transform: uppercase;
+}
+.period82-sales-field { grid-column: 1 / -1; }
+.period82-report-field { grid-column: span 2; }
+
+.finance82-summary-action {
+  width: 100%;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease;
+}
+.finance82-summary-action:hover { transform: translateY(-2px); border-color: #cbd5e1; box-shadow: 0 10px 24px rgba(15, 23, 42, .08); }
+.finance82-summary-action:focus-visible { outline: 3px solid rgba(245, 158, 11, .25); outline-offset: 2px; }
+.finance82-summary-action.is-blue.is-active { border-color: #93c5fd; background: #f8fbff; }
+.finance82-summary-action.is-amber.is-active { border-color: #fcd34d; background: #fffdf5; }
+.finance44-period.finance82-period { display: block; min-width: 248px; }
+.finance82-period-trigger { min-height: 42px; }
+.finance82-portfolio-notice {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 11px 13px;
+  border: 1px solid #bfdbfe;
+  border-radius: 13px;
+  color: #1d4ed8;
+  background: #eff6ff;
+}
+.finance82-portfolio-notice > span { flex: 1; font-size: 11px; font-weight: 700; line-height: 1.45; }
+.finance82-portfolio-notice > button {
+  min-height: 34px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 9px;
+  color: #1d4ed8;
+  background: #fff;
+  font-size: 10px;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.app82-calendar-panel { width: min(484px, 100%); }
+.app82-calendar-panel .app81-dialog-message { padding-bottom: 12px; }
+.app82-calendar-body {
+  display: grid;
+  gap: 13px;
+  min-height: 0;
+  padding: 0 18px 17px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.app82-calendar-preview {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 22px minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+}
+.app82-calendar-preview-item {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  padding: 11px 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+.app82-calendar-preview-item.is-current-step { border-color: #fde68a; background: #fffbeb; }
+.app82-calendar-preview-item > span {
+  color: #64748b;
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.app82-calendar-preview-item > strong {
+  overflow: hidden;
+  color: #0f172a;
+  font-size: 12px;
+  font-weight: 850;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.app82-calendar-preview-arrow { color: #94a3b8; font-size: 18px; text-align: center; }
+.app82-calendar-navigation {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) 38px;
+  align-items: center;
+  gap: 8px;
+}
+.app82-calendar-month { color: #0f172a; font-size: 13px; font-weight: 850; text-align: center; }
+.app82-calendar-nav-button {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid #e2e8f0;
+  border-radius: 11px;
+  color: #475569;
+  background: #fff;
+  font-size: 22px;
+  line-height: 1;
+}
+.app82-calendar-nav-button:hover { border-color: #fcd34d; color: #b45309; background: #fffbeb; }
+.app82-calendar-weekdays,
+.app82-calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.app82-calendar-weekdays > span { color: #94a3b8; font-size: 9px; font-weight: 800; text-align: center; }
+.app82-calendar-day {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  min-height: 39px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  color: #334155;
+  background: #fff;
+  font-size: 11px;
+  font-weight: 750;
+}
+.app82-calendar-day:hover { border-color: #fde68a; background: #fffaf0; }
+.app82-calendar-day.is-outside { color: #cbd5e1; }
+.app82-calendar-day.is-between { border-radius: 6px; background: #fffbeb; }
+.app82-calendar-day.is-today { border-color: #cbd5e1; font-weight: 900; }
+.app82-calendar-day.is-start,
+.app82-calendar-day.is-end {
+  border-color: #f59e0b;
+  color: #0f172a;
+  background: #fbbf24;
+  font-weight: 900;
+}
+.app82-calendar-day:focus-visible,
+.app82-calendar-nav-button:focus-visible { outline: 3px solid rgba(245, 158, 11, .28); outline-offset: 2px; }
+
+@media (max-width: 900px) {
+  .period82-report-field { grid-column: span 2; }
+}
+
+@media (max-width: 720px) {
+  .finance44-period.finance82-period { width: 100%; min-width: 0; }
+  .period82-report-field { grid-column: auto; }
+  .finance82-portfolio-notice { flex-wrap: wrap; }
+  .finance82-portfolio-notice > button { margin-left: 26px; }
+  .app82-calendar-panel { max-height: min(91dvh, 760px); }
+  .app82-calendar-body { gap: 10px; padding-right: 15px; padding-left: 15px; }
+  .app82-calendar-day { min-height: 38px; }
+  .app82-calendar-panel .app81-dialog-footer { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 380px) {
+  .app82-calendar-preview { grid-template-columns: minmax(0, 1fr) 17px minmax(0, 1fr); gap: 4px; }
+  .app82-calendar-preview-item { padding: 10px 8px; }
+  .app82-calendar-preview-item > strong { font-size: 10px; }
+  .app82-calendar-day { min-height: 35px; }
 }

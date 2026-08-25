@@ -108,7 +108,7 @@ for (const staticRuntimeFile of [
   const source = read(staticRuntimeFile);
   assert.ok(!source.includes('URL.createObjectURL'), `${staticRuntimeFile} ainda cria módulo blob.`);
   assert.ok(!source.includes('http://localhost'), `${staticRuntimeFile} contém endereço de compilação.`);
-  assert.ok(!/\.js\?v=(?:75|76|77|78|79|80)['"]/.test(source), `${staticRuntimeFile} ainda referencia módulos desatualizados.`);
+  assert.ok(!/\.js\?v=(?:75|76|77|78|79|80|81)['"]/.test(source), `${staticRuntimeFile} ainda referencia módulos desatualizados.`);
 }
 
 for (const firebaseConsumer of [
@@ -155,7 +155,10 @@ for (const marker of [
   '.finance80-details-button',
   '.finance80-account-modal',
   '.app81-dialog-overlay',
-  '.app81-select-panel'
+  '.app81-select-panel',
+  '.finance82-summary-action',
+  '.app82-calendar-panel',
+  '.period82-trigger'
 ]) {
   assert.ok(styles.includes(marker), `Pacote CSS incompleto: ${marker}`);
 }
@@ -242,4 +245,4 @@ for (const [label, validator] of [
   process.stdout.write(result.stdout);
 }
 
-console.log(`Aplicação v${version} validada: interações profissionais e todos os fluxos anteriores preservados.`);
+console.log(`Aplicação v${version} validada: calendário único, carteira financeira completa e todos os fluxos anteriores preservados.`);

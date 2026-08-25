@@ -191,6 +191,34 @@ const buildManualDetails = (account, direction) => {
   };
 };
 
+export const filterFinancialAccounts = (accounts = [], {
+  scope = 'period',
+  startDate = '',
+  endDate = '',
+  status = 'open',
+  search = ''
+} = {}) => {
+  const normalizedSearch = String(search || '').trim().toLocaleLowerCase('pt-BR');
+
+  return accounts
+    .filter(account => scope === 'all'
+      || (account.dueDate && account.dueDate >= startDate && account.dueDate <= endDate))
+    .filter(account => status === 'all'
+      || (status === 'paid'
+        ? account.paid && !account.canceled
+        : !account.paid && !account.canceled))
+    .filter(account => !normalizedSearch
+      || `${account.description || ''} ${account.party || ''}`.toLocaleLowerCase('pt-BR')
+        .includes(normalizedSearch))
+    .sort((left, right) => {
+      if (!!left.canceled !== !!right.canceled) return left.canceled ? 1 : -1;
+      if (!!left.paid !== !!right.paid) return left.paid ? 1 : -1;
+      const dates = String(left.dueDate || '9999-12-31')
+        .localeCompare(String(right.dueDate || '9999-12-31'));
+      return dates || String(left.description || '').localeCompare(String(right.description || ''), 'pt-BR');
+    });
+};
+
 export const buildFinancialAccountDetails = (account, { products = [], today = '' } = {}) => {
   if (!account || typeof account !== 'object') return null;
 

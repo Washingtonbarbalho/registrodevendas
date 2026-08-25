@@ -5,7 +5,7 @@ import {
   paymentLabel,
   REPORT_DEFINITIONS as OPERATIONAL_REPORTS,
   reportPeriodLabel
-} from './reports-engine-v70.js?v=81';
+} from './reports-engine-v70.js?v=82';
 import {
   allocateMoney,
   buildFinancialLedger,
@@ -20,7 +20,7 @@ import {
   summarizeFinancialLedger,
   toCents
 } from './financial-core-v70.js';
-import { applyReportFilters, getProductCategory } from './report-filters-v79.js?v=81';
+import { applyReportFilters, getProductCategory } from './report-filters-v79.js?v=82';
 
 export { PAYMENT_FILTERS, paymentLabel, reportPeriodLabel };
 

@@ -1,4 +1,4 @@
-REGISTRO DE VENDAS — VERSÃO 81
+REGISTRO DE VENDAS — VERSÃO 82
 
 ARQUITETURA ATIVA
 - app-runtime-v75.js é o código principal oficial, já consolidado e editado diretamente.
@@ -29,6 +29,9 @@ POSIÇÃO HISTÓRICA DO CREDIÁRIO
 - Recebimentos, estornos e vendas realizadas permanecem vinculados ao período escolhido.
 
 DETALHES DO FINANCEIRO
+- Os cartões A receber e A pagar abrem diretamente toda a carteira pendente, inclusive parcelas de meses futuros.
+- A carteira completa mantém busca, filtros de situação, ordem de vencimento, detalhes e ações de pagamento.
+- A escolha de um período volta automaticamente à visualização filtrada por vencimento.
 - Cada conta a receber e cada conta a pagar possui um botão Detalhes.
 - O modal mostra origem, cliente ou fornecedor, vencimento, situação, parcela, valor original, valor pago e saldo em aberto.
 - Contas de crediário exibem WhatsApp, produtos da venda e histórico dos pagamentos, inclusive excedentes distribuídos.
@@ -40,6 +43,9 @@ INTERAÇÕES VISUAIS
 - Confirmações sensíveis não utilizam mais a caixa padrão do navegador.
 - As listas suspensas abrem um seletor visual consistente no celular e no computador.
 - Seletores com muitas alternativas possuem busca, agrupamento e destaque da opção atual.
+- Visão geral, vendas, financeiro e relatórios usam o mesmo calendário visual para escolher o intervalo.
+- O primeiro toque define a data inicial e o segundo define a final, aplicando o período automaticamente.
+- O calendário permite navegar entre meses, selecionar apenas um dia e corrigir datas escolhidas em ordem inversa.
 - A navegação por teclado, foco, tecla Esc e preferência por movimento reduzido são respeitadas.
 
 PAINEL EXECUTIVO E PERÍODO COMPARTILHADO
