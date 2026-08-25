@@ -1,4 +1,4 @@
-REGISTRO DE VENDAS — VERSÃO 83
+REGISTRO DE VENDAS — VERSÃO 84
 
 ARQUITETURA ATIVA
 - app-runtime-v75.js é o código principal oficial, já consolidado e editado diretamente.
@@ -51,7 +51,8 @@ INTERAÇÕES VISUAIS
 
 NAVEGAÇÃO NO CELULAR
 - O menu lateral e o botão de gaveta foram removidos exclusivamente da versão mobile.
-- A barra inferior reúne Início, Vendas, Nova venda, Produtos, Clientes, Financeiro e Mais.
+- A barra inferior reúne Início, Vendas, Produtos, Nova venda, Clientes, Financeiro e Mais.
+- O botão Nova venda ocupa a posição central, com três opções de navegação de cada lado.
 - Mais abre um painel flutuante apenas com Comercial, Relatórios e Taxas e juros.
 - A navegação lateral do computador continua disponível sem alterações.
 

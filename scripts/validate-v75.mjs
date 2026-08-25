@@ -113,7 +113,7 @@ for (const staticRuntimeFile of [
   const source = read(staticRuntimeFile);
   assert.ok(!source.includes('URL.createObjectURL'), `${staticRuntimeFile} ainda cria módulo blob.`);
   assert.ok(!source.includes('http://localhost'), `${staticRuntimeFile} contém endereço de compilação.`);
-  assert.ok(!/\.js\?v=(?:75|76|77|78|79|80|81|82)['"]/.test(source), `${staticRuntimeFile} ainda referencia módulos desatualizados.`);
+  assert.ok(!/\.js\?v=(?:75|76|77|78|79|80|81|82|83)['"]/.test(source), `${staticRuntimeFile} ainda referencia módulos desatualizados.`);
 }
 
 for (const firebaseConsumer of [
