@@ -165,6 +165,8 @@ for (const marker of [
   '.finance83-portfolio-modal',
   '.finance83-portfolio-scroll',
   '.finance85-installment-preview',
+  '.finance88-launch-card',
+  '.finance88-launch-placeholder',
   '.mobile83-more-sheet',
   '.mobile83-more-nav-button',
   '.app82-calendar-panel',

@@ -4,14 +4,14 @@ import {
   ArrowDown, ArrowUp, Banknote, CreditCard, Edit3, Eye,
   Package, Plus, Receipt, Search, Trash2, Wallet, X
 } from 'https://esm.sh/lucide-react@0.292.0';
-import { db, APP_ID } from './firebase-config.js?v=87';
+import { db, APP_ID } from './firebase-config.js?v=88';
 import { doc, onSnapshot, runTransaction, serverTimestamp, setDoc } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js';
-import { DateRangePicker, MoneyInput } from './components.js?v=87';
+import { DateRangePicker, MoneyInput } from './components.js?v=88';
 import { formatCurrency, formatDate, getBrazilDateString, getCurrentMonthEnd, getCurrentMonthStart, parseMoney } from './utils.js';
 import { buildPaymentInstallments, clampInstallments, normalizePaymentInstallments } from './purchase-payment-v68.js';
 import { buildFinancialLedger, getInstallmentFaceAmount, getPurchaseGroups, money, sumMoney, summarizeFinancialLedger, toCents } from './financial-core-v70.js';
 import { buildFinancialAccountDetails, filterFinancialAccounts } from './financial-account-details-v80.js';
-import { showAppConfirm } from './ui-interactions-v81.js?v=87';
+import { showAppConfirm } from './ui-interactions-v81.js?v=88';
 
 const h = React.createElement;
 const EMPTY_DATA = { entries: [], accounts: [] };
@@ -21,6 +21,12 @@ const makeId = prefix => `${prefix}-${Date.now()}-${Math.random().toString(36).s
 const isPrazo = sale => sale?.saleType === 'prazo' || !sale?.saleType;
 const paymentLabel = method => ({ money: 'Dinheiro', pix: 'PIX', debit: 'Débito', credit: 'Crédito', term: 'A prazo' }[method] || 'Pagamento');
 const normalizeFinancialData = raw => ({ entries: Array.isArray(raw?.entries) ? raw.entries : [], accounts: Array.isArray(raw?.accounts) ? raw.accounts : [] });
+const MANUAL_LAUNCH_TYPES = Object.freeze([
+  { value: 'income', label: 'Entrada financeira' },
+  { value: 'expense', label: 'Saída financeira' },
+  { value: 'receivable', label: 'Conta a receber' },
+  { value: 'payable', label: 'Conta a pagar' }
+]);
 
 const formatOffset = date => {
   const offset = -date.getTimezoneOffset();
@@ -73,6 +79,7 @@ const useBodyLock = open => useEffect(() => {
 
 const FormModal = ({ open, kind, initial, onClose, onSave }) => {
   const [type, setType] = useState('income');
+  const [launchType, setLaunchType] = useState('');
   const [description, setDescription] = useState('');
   const [party, setParty] = useState('');
   const [value, setValue] = useState('');
@@ -86,6 +93,7 @@ const FormModal = ({ open, kind, initial, onClose, onSave }) => {
   useEffect(() => {
     if (!open) return;
     setType(initial?.type || 'income');
+    setLaunchType(initial ? (kind === 'movement' ? initial?.type || 'income' : kind) : '');
     setDescription(initial?.baseDescription || initial?.description || '');
     setParty(initial?.party || '');
     setValue(initial?.value ? String(initial.value).replace('.', ',') : '');
@@ -96,7 +104,15 @@ const FormModal = ({ open, kind, initial, onClose, onSave }) => {
     setSaving(false);
   }, [open, kind, initial]);
 
-  const isNewAccount = kind !== 'movement' && !initial;
+  const selectedKind = initial
+    ? kind
+    : ['income', 'expense'].includes(launchType)
+      ? 'movement'
+      : ['receivable', 'payable'].includes(launchType)
+        ? launchType
+        : '';
+  const selectedMovementType = initial ? type : launchType === 'expense' ? 'expense' : 'income';
+  const isNewAccount = !initial && ['receivable', 'payable'].includes(selectedKind);
   const parsedValue = parseMoney(value);
   const installmentCount = clampInstallments(installmentsCount);
   const installmentPlan = useMemo(() => isNewAccount && parsedValue > 0 && date
@@ -104,9 +120,24 @@ const FormModal = ({ open, kind, initial, onClose, onSave }) => {
     : [], [isNewAccount, parsedValue, installmentCount, date]);
 
   if (!open) return null;
-  const title = initial ? 'Editar lançamento' : kind === 'movement' ? 'Nova movimentação' : kind === 'receivable' ? 'Nova conta a receber' : 'Nova conta a pagar';
+  const title = initial ? 'Editar lançamento' : 'Novo lançamento';
+  const LaunchIcon = selectedKind === 'receivable'
+    ? Receipt
+    : selectedKind === 'payable'
+      ? CreditCard
+      : selectedMovementType === 'expense'
+        ? ArrowDown
+        : selectedKind === 'movement'
+          ? ArrowUp
+          : Banknote;
+
+  const chooseLaunchType = next => {
+    setLaunchType(next);
+    if (next === 'income' || next === 'expense') setInstallmentsCount('1');
+  };
 
   const submit = async () => {
+    if (!selectedKind) return alert('Selecione o tipo de lançamento.');
     const parsed = parseMoney(value);
     if (!description.trim()) return alert('Informe a descrição.');
     if (!(parsed > 0)) return alert('Informe um valor válido.');
@@ -116,8 +147,8 @@ const FormModal = ({ open, kind, initial, onClose, onSave }) => {
     setSaving(true);
     try {
       await onSave({
-        kind,
-        type: kind === 'movement' ? type : kind,
+        kind: selectedKind,
+        type: selectedKind === 'movement' ? selectedMovementType : selectedKind,
         description: description.trim(),
         party: party.trim(),
         value: money(parsed),
@@ -135,7 +166,22 @@ const FormModal = ({ open, kind, initial, onClose, onSave }) => {
   };
 
   const bodyChildren = [];
-  if (kind === 'movement') {
+  if (!initial) {
+    bodyChildren.push(h('section', { key: 'launch-type', className: 'finance46-card finance46-card-type finance88-launch-card' },
+      h('div', { className: 'finance46-section-label' }, 'Primeiro passo'),
+      h('label', { className: 'finance46-field finance46-field-wide' },
+        h('span', null, 'Tipo de lançamento *'),
+        h('select', {
+          value: launchType,
+          onChange: event => chooseLaunchType(event.target.value),
+          'aria-label': 'Tipo de lançamento'
+        },
+          h('option', { value: '', disabled: true }, 'Selecione o tipo'),
+          MANUAL_LAUNCH_TYPES.map(option => h('option', { key: option.value, value: option.value }, option.label))
+        )),
+      h('p', { className: 'finance88-launch-description' }, 'Essa escolha define os campos, o vencimento e a possibilidade de parcelamento.')
+    ));
+  } else if (selectedKind === 'movement') {
     bodyChildren.push(h('section', { key: 'type', className: 'finance46-card finance46-card-type' },
       h('div', { className: 'finance46-section-label' }, 'Tipo'),
       h('div', { className: 'finance46-type-switch' },
@@ -145,13 +191,13 @@ const FormModal = ({ open, kind, initial, onClose, onSave }) => {
     ));
   }
   const dateField = h('label', { className: 'finance46-field' },
-    h('span', null, kind === 'movement'
+    h('span', null, selectedKind === 'movement'
       ? 'Data *'
       : isNewAccount && installmentCount > 1
         ? 'Vencimento da 1ª parcela *'
         : 'Vencimento *'),
     h('input', { type: 'date', value: date, onChange: event => setDate(event.target.value) }));
-  const amountFields = kind === 'movement'
+  const amountFields = selectedKind === 'movement'
     ? h('div', { className: 'finance46-fields-grid' },
         h('label', { className: 'finance46-field' },
           h('span', null, 'Valor *'),
@@ -179,26 +225,35 @@ const FormModal = ({ open, kind, initial, onClose, onSave }) => {
               h('span', null, `${item.number}/${installmentPlan.length} · ${formatDate(item.dueDate)}`),
               h('strong', null, formatCurrency(item.amount)))))));
 
-  bodyChildren.push(h('section', { key: 'info', className: 'finance46-card' },
-    h('div', { className: 'finance46-section-label' }, 'Informações'),
-    h('label', { className: 'finance46-field finance46-field-wide' }, h('span', null, 'Descrição *'), h('input', { value: description, onChange: e => setDescription(e.target.value) })),
-    kind !== 'movement' && h('label', { className: 'finance46-field finance46-field-wide' }, h('span', null, kind === 'receivable' ? 'Cliente / origem' : 'Fornecedor / favorecido'), h('input', { value: party, onChange: e => setParty(e.target.value), placeholder: 'Opcional' })),
-    amountFields,
-    h('label', { className: 'finance46-field finance46-field-wide' }, h('span', null, 'Categoria'), h('input', { value: category, onChange: e => setCategory(e.target.value) })),
-    h('label', { className: 'finance46-field finance46-field-wide' }, h('span', null, 'Observação'), h('textarea', { rows: 3, value: notes, onChange: e => setNotes(e.target.value) }))
-  ));
+  if (selectedKind) {
+    bodyChildren.push(h('section', { key: 'info', className: 'finance46-card' },
+      h('div', { className: 'finance46-section-label' }, 'Informações'),
+      h('label', { className: 'finance46-field finance46-field-wide' }, h('span', null, 'Descrição *'), h('input', { value: description, onChange: e => setDescription(e.target.value) })),
+      selectedKind !== 'movement' && h('label', { className: 'finance46-field finance46-field-wide' }, h('span', null, selectedKind === 'receivable' ? 'Cliente / origem' : 'Fornecedor / favorecido'), h('input', { value: party, onChange: e => setParty(e.target.value), placeholder: 'Opcional' })),
+      amountFields,
+      h('label', { className: 'finance46-field finance46-field-wide' }, h('span', null, 'Categoria'), h('input', { value: category, onChange: e => setCategory(e.target.value) })),
+      h('label', { className: 'finance46-field finance46-field-wide' }, h('span', null, 'Observação'), h('textarea', { rows: 3, value: notes, onChange: e => setNotes(e.target.value) }))
+    ));
+  } else {
+    bodyChildren.push(h('section', { key: 'launch-placeholder', className: 'finance88-launch-placeholder' },
+      h(Banknote, { size: 22 }),
+      h('div', null,
+        h('strong', null, 'Selecione como deseja lançar'),
+        h('span', null, 'Os demais campos aparecerão logo depois da escolha.'))
+    ));
+  }
 
   return createPortal(h('div', { className: 'finance46-overlay', role: 'dialog', 'aria-modal': 'true' },
     h('div', { className: 'finance46-modal' },
       h('header', { className: 'finance46-modal-hero' },
-        h('div', { className: 'finance46-modal-icon' }, h(kind === 'movement' ? Banknote : kind === 'receivable' ? Receipt : CreditCard, { size: 22 })),
-        h('div', { className: 'finance46-modal-heading' }, h('span', null, initial ? 'Edição manual' : 'Lançamento manual'), h('h2', null, title), h('p', null, 'Somente registros manuais podem ser alterados por aqui.')),
+        h('div', { className: 'finance46-modal-icon' }, h(LaunchIcon, { size: 22 })),
+        h('div', { className: 'finance46-modal-heading' }, h('span', null, initial ? 'Edição manual' : 'Lançamento manual'), h('h2', null, title), h('p', null, initial ? 'Atualize as informações deste registro manual.' : 'Escolha o tipo e preencha as informações do lançamento.')),
         h('button', { type: 'button', onClick: onClose, className: 'finance46-close' }, h(X, { size: 20 }))
       ),
       h('div', { className: 'finance46-modal-scroll' }, ...bodyChildren),
       h('footer', { className: 'finance46-modal-footer' },
         h('button', { type: 'button', onClick: onClose, className: 'finance46-button is-secondary' }, 'Cancelar'),
-        h('button', { type: 'button', onClick: submit, disabled: saving, className: 'finance46-button is-primary' }, saving ? 'Salvando...' : 'Salvar')
+        h('button', { type: 'button', onClick: submit, disabled: saving || !selectedKind, className: 'finance46-button is-primary' }, saving ? 'Salvando...' : 'Salvar')
       )
     )
   ), document.body);
@@ -624,6 +679,11 @@ export const AbaFinanceiro = ({
       : form.kind !== 'movement' && form.installmentsCount > 1
         ? `${form.installmentsCount} parcelas salvas.`
         : 'Lançamento salvo.');
+    if (!form.id) {
+      setTab(form.kind === 'movement' ? 'movements' : form.kind);
+      setSearch('');
+      if (form.kind !== 'movement') setAccountFilter('open');
+    }
   };
 
   const toggleManualAccount = async item => {
@@ -741,7 +801,7 @@ export const AbaFinanceiro = ({
   return h('section', { className: 'finance44 page-stack animate-fade-in' },
     h('div', { className: 'page-heading finance44-heading' },
       h('div', { className: 'page-heading-copy' }, h('h1', { className: 'page-title' }, 'Financeiro'), h('p', { className: 'page-description' }, 'Extrato, contas a receber e contas a pagar. Operações automáticas são controladas na área onde nasceram.')),
-      h('button', { type: 'button', className: 'page-primary-action', onClick: () => setModalState({ kind: tab === 'receivable' ? 'receivable' : tab === 'payable' ? 'payable' : 'movement', initial: null }) }, h(Plus, { size: 17 }), tab === 'movements' ? 'Novo lançamento' : tab === 'receivable' ? 'Nova conta a receber' : 'Nova conta a pagar')
+      h('button', { type: 'button', className: 'page-primary-action', onClick: () => setModalState({ kind: 'new', initial: null }) }, h(Plus, { size: 17 }), 'Novo lançamento')
     ),
     error && h('div', { className: 'finance44-alert is-error' }, error),
     message && h('div', { className: 'finance44-alert is-success' }, message),
@@ -785,7 +845,7 @@ export const AbaFinanceiro = ({
         onOpenProduct: product => { setPortfolioDirection(null); onOpenProduct?.(product); }
       }
     }),
-    h(FormModal, { open: !!modalState, kind: modalState?.kind, initial: modalState?.initial, onClose: () => setModalState(null), onSave: saveManual }),
+    h(FormModal, { key: modalState ? `${modalState.kind}:${modalState.initial?.id || 'new'}` : 'closed', open: !!modalState, kind: modalState?.kind, initial: modalState?.initial, onClose: () => setModalState(null), onSave: saveManual }),
     h(AccountDetailsModal, {
       item: detailsAccount,
       products,

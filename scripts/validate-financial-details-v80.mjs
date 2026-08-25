@@ -261,6 +261,15 @@ for (const marker of [
   'finance83-portfolio-modal',
   'finance83-portfolio-scroll',
   'finance85-installment-preview',
+  'finance88-launch-card',
+  'const MANUAL_LAUNCH_TYPES =',
+  "{ value: 'income', label: 'Entrada financeira' }",
+  "{ value: 'expense', label: 'Saída financeira' }",
+  "{ value: 'receivable', label: 'Conta a receber' }",
+  "{ value: 'payable', label: 'Conta a pagar' }",
+  'Tipo de lançamento *',
+  "setModalState({ kind: 'new', initial: null })",
+  "setTab(form.kind === 'movement' ? 'movements' : form.kind)",
   'installmentGroupId',
   'installmentOriginalTotal',
   'buildPaymentInstallments(form.value, count, form.date)',
@@ -283,5 +292,9 @@ assert.ok(!source.includes('finance82-portfolio-notice'),
   'O aviso de carteira completa na própria página não pode retornar.');
 assert.ok(!source.includes("label: 'Saldo do período'"),
   'O primeiro cartão financeiro deve mostrar o caixa histórico realizado.');
+assert.ok(!source.includes("kind: tab === 'receivable'"),
+  'O botão de lançamento não pode mudar de função conforme a seção financeira.');
+assert.ok(source.indexOf('Tipo de lançamento *') < source.indexOf('Descrição *'),
+  'A escolha do tipo precisa aparecer antes dos demais campos do lançamento.');
 
-console.log('Financeiro validado: parcelamento manual, saldo total em caixa, carteira independente e detalhes completos.');
+console.log('Financeiro validado: lançamento unificado, parcelamento manual, saldo total em caixa, carteira independente e detalhes completos.');

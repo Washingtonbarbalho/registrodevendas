@@ -1,4 +1,4 @@
-/* Estilos consolidados v87 — folha de estilo principal do sistema. */
+/* Estilos consolidados v88 — folha de estilo principal do sistema. */
 :root {
     --app-bg: #f6f7fb;
     --surface: #ffffff;
@@ -3886,6 +3886,49 @@ body > div[id="root"] > div[class*="bg-slate-900"][class*="z-[100]"] {
 
 .finance46-card-type {
     padding: 10px;
+}
+
+.finance88-launch-card {
+    border-color: #bfdbfe;
+    background: #f8fbff;
+}
+
+.finance88-launch-description {
+    margin: -2px 0 0;
+    color: #64748b;
+    font-size: 10px;
+    line-height: 1.45;
+}
+
+.finance88-launch-placeholder {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    padding: 14px;
+    border: 1px dashed #cbd5e1;
+    border-radius: 14px;
+    color: #64748b;
+    background: #f8fafc;
+}
+
+.finance88-launch-placeholder svg {
+    flex: 0 0 auto;
+    color: #94a3b8;
+}
+
+.finance88-launch-placeholder strong,
+.finance88-launch-placeholder span {
+    display: block;
+}
+
+.finance88-launch-placeholder strong {
+    color: #334155;
+    font-size: 11px;
+}
+
+.finance88-launch-placeholder span {
+    margin-top: 3px;
+    font-size: 10px;
 }
 
 .finance46-section-label {
