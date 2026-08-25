@@ -2,19 +2,6 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { applySetupPatches } from '../app-patch-setup-v59.js';
-import { applyReportsPatch } from '../app-patch-reports-v65.js';
-import { applyStockPatch } from '../app-patch-stock-v68.js';
-import { applyCancelPatch } from '../app-patch-cancel-v59.js';
-import { applyProfitPatch } from '../app-patch-profit-v58.js';
-import { applySalePdfPatch } from '../app-patch-sale-pdf-v65.js';
-import { applyMobileMenuPatch } from '../app-patch-mobile-menu-v66.js';
-import { applyBatchStockPatch } from '../app-patch-batch-stock-v68.js';
-import { applySecurityReliabilityPatch } from '../app-patch-security-v69.js';
-import { applyAccountingPatch } from '../app-patch-accounting-v70.js';
-import { applyOperationsPatch } from '../app-patch-operations-v71.js';
-import { applyCommercialPatch } from '../app-patch-commercial-v74.js';
-import { applyFinalPatches } from '../app-patch-final-v71.js';
 import { normalizeSaleMoney } from '../financial-core-v70.js';
 import { aggregateSaleItems, buildSaleInventoryPlan, InventoryReliabilityError } from '../inventory-reliability-v69.js';
 import {
@@ -25,8 +12,6 @@ import {
   summarizeSalesView
 } from '../sales-operations-v71.js';
 
-globalThis.location = new URL('https://example.test/registrodevendas/');
-
 const checkSyntax = file => {
   const path = file instanceof URL ? fileURLToPath(file) : file;
   const result = spawnSync(process.execPath, ['--check', path], { encoding: 'utf8' });
@@ -34,16 +19,13 @@ const checkSyntax = file => {
 };
 
 for (const file of [
-  'bootstrap-v71.js',
+  'bootstrap-v75.js',
+  'app-runtime-v75.js',
   'sales-operations-v71.js',
   'aba-vendas-v71.js',
   'auth-screen-v71.js',
-  'app-patch-operations-v71.js',
-  'app-patch-commercial-v74.js',
-  'app-patch-final-v71.js',
-  'nova-venda.js',
-  'nova-venda-fixed-v69.js',
-  'nova-venda-fixed-v70.js',
+  'aba-comercial-v74.js',
+  'nova-venda-runtime-v75.js',
   'tab-persistence.js'
 ]) checkSyntax(new URL(`../${file}`, import.meta.url));
 
@@ -158,32 +140,13 @@ assert.deepEqual(buildSalesView({ sales, ...period, status: 'completed' }).map(s
 assert.deepEqual(buildSalesView({ sales, ...period, status: 'canceled' }).map(sale => sale.id),
   ['canceled-august'], 'O filtro Canceladas deve isolar vendas canceladas.');
 
-let source = fs.readFileSync(new URL('../app.js', import.meta.url), 'utf8');
-for (const patch of [
-  applySetupPatches,
-  applyReportsPatch,
-  applyStockPatch,
-  applyCancelPatch,
-  applyProfitPatch,
-  applySalePdfPatch,
-  applyMobileMenuPatch,
-  applyBatchStockPatch,
-  applySecurityReliabilityPatch,
-  applyAccountingPatch,
-  applyOperationsPatch,
-  applyCommercialPatch,
-  applyFinalPatches
-]) source = patch(source);
-
-const generatedFile = '/tmp/registro-vendas-runtime-v71.mjs';
-fs.writeFileSync(generatedFile, source);
-checkSyntax(generatedFile);
+const source = fs.readFileSync(new URL('../app-runtime-v75.js', import.meta.url), 'utf8');
 
 for (const marker of [
-  'aba-vendas-v71.js?v=75',
-  'auth-screen-v71.js?v=75',
-  'aba-relatorios-v73.js?v=75',
-  'aba-comercial-v74.js?v=75',
+  'aba-vendas-v71.js?v=',
+  'auth-screen-v71.js?v=',
+  'aba-relatorios-v73.js?v=',
+  'aba-comercial-v74.js?v=',
   "{ id: 'sales', label: 'Vendas', shortLabel: 'Vendas'",
   "view === 'sales' ? React.createElement(AbaVendas",
   'mobile-quick-nav',
@@ -363,7 +326,7 @@ assert.equal((salesUi.match(/setNewSaleMode\(/g) || []).length, 1,
 assert.ok(!salesUi.includes("React.createElement('select', { value: status"),
   'Os estados da venda devem ser acessados diretamente nas abas, sem filtro duplicado.');
 
-const baseSale = fs.readFileSync(new URL('../nova-venda.js', import.meta.url), 'utf8');
+const baseSale = fs.readFileSync(new URL('../nova-venda-runtime-v75.js', import.meta.url), 'utf8');
 for (const marker of [
   "import QRCode from 'https://esm.sh/qrcode@1.5.4';",
   'QRCode.toDataURL(payload',
@@ -413,9 +376,9 @@ const cartHandlerStart = baseSale.indexOf('    const handleAddItem = () => {');
 const cartHandlerEnd = baseSale.indexOf('    const handleRemoveItem =', cartHandlerStart);
 assert.ok(cartHandlerStart >= 0 && cartHandlerEnd > cartHandlerStart);
 const createCartHandler = Function('dependencies', `
-  const { currentQty, currentPrice, currentDiscount, selectedProductId, products, cart, currentCost,
+  const { currentQty, currentPrice, currentDiscount, currentDiscountReason, selectedProductId, products, cart, currentCost,
     parseMoney, alert, setCart, setSelectedProductId, setCurrentQty, setCurrentCost, setCurrentPrice,
-    setBaseUnitPrice, setCurrentDiscount, setProductSearch } = dependencies;
+    setBaseUnitPrice, setCurrentDiscount, setCurrentDiscountReason, setProductSearch } = dependencies;
   ${baseSale.slice(cartHandlerStart, cartHandlerEnd)}
   return handleAddItem;
 `);
@@ -431,6 +394,7 @@ const tryAddingProduct = ({ quantity, available, previousQuantity = 0 }) => {
     currentQty: quantity,
     currentPrice: '10',
     currentDiscount: '0',
+    currentDiscountReason: '',
     selectedProductId: 'perfume',
     products: [{ id: 'perfume', name: 'Perfume', code: '123', quantity: available }],
     cart: previousCart,
@@ -444,6 +408,7 @@ const tryAddingProduct = ({ quantity, available, previousQuantity = 0 }) => {
     setCurrentPrice: noop,
     setBaseUnitPrice: noop,
     setCurrentDiscount: noop,
+    setCurrentDiscountReason: noop,
     setProductSearch: noop
   });
   add();
@@ -494,13 +459,7 @@ assert.equal(identifyTab('Vendas no caixa'), 'sales');
 assert.ok(persistenceSource.includes('.mobile-menu-nav-button'), 'A navegação pelo menu lateral precisa preservar a aba.');
 
 const index = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-assert.ok(index.includes('bootstrap-v75.js?v=79'), 'O runtime técnico consolidado v79 precisa estar ativo.');
-assert.ok(index.includes('styles-runtime-v75.css?v=79'), 'Os estilos consolidados precisam estar ativos.');
-
-const inherited = spawnSync(process.execPath, ['scripts/validate-v70.mjs'], {
-  cwd: fileURLToPath(new URL('..', import.meta.url)),
-  encoding: 'utf8'
-});
-if (inherited.status !== 0) throw new Error(`Regressão na v70:\n${inherited.stderr || inherited.stdout}`);
+assert.match(index, /bootstrap-v75\.js\?v=\d+/, 'O runtime técnico consolidado precisa estar ativo.');
+assert.match(index, /styles-runtime-v75\.css\?v=\d+/, 'Os estilos consolidados precisam estar ativos.');
 
 console.log('Aplicação v74 validada: venda atômica, navegação mobile e integração Comercial preservadas.');

@@ -26,8 +26,8 @@ const checkSyntax = file => {
 };
 
 for (const file of [
-  'reports-engine-v73.js', 'aba-relatorios-v73.js', 'bootstrap-v71.js', 'app-patch-final-v71.js',
-  'app-patch-operations-v71.js', 'nova-venda.js', 'modals.js', 'aba-produtos-v67.js',
+  'reports-engine-v73.js', 'aba-relatorios-v73.js', 'bootstrap-v75.js', 'app-runtime-v75.js',
+  'nova-venda-runtime-v75.js', 'modals-core-runtime-v75.js', 'aba-produtos-v67.js',
   'aba-vendas-v71.js', 'sales-operations-v71.js'
 ]) checkSyntax(file);
 
@@ -256,11 +256,11 @@ const channelSearch = buildSalesView({
 assert.deepEqual(channelSearch.map(sale => sale.id), ['alice-august-instagram']);
 
 const read = file => fs.readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
-const newSaleSource = read('nova-venda.js');
+const newSaleSource = read('nova-venda-runtime-v75.js');
 for (const marker of ["useState('presencial')", 'saleChannel,', 'Canal da venda', 'WhatsApp', 'Instagram']) {
   assert.ok(newSaleSource.includes(marker), `Canal de venda ausente no formulário: ${marker}`);
 }
-const productsSource = read('modals.js');
+const productsSource = read('modals-core-runtime-v75.js');
 for (const marker of ['minimumStock', 'replenishmentLeadTimeDays', 'repurchaseCycleDays', 'Estoque mínimo', 'Reposição (dias)']) {
   assert.ok(productsSource.includes(marker), `Configuração do produto ausente: ${marker}`);
 }
@@ -268,23 +268,12 @@ const uiSource = read('aba-relatorios-v73.js');
 for (const marker of ['Visão executiva', 'REPORT_GROUPS', 'Comparar com o período anterior equivalente', 'Comparação com o período anterior', 'createReportExcelFile', 'Compartilhar']) {
   assert.ok(uiSource.includes(marker), `Recurso da tela de relatórios ausente: ${marker}`);
 }
-const navigation = read('app-patch-operations-v71.js');
+const navigation = read('app-runtime-v75.js');
 assert.ok(navigation.includes("['dashboard', 'sales', 'products', 'customers']"));
 assert.ok(!navigation.includes("['dashboard', 'sales', 'products', 'finance']"));
-const bootstrap = read('bootstrap-v71.js');
-assert.ok(bootstrap.includes("['Relatórios', './aba-relatorios-v73.js?v=74'"));
-assert.ok(bootstrap.includes("import('./reports-engine-v73.js?v=74')"));
+assert.ok(navigation.includes("import { AbaRelatorios } from './aba-relatorios-v73.js?v="));
 const index = read('index.html');
-assert.ok(index.includes('bootstrap-v75.js?v=79'));
-assert.ok(index.includes('styles-runtime-v75.css?v=79'));
-
-for (const validator of ['scripts/validate-v69.mjs', 'scripts/validate-v71.mjs']) {
-  const inherited = spawnSync(process.execPath, [validator], {
-    cwd: fileURLToPath(new URL('..', import.meta.url)),
-    encoding: 'utf8'
-  });
-  if (inherited.status !== 0) throw new Error(`Regressão em ${validator}:\n${inherited.stderr || inherited.stdout}`);
-  process.stdout.write(inherited.stdout);
-}
+assert.match(index, /bootstrap-v75\.js\?v=\d+/);
+assert.match(index, /styles-runtime-v75\.css\?v=\d+/);
 
 console.log('Aplicação v74 validada: relatórios estratégicos preservados e prontos para a experiência comercial.');

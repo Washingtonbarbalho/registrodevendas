@@ -25,8 +25,8 @@ const checkSyntax = file => {
 
 for (const file of [
   'commercial-engine-v74.js', 'aba-comercial-v74.js', 'report-export-v74.js',
-  'app-patch-commercial-v74.js', 'aba-relatorios-v73.js', 'bootstrap-v71.js',
-  'app-patch-final-v71.js', 'modals.js', 'tab-persistence.js', 'scripts/validate-v74.mjs'
+  'aba-relatorios-v73.js', 'bootstrap-v75.js', 'app-runtime-v75.js',
+  'modals-core-runtime-v75.js', 'tab-persistence.js', 'scripts/validate-v74.mjs'
 ]) checkSyntax(file);
 
 const today = '2026-08-23';
@@ -214,27 +214,17 @@ const reportUi = read('aba-relatorios-v73.js');
 for (const marker of ['createReportExcelFile', 'Compartilhar', 'downloadFile', "type: 'application/pdf'"]) {
   assert.ok(reportUi.includes(marker), `Exportação de relatório incompleta: ${marker}`);
 }
-const productModal = read('modals.js');
+const productModal = read('modals-core-runtime-v75.js');
 for (const marker of ['repurchaseCycleDays', 'Recompra do cliente (dias)', 'use 0 para desativar']) {
   assert.ok(productModal.includes(marker), `Ciclo de recompra ausente no produto: ${marker}`);
 }
 const rules = read('firestore.rules');
 assert.ok(rules.includes("'commercialGoals', 'commercialGoalsUpdatedAt'"));
 const index = read('index.html');
-assert.ok(index.includes('styles-runtime-v75.css?v=79'));
-assert.ok(index.includes('bootstrap-v75.js?v=79'));
-const bootstrap = read('bootstrap-v71.js');
-assert.ok(bootstrap.includes('applyCommercialPatch'));
-assert.ok(bootstrap.includes("['Comercial', './aba-comercial-v74.js?v=74'"));
-assert.ok(bootstrap.includes("import('./report-export-v74.js?v=74')"));
+assert.match(index, /styles-runtime-v75\.css\?v=\d+/);
+assert.match(index, /bootstrap-v75\.js\?v=\d+/);
 
-const inherited = spawnSync(process.execPath, ['scripts/validate-v73.mjs'], {
-  cwd: fileURLToPath(root), encoding: 'utf8'
-});
-if (inherited.status !== 0) throw new Error(`Regressão herdada da v73:\n${inherited.stderr || inherited.stdout}`);
-process.stdout.write(inherited.stdout);
-
-const generated = fs.readFileSync('/tmp/registro-vendas-runtime-v71.mjs', 'utf8');
+const generated = read('app-runtime-v75.js');
 for (const marker of [
   "import { AbaComercial }", "{ id: 'commercial', label: 'Comercial'",
   "view === 'commercial' ? React.createElement(AbaComercial",

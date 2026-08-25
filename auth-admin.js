@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'https://esm.sh/react@18.2.0';
 import { Store, AlertTriangle, Mail, UserCheck, Lock, UserCog, Shield, X, Search, Edit2, Trash2 } from 'https://esm.sh/lucide-react@0.292.0';
-import { db, auth, APP_ID, ADMIN_EMAIL } from './firebase-config.js?v=79';
+import { db, auth, APP_ID, ADMIN_EMAIL } from './firebase-config.js?v=80';
 import { collection, query, doc, getDoc, onSnapshot, serverTimestamp, writeBatch, deleteField } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js";
 import { maskPhone, applyPixMask } from './utils.js';

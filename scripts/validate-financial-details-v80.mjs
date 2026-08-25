@@ -1,0 +1,226 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import { buildFinancialAccountDetails } from '../financial-account-details-v80.js';
+import { applyInstallmentPayment, getPurchaseGroups } from '../financial-core-v70.js';
+
+const today = '2026-08-25';
+assert.equal(buildFinancialAccountDetails(null), null);
+
+const openManual = buildFinancialAccountDetails({
+  id: 'manual-receivable',
+  source: 'manual',
+  direction: 'receivable',
+  description: 'Serviço complementar',
+  party: 'Ana Maria',
+  category: 'Serviços',
+  notes: 'Combinar pagamento por WhatsApp.',
+  value: 45.75,
+  dueDate: '2026-08-20',
+  createdAt: '2026-08-10T10:00:00.000Z',
+  status: { label: 'Atrasada', cls: 'is-overdue' }
+}, { today });
+
+assert.equal(openManual.title, 'Detalhes da conta a receber');
+assert.equal(openManual.originalAmount, 45.75);
+assert.equal(openManual.paidAmount, 0);
+assert.equal(openManual.remainingAmount, 45.75);
+assert.equal(openManual.daysUntilDue, -5);
+assert.equal(openManual.category, 'Serviços');
+assert.equal(openManual.notes, 'Combinar pagamento por WhatsApp.');
+assert.equal(openManual.originDate, '2026-08-10');
+assert.deepEqual(openManual.history, []);
+
+const paidManual = buildFinancialAccountDetails({
+  source: 'manual',
+  direction: 'payable',
+  description: 'Conta de energia',
+  party: 'Concessionária',
+  value: 99.99,
+  dueDate: '2026-08-30',
+  paid: true,
+  paidAt: '2026-08-24',
+  paidAtDateTime: '2026-08-24T14:10:00.000Z'
+}, { today });
+assert.equal(paidManual.title, 'Detalhes da conta a pagar');
+assert.equal(paidManual.remainingAmount, 0);
+assert.equal(paidManual.paidAmount, 99.99);
+assert.equal(paidManual.daysUntilDue, null);
+assert.equal(paidManual.history[0].amount, 99.99);
+assert.equal(paidManual.history[0].label, 'Pagamento registrado');
+
+const installments = [1, 2, 3].map(number => ({
+  number,
+  amount: 100,
+  originalAmount: 100,
+  dueDate: `2026-${String(number + 7).padStart(2, '0')}-20`,
+  paid: false,
+  history: []
+}));
+const distributed = applyInstallmentPayment(
+  installments,
+  0,
+  250,
+  '2026-08-24',
+  '2026-08-24T12:00:00.000Z'
+);
+const sale = {
+  id: 'sale-1',
+  customerName: 'Maria Souza',
+  customerPhone: '(85) 99999-0000',
+  saleDate: '2026-07-18',
+  totalPrice: 300,
+  installmentsCount: 3,
+  installments: distributed.installments,
+  notes: 'Entrega realizada.',
+  items: [{ productName: 'Perfume', quantity: 2, unitPrice: 150, price: 300 }]
+};
+
+const firstInstallment = buildFinancialAccountDetails({
+  source: 'sale',
+  sale,
+  installmentIndex: 0,
+  description: 'Maria Souza · Parcela 1/3',
+  dueDate: '2026-08-20',
+  value: 100,
+  paid: true,
+  paidAt: '2026-08-24',
+  paidAtDateTime: '2026-08-24T12:00:00.000Z',
+  status: { label: 'Recebida', cls: 'is-paid' }
+}, { today });
+assert.equal(firstInstallment.direction, 'receivable');
+assert.equal(firstInstallment.originalAmount, 100);
+assert.equal(firstInstallment.paidAmount, 100);
+assert.equal(firstInstallment.historyTotal, 100,
+  'O excedente transferido não pode ser duplicado nos detalhes da parcela de origem.');
+assert.equal(firstInstallment.history[0].label, 'Pagamento com distribuição de excedente');
+assert.equal(firstInstallment.customerPhone, '(85) 99999-0000');
+assert.equal(firstInstallment.products[0].unitValue, 150);
+assert.equal(firstInstallment.products[0].total, 300);
+
+const partiallyPaid = buildFinancialAccountDetails({
+  source: 'sale',
+  sale,
+  installmentIndex: 2,
+  description: 'Maria Souza · Parcela 3/3',
+  dueDate: '2026-10-20',
+  value: 50,
+  paid: false,
+  partial: true,
+  status: { label: 'Parcial', cls: 'is-partial' }
+}, { today });
+assert.equal(partiallyPaid.originalAmount, 100);
+assert.equal(partiallyPaid.paidAmount, 50);
+assert.equal(partiallyPaid.remainingAmount, 50);
+assert.equal(partiallyPaid.historyTotal, 50);
+assert.equal(partiallyPaid.history[0].label, 'Valor distribuído de outra parcela');
+
+const plan = [
+  { number: 1, amount: 40, dueDate: '2026-08-20', paid: true, paidAt: '2026-08-18' },
+  { number: 2, amount: 40, dueDate: '2026-09-20', paid: false },
+  { number: 3, amount: 40, dueDate: '2026-10-20', paid: false }
+];
+const products = [
+  {
+    id: 'cream',
+    name: 'Creme hidratante',
+    movements: [{
+      id: 'movement-cream',
+      type: 'compra',
+      batchId: 'purchase-1',
+      batchIndex: 0,
+      quantity: 4,
+      unitCost: 20,
+      date: '2026-08-12T10:00:00.000Z',
+      paymentMethod: 'credit',
+      supplierName: 'Fornecedor Oficial',
+      notes: 'Pedido de agosto.',
+      financialInstallments: plan,
+      financialCancellations: [{
+        id: 'return-1',
+        quantity: 1,
+        amount: 20,
+        accountReductionAmount: 20,
+        cashRefundAmount: 0,
+        hadCashOut: false,
+        date: '2026-08-23'
+      }]
+    }]
+  },
+  {
+    id: 'soap',
+    name: 'Sabonete',
+    movements: [{
+      id: 'movement-soap',
+      type: 'compra',
+      batchId: 'purchase-1',
+      batchIndex: 1,
+      quantity: 2,
+      unitCost: 20,
+      date: '2026-08-12T10:00:00.000Z',
+      paymentMethod: 'credit',
+      financialInstallments: plan
+    }]
+  }
+];
+const purchaseGroup = getPurchaseGroups(products)[0];
+const purchase = buildFinancialAccountDetails({
+  source: 'stock',
+  direction: 'payable',
+  productId: 'cream',
+  movementId: 'movement-cream',
+  batchId: 'purchase-1',
+  installmentIndex: 2,
+  installmentNumber: 3,
+  installmentsCount: 3,
+  description: 'Compra em lote · Parcela 3/3',
+  party: 'Crédito',
+  dueDate: '2026-10-20',
+  value: 20,
+  paid: false,
+  partial: true,
+  status: { label: 'Parcial', cls: 'is-partial' }
+}, { products, today });
+
+assert.equal(purchase.sourceLabel, 'Compra de mercadoria em lote');
+assert.equal(purchase.party, 'Fornecedor Oficial');
+assert.equal(purchase.paymentMethod, 'Crédito');
+assert.equal(purchase.originDate, '2026-08-12');
+assert.equal(purchase.purchaseOriginalTotal, 120);
+assert.equal(purchase.originTotal, 100);
+assert.equal(purchase.purchasePaidTotal, 40);
+assert.equal(purchase.purchaseOpenTotal, 60);
+assert.equal(purchase.purchaseCanceledTotal, 20);
+assert.equal(purchase.originalAmount, 20);
+assert.equal(purchase.products.length, 2);
+assert.equal(purchase.products[0].canceledQuantity, 1);
+assert.equal(purchase.history[0].type, 'cancellation');
+assert.equal(purchase.historyTotal, 0);
+
+const paidPurchase = buildFinancialAccountDetails({
+  source: 'stock',
+  direction: 'payable',
+  purchaseGroup,
+  installmentIndex: 0,
+  description: 'Compra em lote · Parcela 1/3',
+  value: 40,
+  paid: true,
+  paidAt: '2026-08-18'
+}, { today });
+assert.equal(paidPurchase.remainingAmount, 0);
+assert.equal(paidPurchase.paidAmount, 40);
+assert.equal(paidPurchase.historyTotal, 40);
+
+const source = fs.readFileSync(new URL('../aba-financeiro-v68.js', import.meta.url), 'utf8');
+for (const marker of [
+  'const AccountDetailsModal =',
+  "'Detalhes'",
+  'onOpenDetails: setDetailsAccount',
+  'buildFinancialAccountDetails(item, { products, today: getBrazilDateString() })',
+  'Informações da conta',
+  'Histórico da conta',
+  'Saldo em aberto',
+  'Produtos da venda',
+  'Produtos da compra'
+]) assert.ok(source.includes(marker), `Detalhe financeiro ausente na interface: ${marker}`);
+
+console.log('Financeiro validado: detalhes de contas manuais, crediário, parcelas, pagamentos, compras em lote e cancelamentos.');

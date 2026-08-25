@@ -266,7 +266,7 @@ for (const marker of [
 for (const marker of ['Resumo executivo', 'Meta de faturamento', 'Ações rápidas', 'Cobrar clientes', 'Repor estoque']) {
   assert.ok(read('aba-visao-geral-fixed.js').includes(marker), `Recurso ausente no painel inicial: ${marker}`);
 }
-assert.ok(read('modals.js').includes('Categoria (Opcional)'));
+assert.ok(read('modals-core-runtime-v75.js').includes('Categoria (Opcional)'));
 assert.ok(read('nova-venda-runtime-v75.js').includes('promotionUnitDiscount'));
 assert.ok(read('aba-financeiro-v68.js').includes('onAnalysisStartDateChange'));
 assert.ok(read('aba-vendas-v71.js').includes('onAnalysisEndDateChange'));

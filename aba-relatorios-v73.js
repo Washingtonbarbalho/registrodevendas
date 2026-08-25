@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'https://esm.sh/react@18.2.0';
 import { createPortal } from 'https://esm.sh/react-dom@18.2.0';
-import { db, APP_ID } from './firebase-config.js?v=79';
+import { db, APP_ID } from './firebase-config.js?v=80';
 import { doc, onSnapshot } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js';
 import { formatCurrency, getBrazilDateString, getCurrentMonthEnd, getCurrentMonthStart } from './utils.js';
-import { DateRangeFilter } from './components.js?v=79';
+import { DateRangeFilter } from './components.js?v=80';
 import {
   buildReport,
   PAYMENT_FILTERS,
@@ -11,12 +11,12 @@ import {
   REPORT_GROUPS,
   reportPeriodLabel,
   SALE_CHANNELS
-} from './reports-engine-v73.js?v=79';
-import { createReportCsvFile, createReportExcelFile, downloadFile, shareFile } from './report-export-v74.js?v=79';
-import { buildRepurchaseSuggestions, buildWhatsappUrl } from './commercial-engine-v74.js?v=79';
-import { buildExecutiveInsights } from './executive-insights-v79.js?v=79';
-import { getReportCategories, getReportFilterCapabilities } from './report-filters-v79.js?v=79';
-import { resolveAnalysisPeriod } from './analysis-period-v79.js?v=79';
+} from './reports-engine-v73.js?v=80';
+import { createReportCsvFile, createReportExcelFile, downloadFile, shareFile } from './report-export-v74.js?v=80';
+import { buildRepurchaseSuggestions, buildWhatsappUrl } from './commercial-engine-v74.js?v=80';
+import { buildExecutiveInsights } from './executive-insights-v79.js?v=80';
+import { getReportCategories, getReportFilterCapabilities } from './report-filters-v79.js?v=80';
+import { resolveAnalysisPeriod } from './analysis-period-v79.js?v=80';
 
 const h = React.createElement;
 const EMPTY_FINANCIAL = { entries: [], accounts: [] };

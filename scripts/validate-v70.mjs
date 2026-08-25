@@ -2,17 +2,6 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { applySetupPatches } from '../app-patch-setup-v59.js';
-import { applyReportsPatch } from '../app-patch-reports-v65.js';
-import { applyStockPatch } from '../app-patch-stock-v68.js';
-import { applyCancelPatch } from '../app-patch-cancel-v59.js';
-import { applyProfitPatch } from '../app-patch-profit-v58.js';
-import { applySalePdfPatch } from '../app-patch-sale-pdf-v65.js';
-import { applyMobileMenuPatch } from '../app-patch-mobile-menu-v66.js';
-import { applyBatchStockPatch } from '../app-patch-batch-stock-v68.js';
-import { applySecurityReliabilityPatch } from '../app-patch-security-v69.js';
-import { applyAccountingPatch } from '../app-patch-accounting-v70.js';
-import { applyFinalPatches } from '../app-patch-final-v70.js';
 import {
   allocateMoney,
   applyInstallmentPayment,
@@ -32,19 +21,10 @@ import {
 import { buildPaymentInstallments } from '../purchase-payment-v68.js';
 import { buildReport } from '../reports-engine-v70.js';
 
-globalThis.location = new URL('https://example.test/registrodevendas/');
-
 const checkSyntax = file => {
   const path = file instanceof URL ? fileURLToPath(file) : file;
   const result = spawnSync(process.execPath, ['--check', path], { encoding: 'utf8' });
   if (result.status !== 0) throw new Error(`Erro de sintaxe em ${path}:\n${result.stderr || result.stdout}`);
-};
-
-const extractFunction = (source, startMarker, endMarker, functionName) => {
-  const start = source.indexOf(startMarker);
-  const end = source.indexOf(endMarker, start + startMarker.length);
-  if (start < 0 || end < 0) throw new Error(`Não foi possível extrair ${functionName} para teste.`);
-  return Function(`${source.slice(start, end)}\nreturn ${functionName};`)();
 };
 
 const metricValue = (report, label) => {
@@ -54,19 +34,17 @@ const metricValue = (report, label) => {
 };
 
 for (const file of [
-  'bootstrap-v70.js',
+  'bootstrap-v75.js',
   'financial-core-v70.js',
   'reports-engine-v70.js',
-  'app-patch-accounting-v70.js',
-  'app-patch-final-v70.js',
-  'nova-venda-fixed-v70.js',
+  'app-runtime-v75.js',
+  'nova-venda-runtime-v75.js',
   'purchase-payment-v68.js',
   'aba-financeiro-v68.js',
-  'aba-relatorios-v65.js',
+  'aba-relatorios-v73.js',
   'sale-pdf-v65.js',
-  'app-patch-security-v69.js',
   'inventory-reliability-v69.js',
-  'modals-fixed-v69.js'
+  'modals-core-runtime-v75.js'
 ]) checkSyntax(new URL(`../${file}`, import.meta.url));
 
 assert.deepEqual(splitMoney(100, 3), [33.34, 33.33, 33.33], 'As parcelas devem distribuir o centavo restante.');
@@ -379,29 +357,12 @@ const precisionProducts = buildReport({ reportId: 'products', sales: [precisionS
 assert.equal(metricValue(precisionProducts, 'Receita líquida alocada'), 100);
 assert.equal(metricValue(precisionProducts, 'Lucro'), 70);
 
-let source = fs.readFileSync(new URL('../app.js', import.meta.url), 'utf8');
-for (const patch of [
-  applySetupPatches,
-  applyReportsPatch,
-  applyStockPatch,
-  applyCancelPatch,
-  applyProfitPatch,
-  applySalePdfPatch,
-  applyMobileMenuPatch,
-  applyBatchStockPatch,
-  applySecurityReliabilityPatch,
-  applyAccountingPatch,
-  applyFinalPatches
-]) source = patch(source);
-
-const generatedFile = '/tmp/registro-vendas-runtime-v70.mjs';
-fs.writeFileSync(generatedFile, source);
-checkSyntax(generatedFile);
+const source = fs.readFileSync(new URL('../app-runtime-v75.js', import.meta.url), 'utf8');
 
 for (const marker of [
-  'financial-core-v70.js?v=70',
-  'nova-venda-fixed-v70.js?v=70',
-  'modals-fixed-v69.js?v=70',
+  'financial-core-v70.js?v=',
+  'nova-venda-runtime-v75.js?v=',
+  'modals-runtime-v75.js?v=',
   'normalizedSale = normalizeSaleMoney(data)',
   '...normalizedSale,',
   'applyInstallmentPayment(latestSale.installments',
@@ -419,34 +380,21 @@ assert.ok(financeSource.includes('buildFinancialLedger({ sales, products, financ
 assert.ok(financeSource.includes('runTransaction(db, async transaction =>'));
 assert.ok(!financeSource.includes('const makePurchaseGroup ='), 'Financeiro não deve manter uma segunda implementação de compras.');
 
-const reportsSource = fs.readFileSync(new URL('../aba-relatorios-v65.js', import.meta.url), 'utf8');
-assert.ok(reportsSource.includes("from './reports-engine-v70.js'"));
+const reportsSource = fs.readFileSync(new URL('../aba-relatorios-v73.js', import.meta.url), 'utf8');
+assert.ok(reportsSource.includes("from './reports-engine-v73.js?v="));
 
 const salePdfSource = fs.readFileSync(new URL('../sale-pdf-v65.js', import.meta.url), 'utf8');
 assert.ok(salePdfSource.includes('historyItem ? getHistoryCashAmount(historyItem)'));
 
-const modalWrapper = fs.readFileSync(new URL('../modals-fixed-v69.js', import.meta.url), 'utf8');
-assert.ok(modalWrapper.includes("import { getHistoryCashAmount } from './financial-core-v70.js';"));
-assert.ok(modalWrapper.includes("h.type === \\'abatement\\' ? h.amount : getHistoryCashAmount(h)"));
+const modalWrapper = fs.readFileSync(new URL('../modals-core-runtime-v75.js', import.meta.url), 'utf8');
+assert.ok(modalWrapper.includes("import { getHistoryCashAmount } from './financial-core-v70.js?v="));
+assert.ok(modalWrapper.includes("h.type === 'abatement' ? h.amount : getHistoryCashAmount(h)"));
 
-const saleWrapper = fs.readFileSync(new URL('../nova-venda-fixed-v70.js', import.meta.url), 'utf8');
-const patchBaseSale = extractFunction(saleWrapper, 'const patchBaseSale =', 'const patchPaymentWrapper =', 'patchBaseSale');
-const patchPaymentWrapper = extractFunction(saleWrapper, 'const patchPaymentWrapper =', 'globalThis.fetch =', 'patchPaymentWrapper');
-const patchedBaseSale = patchBaseSale(fs.readFileSync(new URL('../nova-venda.js', import.meta.url), 'utf8'));
-const patchedPaymentWrapper = patchPaymentWrapper(fs.readFileSync(new URL('../nova-venda-fixed.js', import.meta.url), 'utf8'));
-assert.ok(patchedBaseSale.includes("import { splitMoney } from './financial-core-v70.js';"));
-assert.ok(patchedBaseSale.includes('const persistSale = async saleData =>'));
-assert.ok(patchedPaymentWrapper.includes('const installmentAmounts = splitMoney(total, count);'));
-assert.ok(patchedPaymentWrapper.includes('originalAmount: installmentAmounts[i],'));
-assert.ok(!patchedPaymentWrapper.includes('const amountPerInstallment = total / count;'));
-assert.ok(patchedPaymentWrapper.includes('await persistSale(approvedSaleData)'));
-
-const legacyCalculationStart = patchedPaymentWrapper.indexOf('const calculationPattern =');
-const legacyCalculationEnd = patchedPaymentWrapper.indexOf('\n\nif (!calculationPattern.test(source))', legacyCalculationStart);
-assert.ok(legacyCalculationStart >= 0 && legacyCalculationEnd > legacyCalculationStart, 'O montador antigo de parcelas precisa ser exercitado no teste.');
-const composedSale = Function('source', `${patchedPaymentWrapper.slice(legacyCalculationStart, legacyCalculationEnd)}
-  if (!calculationPattern.test(source)) throw new Error('Cálculo de parcelas não localizado.');
-  return source.replace(calculationPattern, correctedCalculation);`)(patchedBaseSale);
+const composedSale = fs.readFileSync(new URL('../nova-venda-runtime-v75.js', import.meta.url), 'utf8');
+assert.ok(composedSale.includes("import { splitMoney } from './financial-core-v70.js?v="));
+assert.ok(composedSale.includes('originalAmount: installmentAmounts[i],'));
+assert.ok(!composedSale.includes('const amountPerInstallment = total / count;'));
+assert.ok(composedSale.includes('await persistSale(approvedSaleData)'));
 assert.ok(composedSale.includes('const persistSale = async saleData =>'), 'O formulário montado precisa manter a função que grava a venda.');
 assert.ok(composedSale.indexOf('const persistSale = async saleData =>') < composedSale.indexOf('const calculateInstallments = () => {'));
 assert.ok(composedSale.includes('const installmentAmounts = splitMoney(total, count);'), 'O formulário final deve manter o parcelamento exato.');
@@ -494,15 +442,7 @@ assert.equal(await failedPersistence({ id: 'venda-com-falha' }), false);
 assert.deepEqual(failureAlerts, ['Estoque atualizado por outra venda.']);
 assert.equal(failedRef.current, false, 'Falhas devem permitir uma nova tentativa.');
 
-fs.writeFileSync('/tmp/registro-vendas-new-sale-base-v70.mjs', patchedBaseSale);
-checkSyntax('/tmp/registro-vendas-new-sale-base-v70.mjs');
-fs.writeFileSync('/tmp/registro-vendas-new-sale-composed-v70.mjs', composedSale);
-checkSyntax('/tmp/registro-vendas-new-sale-composed-v70.mjs');
-
 const index = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-assert.ok(
-  index.includes('bootstrap-v70.js?v=70') || index.includes('bootstrap-v71.js?v=71') || index.includes('bootstrap-v71.js?v=72') || index.includes('bootstrap-v71.js?v=73') || index.includes('bootstrap-v71.js?v=74') || index.includes('bootstrap-v75.js?v=75') || index.includes('bootstrap-v75.js?v=76') || index.includes('bootstrap-v75.js?v=77') || index.includes('bootstrap-v75.js?v=78') || index.includes('bootstrap-v75.js?v=79'),
-  'A versão v70 ou uma sucessora compatível precisa estar ativa.'
-);
+assert.match(index, /bootstrap-v75\.js\?v=\d+/, 'A versão consolidada precisa estar ativa.');
 
 console.log('Aplicação v70 validada: relatórios conciliados, compras parceladas, cancelamentos por competência, excedentes e centavos exatos.');

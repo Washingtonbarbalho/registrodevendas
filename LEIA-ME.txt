@@ -1,17 +1,18 @@
-REGISTRO DE VENDAS — VERSÃO 79
+REGISTRO DE VENDAS — VERSÃO 80
 
 ARQUITETURA ATIVA
-- app-runtime-v75.js reúne, em tempo de compilação, as correções das etapas anteriores.
-- styles-runtime-v75.css reúne as folhas de estilo ativas na ordem original.
+- app-runtime-v75.js é o código principal oficial, já consolidado e editado diretamente.
+- Modais, Nova Venda e Clientes também usam diretamente suas versões consolidadas.
+- styles-runtime-v75.css é a única folha de estilo local necessária ao sistema.
 - bootstrap-v75.js abre o runtime consolidado e restaura a última aba utilizada.
-- Os antigos carregadores dinâmicos não são executados no navegador.
+- Correções intermediárias, versões anteriores, carregadores dinâmicos e folhas de estilo duplicadas foram removidos.
 
 DESENVOLVIMENTO E TESTES
 1. Execute: npm run build
 2. Execute: npm test
 3. Para fazer as duas verificações: npm run check
 
-O gerador consolida Modais, Nova Venda e Clientes e remove os antigos carregadores por fetch/blob do caminho de produção. Os arquivos gerados são versionados para que o GitHub Pages publique exatamente o código testado.
+O comando build verifica a existência e a sintaxe de cada módulo realmente carregado. Não existe geração de código, aplicação de correções antigas ou dependência de arquivos históricos. A suíte de testes valida diretamente a mesma aplicação publicada no GitHub Pages.
 
 VENDAS UNIFICADAS
 - A área Vendas reúne os filtros Todas, À vista, A prazo, Em aberto, Concluídas e Canceladas.
@@ -26,6 +27,13 @@ POSIÇÃO HISTÓRICA DO CREDIÁRIO
 - A leitura selecionada define vencimentos, inadimplência, clientes em atraso e detalhamento dos contratos.
 - Pagamentos parciais, quitações e cancelamentos posteriores não alteram a posição existente no encerramento consultado.
 - Recebimentos, estornos e vendas realizadas permanecem vinculados ao período escolhido.
+
+DETALHES DO FINANCEIRO
+- Cada conta a receber e cada conta a pagar possui um botão Detalhes.
+- O modal mostra origem, cliente ou fornecedor, vencimento, situação, parcela, valor original, valor pago e saldo em aberto.
+- Contas de crediário exibem WhatsApp, produtos da venda e histórico dos pagamentos, inclusive excedentes distribuídos.
+- Compras parceladas exibem produtos, totais da compra, parcelas pagas, saldo, fornecedor e cancelamentos.
+- Contas manuais mantêm categoria, observações e acesso rápido à edição.
 
 PAINEL EXECUTIVO E PERÍODO COMPARTILHADO
 - A visão inicial apresenta faturamento, resultado líquido, quantidade de vendas, ticket médio e comparação com o período anterior.
@@ -51,7 +59,7 @@ FUNCIONAMENTO SOMENTE ONLINE
 - O Firestore usa a configuração padrão em memória; não existe persistência permanente de vendas, produtos, clientes ou dados financeiros no navegador.
 - A página remove registros antigos de service worker, caches “registro-vendas-*” e cópias locais da versão anterior.
 - O Firebase limpa a antiga persistência IndexedDB antes de iniciar o sistema; se outra aba impedir a limpeza, ele tenta novamente na próxima abertura.
-- service-worker-v75.js e sw.js permanecem apenas como arquivos de retirada: se algum navegador antigo tentar atualizá-los, eles limpam o cache anterior e se desregistram.
+- Nenhum arquivo de service worker permanece no repositório; a própria página desregistra versões antigas.
 
 BACKUPS
 - A aba “Backup e dados” e as cópias locais foram removidas da navegação e do runtime.
@@ -62,4 +70,4 @@ FIREBASE
 Esta versão não exige alteração no Console do Firebase, novas regras ou novos índices. A aplicação continua usando o mesmo projeto, autenticação e estrutura do Firestore.
 
 PUBLICAÇÃO
-O GitHub Pages continua publicando a raiz do repositório. O workflow “Validar versão técnica” executa a suíte completa e confirma que os artefatos consolidados estão atualizados.
+O GitHub Pages continua publicando diretamente a raiz do repositório. A validação completa é executada com npm run check antes de cada publicação, sem depender de um workflow adicional.

@@ -8,14 +8,14 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Vendas App">
-  <link rel="manifest" href="./manifest.json?v=79">
-  <link rel="icon" type="image/svg+xml" href="./app-icon.svg?v=79">
-  <link rel="apple-touch-icon" href="./app-icon.svg?v=79">
+  <link rel="manifest" href="./manifest.json?v=80">
+  <link rel="icon" type="image/svg+xml" href="./app-icon.svg?v=80">
+  <link rel="apple-touch-icon" href="./app-icon.svg?v=80">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="./styles-runtime-v75.css?v=79">
+  <link rel="stylesheet" href="./styles-runtime-v75.css?v=80">
 </head>
 <body>
   <div id="root"></div>
@@ -60,7 +60,7 @@
 
     removeLegacyOfflineSupport().then(async ready => {
       if (!ready) return;
-      const { startApp } = await import('./bootstrap-v75.js?v=79');
+      const { startApp } = await import('./bootstrap-v75.js?v=80');
       await startApp();
     }).catch(showStartupError);
   </script>
