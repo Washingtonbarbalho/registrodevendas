@@ -126,6 +126,70 @@ const dialogQueue = [];
 let lastSelect = null;
 let lastSelectOpenedAt = 0;
 let selectObserver = null;
+const TAP_MOVE_TOLERANCE_PX = 8;
+const SCROLL_CLICK_BLOCK_MS = 400;
+let activeTouchGesture = null;
+let blockedTouchClick = null;
+
+export const exceededTapTolerance = (start, current, tolerance = TAP_MOVE_TOLERANCE_PX) => {
+  const deltaX = Math.abs(Number(current?.x || 0) - Number(start?.x || 0));
+  const deltaY = Math.abs(Number(current?.y || 0) - Number(start?.y || 0));
+  return Math.max(deltaX, deltaY) >= Math.max(0, Number(tolerance || 0));
+};
+
+const eventPoint = event => ({
+  x: Number(event?.clientX || 0),
+  y: Number(event?.clientY || 0)
+});
+
+const elementsOverlap = (first, second) => {
+  if (!first || !second) return false;
+  return first === second || !!first.contains?.(second) || !!second.contains?.(first);
+};
+
+const beginTouchGesture = event => {
+  if (!['touch', 'pen'].includes(event.pointerType) || event.isPrimary === false) return;
+  activeTouchGesture = {
+    pointerId: event.pointerId,
+    start: eventPoint(event),
+    target: event.target,
+    scrollX: Number(window.scrollX || 0),
+    scrollY: Number(window.scrollY || 0),
+    moved: false
+  };
+};
+
+const moveTouchGesture = event => {
+  if (!activeTouchGesture || activeTouchGesture.pointerId !== event.pointerId) return;
+  activeTouchGesture.moved ||= exceededTapTolerance(activeTouchGesture.start, eventPoint(event));
+};
+
+const finishTouchGesture = (event, canceled = false) => {
+  if (!activeTouchGesture || activeTouchGesture.pointerId !== event.pointerId) return;
+  const moved = canceled
+    || activeTouchGesture.moved
+    || exceededTapTolerance(activeTouchGesture.start, eventPoint(event))
+    || Math.abs(Number(window.scrollX || 0) - activeTouchGesture.scrollX) >= 2
+    || Math.abs(Number(window.scrollY || 0) - activeTouchGesture.scrollY) >= 2;
+  if (moved) {
+    blockedTouchClick = {
+      until: Date.now() + SCROLL_CLICK_BLOCK_MS,
+      targets: [activeTouchGesture.target, event.target].filter(Boolean)
+    };
+  }
+  activeTouchGesture = null;
+};
+
+const consumeBlockedTouchClick = event => {
+  if (!blockedTouchClick || Date.now() > blockedTouchClick.until) {
+    blockedTouchClick = null;
+    return false;
+  }
+  const related = blockedTouchClick.targets.some(target => elementsOverlap(target, event.target));
+  if (!related) return false;
+  blockedTouchClick = null;
+  return true;
+};
 
 const makeElement = (tag, className = '', text = '') => {
   const element = document.createElement(tag);
@@ -539,7 +603,7 @@ const selectFromEvent = event => {
   return target instanceof Element ? target.closest('select') : null;
 };
 
-const interceptSelectPointer = event => {
+const interceptSelectActivation = event => {
   const select = selectFromEvent(event);
   if (!select || select.disabled || select.multiple || select.dataset.nativeSelect === 'true') return;
   event.preventDefault();
@@ -549,6 +613,21 @@ const interceptSelectPointer = event => {
   lastSelect = select;
   lastSelectOpenedAt = now;
   void showAppSelect(select);
+};
+
+const interceptSelectMousePointer = event => {
+  if (event.pointerType && event.pointerType !== 'mouse') return;
+  interceptSelectActivation(event);
+};
+
+const interceptApplicationClick = event => {
+  if (consumeBlockedTouchClick(event)) {
+    event.preventDefault();
+    event.stopImmediatePropagation?.();
+    event.stopPropagation();
+    return;
+  }
+  interceptSelectActivation(event);
 };
 
 const interceptSelectKeyboard = event => {
@@ -582,10 +661,12 @@ export const installUiInteractions = () => {
   selectObserver.observe(document.body, { childList: true, subtree: true });
 
   window.alert = message => { void showAppAlert(message); };
-  document.addEventListener('pointerdown', interceptSelectPointer, true);
-  document.addEventListener('mousedown', interceptSelectPointer, true);
-  document.addEventListener('touchstart', interceptSelectPointer, { capture: true, passive: false });
-  document.addEventListener('click', interceptSelectPointer, true);
+  document.addEventListener('pointerdown', beginTouchGesture, true);
+  document.addEventListener('pointermove', moveTouchGesture, true);
+  document.addEventListener('pointerup', event => finishTouchGesture(event), true);
+  document.addEventListener('pointercancel', event => finishTouchGesture(event, true), true);
+  document.addEventListener('pointerdown', interceptSelectMousePointer, true);
+  document.addEventListener('click', interceptApplicationClick, true);
   document.addEventListener('keydown', interceptSelectKeyboard, true);
 
   window.RegistroVendasUI = Object.freeze({

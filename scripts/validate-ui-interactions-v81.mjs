@@ -6,6 +6,7 @@ import {
   advanceCalendarRange,
   buildCalendarMonth,
   filterModalOptions,
+  exceededTapTolerance,
   inferAlertTone,
   isCalendarDate,
   moveCalendarDate,
@@ -30,6 +31,13 @@ const options = [
 assert.deepEqual(filterModalOptions(options, 'credito').map(item => item.value), ['credit']);
 assert.deepEqual(filterModalOptions(options, 'pagamento').map(item => item.value), ['pix', 'credit']);
 assert.equal(filterModalOptions(options, '').length, 3);
+
+assert.equal(exceededTapTolerance({ x: 100, y: 200 }, { x: 104, y: 205 }), false,
+  'Pequenos movimentos naturais do dedo ainda precisam contar como toque.');
+assert.equal(exceededTapTolerance({ x: 100, y: 200 }, { x: 100, y: 208 }), true,
+  'Um deslocamento de rolagem precisa cancelar a ativação acidental.');
+assert.equal(exceededTapTolerance({ x: 100, y: 200 }, { x: 91, y: 201 }), true,
+  'A proteção também precisa reconhecer deslocamentos horizontais.');
 
 const option = (value, label, extra = {}) => ({
   tagName: 'OPTION', value, label, textContent: label, disabled: false, selected: false, ...extra
@@ -206,8 +214,13 @@ try {
 const interactionSource = read('ui-interactions-v81.js');
 for (const marker of [
   'window.alert = message =>',
-  "document.addEventListener('pointerdown', interceptSelectPointer, true)",
-  "document.addEventListener('touchstart', interceptSelectPointer",
+  "document.addEventListener('pointerdown', beginTouchGesture, true)",
+  "document.addEventListener('pointermove', moveTouchGesture, true)",
+  "document.addEventListener('pointercancel', event => finishTouchGesture(event, true), true)",
+  "document.addEventListener('pointerdown', interceptSelectMousePointer, true)",
+  "document.addEventListener('click', interceptApplicationClick, true)",
+  'consumeBlockedTouchClick',
+  'SCROLL_CLICK_BLOCK_MS',
   "document.addEventListener('keydown', interceptSelectKeyboard, true)",
   "select.setAttribute('aria-haspopup', 'dialog')",
   'new MutationObserver(records =>',
@@ -225,6 +238,8 @@ for (const marker of [
   "button.setAttribute('role', 'gridcell')",
   "ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7"
 ]) assert.ok(interactionSource.includes(marker), `Camada interativa incompleta: ${marker}`);
+assert.ok(!interactionSource.includes("document.addEventListener('touchstart'"),
+  'Listas personalizadas não podem abrir no início do toque, antes de distinguir uma rolagem.');
 
 const bootstrap = read('bootstrap-v75.js');
 const version = bootstrap.match(/const VERSION = '([^']+)'/)?.[1];

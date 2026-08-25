@@ -1,4 +1,4 @@
-REGISTRO DE VENDAS — VERSÃO 85
+REGISTRO DE VENDAS — VERSÃO 86
 
 ARQUITETURA ATIVA
 - app-runtime-v75.js é o código principal oficial, já consolidado e editado diretamente.
@@ -51,6 +51,7 @@ INTERAÇÕES VISUAIS
 - Visão geral, vendas, financeiro e relatórios usam o mesmo calendário visual para escolher o intervalo.
 - O primeiro toque define a data inicial e o segundo define a final, aplicando o período automaticamente.
 - O calendário permite navegar entre meses, selecionar apenas um dia e corrigir datas escolhidas em ordem inversa.
+- No celular, rolar a tela sobre botões ou listas não abre modais; somente um toque concluído sem deslocamento ativa a ação.
 - A navegação por teclado, foco, tecla Esc e preferência por movimento reduzido são respeitadas.
 
 NAVEGAÇÃO NO CELULAR

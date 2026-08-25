@@ -5,7 +5,7 @@ import {
   RefreshCw, Search, ShoppingBag, Target, TrendingUp, Users, X
 } from 'https://esm.sh/lucide-react@0.292.0';
 import { doc, onSnapshot, serverTimestamp, updateDoc } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js';
-import { db, APP_ID } from './firebase-config.js?v=85';
+import { db, APP_ID } from './firebase-config.js?v=86';
 import { formatCurrency, formatDate, getBrazilDateString } from './utils.js';
 import {
   buildCollectionMessage,
@@ -16,7 +16,7 @@ import {
   calculateMonthlyGoals,
   commercialMonthBounds,
   normalizeCommercialGoals
-} from './commercial-engine-v74.js?v=85';
+} from './commercial-engine-v74.js?v=86';
 
 const h = React.createElement;
 const EMPTY_GOAL = { revenue: 0, salesCount: 0, recurringCustomers: 0 };
