@@ -375,11 +375,13 @@ for (const marker of [
   'A entrada não pode ser maior que o valor total dos produtos.',
   "const [paymentMethod, setPaymentMethod] = useState(initialMode === 'prazo' ? 'crediario' : 'pix');",
   "const mode = paymentMethod === 'crediario' ? 'prazo' : 'direct';",
-  "['pix', 'PIX', QrCode]",
-  "['money', 'Dinheiro', Banknote]",
-  "['debit', 'Débito', CreditCard]",
-  "['credit', 'Crédito', CreditCard]",
-  "['crediario', 'Crediário', Calendar]",
+  'sale-payment-select-field',
+  'id: "sale-payment-method"',
+  "['pix', 'PIX']",
+  "['money', 'Dinheiro']",
+  "['debit', 'Débito']",
+  "['credit', 'Crédito']",
+  "['crediario', 'Crediário']",
   'const selectPaymentMethod = method =>'
 ]) assert.ok(baseSale.includes(marker), `Proteção operacional ausente no formulário: ${marker}`);
 assert.ok(!baseSale.includes('api.qrserver.com'), 'O formulário de vendas não pode enviar dados PIX a um serviço externo.');
@@ -492,8 +494,8 @@ assert.equal(identifyTab('Vendas no caixa'), 'sales');
 assert.ok(persistenceSource.includes('.mobile-menu-nav-button'), 'A navegação pelo menu lateral precisa preservar a aba.');
 
 const index = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-assert.ok(index.includes('bootstrap-v75.js?v=77'), 'O runtime técnico consolidado v77 precisa estar ativo.');
-assert.ok(index.includes('styles-runtime-v75.css?v=77'), 'Os estilos consolidados precisam estar ativos.');
+assert.ok(index.includes('bootstrap-v75.js?v=78'), 'O runtime técnico consolidado v78 precisa estar ativo.');
+assert.ok(index.includes('styles-runtime-v75.css?v=78'), 'Os estilos consolidados precisam estar ativos.');
 
 const inherited = spawnSync(process.execPath, ['scripts/validate-v70.mjs'], {
   cwd: fileURLToPath(new URL('..', import.meta.url)),

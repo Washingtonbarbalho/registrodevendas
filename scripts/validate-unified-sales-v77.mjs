@@ -153,8 +153,14 @@ const createHarness = () => {
     node => node.type === 'button' && nodeText(node).includes(label),
     `Botão ${label}`
   );
+  const findPaymentSelect = () => find(
+    node => node.type === 'select' && node.props.id === 'sale-payment-method',
+    'Lista suspensa de forma de pagamento'
+  );
   const chooseMethod = label => {
-    findButton(label).props.onClick();
+    const option = findPaymentSelect().props.children.find(node => nodeText(node) === label);
+    assert.ok(option, `A forma de pagamento ${label} deve existir na lista suspensa.`);
+    findPaymentSelect().props.onChange({ target: { value: option.props.value } });
     render();
   };
   const addProduct = () => {
@@ -173,7 +179,7 @@ const createHarness = () => {
 
   render();
   return {
-    render, nodes, find, findButton, chooseMethod, addProduct,
+    render, nodes, find, findButton, findPaymentSelect, chooseMethod, addProduct,
     saved, notices, scheduled,
     get closed() { return closed; },
     get tree() { return tree; }
@@ -181,12 +187,12 @@ const createHarness = () => {
 };
 
 const initial = createHarness();
-const methodButtons = initial.nodes().filter(node => (
-  node.type === 'button' && typeof node.props['aria-pressed'] === 'boolean'
-));
-assert.deepEqual(methodButtons.map(nodeText), ['PIX', 'Dinheiro', 'Débito', 'Crédito', 'Crediário'],
+const methodOptions = initial.findPaymentSelect().props.children;
+assert.deepEqual(methodOptions.map(nodeText), ['PIX', 'Dinheiro', 'Débito', 'Crédito', 'Crediário'],
   'A nova venda deve oferecer as cinco formas de pagamento no mesmo formulário.');
-assert.deepEqual(methodButtons.map(node => node.props['aria-pressed']), [true, false, false, false, false]);
+assert.equal(initial.findPaymentSelect().props.value, 'pix');
+assert.ok(!initial.nodes().some(node => node.type === 'button' && typeof node.props['aria-pressed'] === 'boolean'),
+  'A forma de pagamento deve ser apresentada como lista suspensa, sem os botões anteriores.');
 assert.ok(nodeText(initial.tree).includes('Nova venda'));
 assert.ok(!nodeText(initial.tree).includes('Frequência das Parcelas'),
   'Condições de crediário não devem aparecer antes de selecionar essa opção.');
@@ -198,7 +204,7 @@ for (const [label, expectedMethod] of directMethods) {
   const sale = createHarness();
   sale.chooseMethod(label);
   sale.addProduct();
-  assert.equal(sale.findButton(label).props['aria-pressed'], true);
+  assert.equal(sale.findPaymentSelect().props.value, expectedMethod);
   if (expectedMethod === 'credit') {
     assert.ok(nodeText(sale.tree).includes('Parcelas no Cartão'),
       'Crédito deve preservar o parcelamento e os dados da maquininha.');
@@ -216,7 +222,7 @@ for (const [label, expectedMethod] of directMethods) {
 const termSale = createHarness();
 termSale.addProduct();
 termSale.chooseMethod('Crediário');
-assert.equal(termSale.findButton('Crediário').props['aria-pressed'], true);
+assert.equal(termSale.findPaymentSelect().props.value, 'crediario');
 assert.ok(nodeText(termSale.tree).includes('Carrinho (1 itens)'),
   'Mudar a forma de pagamento não pode apagar os produtos já selecionados.');
 assert.ok(nodeText(termSale.tree).includes('Frequência das Parcelas'),

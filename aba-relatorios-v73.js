@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'https://esm.sh/react@18.2.0';
 import { createPortal } from 'https://esm.sh/react-dom@18.2.0';
-import { db, APP_ID } from './firebase-config.js?v=77';
+import { db, APP_ID } from './firebase-config.js?v=78';
 import { doc, onSnapshot } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js';
 import { formatCurrency, getBrazilDateString, getCurrentMonthStart } from './utils.js';
 import {
@@ -11,7 +11,7 @@ import {
   SALE_CHANNELS,
   shiftReportDate,
   STRATEGIC_REPORTS
-} from './reports-engine-v73.js';
+} from './reports-engine-v73.js?v=78';
 import { createReportExcelFile, downloadFile, shareFile } from './report-export-v74.js';
 
 const h = React.createElement;
@@ -226,6 +226,9 @@ const generatePdf = async ({ report, storeName, startDate, endDate, paymentFilte
   if (saleChannel !== 'all') {
     line(`Canal: ${SALE_CHANNELS.find(([id]) => id === saleChannel)?.[1] || saleChannel}`, { bold: true });
   }
+  if (report.creditPosition) {
+    line(`Leitura da carteira: ${report.creditPosition.label}`, { bold: true });
+  }
 
   line('Resumo', { size: 11, bold: true, color: [15, 23, 42], after: 3 });
   report.metrics.forEach(item => {
@@ -287,6 +290,7 @@ const ReportModal = ({ definition, sales, products, customers, financialData, st
   const [endDate, setEndDate] = useState(getBrazilDateString());
   const [paymentFilter, setPaymentFilter] = useState('all');
   const [saleChannel, setSaleChannel] = useState('all');
+  const [creditPositionMode, setCreditPositionMode] = useState('as-of');
   const [compareWithPrevious, setCompareWithPrevious] = useState(true);
   const [exportLoading, setExportLoading] = useState('');
   useBodyLock(true);
@@ -297,6 +301,7 @@ const ReportModal = ({ definition, sales, products, customers, financialData, st
     setEndDate(getBrazilDateString());
     setPaymentFilter('all');
     setSaleChannel('all');
+    setCreditPositionMode('as-of');
     setCompareWithPrevious(true);
   }, [definition?.id]);
 
@@ -318,8 +323,9 @@ const ReportModal = ({ definition, sales, products, customers, financialData, st
     endDate,
     paymentFilter,
     saleChannel,
+    creditPositionMode,
     compareWithPrevious
-  }), [definition.id, sales, products, customers, financialData, startDate, endDate, paymentFilter, saleChannel, compareWithPrevious]);
+  }), [definition.id, sales, products, customers, financialData, startDate, endDate, paymentFilter, saleChannel, creditPositionMode, compareWithPrevious]);
 
   const invalidPeriod = !startDate || !endDate || startDate > endDate;
   const supportsChannel = ['sales', 'sales-channels'].includes(definition.id);
@@ -400,6 +406,12 @@ const ReportModal = ({ definition, sales, products, customers, financialData, st
               definition.id === 'sales' && h('label', null, h('span', null, 'Forma de pagamento'), h('select', {
                 value: paymentFilter, onChange: event => setPaymentFilter(event.target.value)
               }, PAYMENT_FILTERS.map(([id, label]) => h('option', { key: id, value: id }, label)))),
+              definition.id === 'credit' && h('label', { className: 'reports73-credit-position-filter' },
+                h('span', null, 'Leitura da carteira'), h('select', {
+                  value: creditPositionMode, onChange: event => setCreditPositionMode(event.target.value)
+                },
+                h('option', { value: 'as-of' }, 'Situação na data final do período'),
+                h('option', { value: 'current' }, 'Situação atual da carteira'))),
               supportsChannel && h('label', null, h('span', null, 'Canal da venda'), h('select', {
                 value: saleChannel, onChange: event => setSaleChannel(event.target.value)
               }, h('option', { value: 'all' }, 'Todos os canais'), SALE_CHANNELS.map(([id, label]) =>
@@ -417,6 +429,10 @@ const ReportModal = ({ definition, sales, products, customers, financialData, st
               h('h3', null, report.title),
               h('p', null, `${report.subtitle} · ${reportPeriodLabel(startDate, endDate)}`)
             )),
+            report.creditPosition && h('section', { className: 'reports73-credit-position-note' },
+              h('strong', null, report.creditPosition.label),
+              h('span', null, 'Os saldos histórico e atual aparecem lado a lado; atrasos e clientes acompanham a leitura selecionada.')
+            ),
             h('div', { className: 'reports62-metrics-grid' }, report.metrics.map(item => h(MetricCard, { key: item.label, item }))),
             report.comparison && report.id !== 'period-comparison' && h(ComparisonPanel, { comparison: report.comparison }),
             h(BarChart, { chart: report.chart }),

@@ -5,7 +5,7 @@ import {
   paymentLabel,
   REPORT_DEFINITIONS as OPERATIONAL_REPORTS,
   reportPeriodLabel
-} from './reports-engine-v70.js';
+} from './reports-engine-v70.js?v=78';
 import {
   buildFinancialLedger,
   cleanFinancialDate,

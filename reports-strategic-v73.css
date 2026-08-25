@@ -46,6 +46,17 @@
   cursor: pointer;
 }
 .reports73-compare-toggle input { width: 16px; height: 16px; accent-color: #d97706; }
+.reports73-credit-position-filter { grid-column: 1 / -1; }
+.reports73-credit-position-note {
+  display: grid;
+  gap: 5px;
+  padding: 12px 14px;
+  border: 1px solid #bfdbfe;
+  border-radius: 12px;
+  background: #eff6ff;
+}
+.reports73-credit-position-note > strong { color: #1e40af; font-size: 12px; }
+.reports73-credit-position-note > span { color: #475569; font-size: 11px; line-height: 1.45; }
 .reports73-comparison {
   display: grid;
   gap: 13px;

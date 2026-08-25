@@ -1,4 +1,4 @@
-const VERSION = '77';
+const VERSION = '78';
 
 const withStage = async (label, task) => {
   try {

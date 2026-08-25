@@ -1,4 +1,4 @@
-REGISTRO DE VENDAS — VERSÃO 77
+REGISTRO DE VENDAS — VERSÃO 78
 
 ARQUITETURA ATIVA
 - app-runtime-v75.js reúne, em tempo de compilação, as correções das etapas anteriores.
@@ -16,10 +16,16 @@ O gerador consolida Modais, Nova Venda e Clientes e remove os antigos carregador
 VENDAS UNIFICADAS
 - A área Vendas reúne os filtros Todas, À vista, A prazo, Em aberto, Concluídas e Canceladas.
 - O botão Nova venda e o atalho central do celular abrem diretamente o mesmo formulário.
-- PIX, dinheiro, débito, crédito e crediário são escolhidos na própria seção de pagamento.
+- PIX, dinheiro, débito, crédito e crediário são escolhidos em uma lista suspensa na seção de pagamento.
 - Vendas diretas mantêm cliente opcional, taxas da maquininha e parcelamento no cartão.
 - O crediário mantém cliente obrigatório, análise de crédito, regras de entrada e parcelas exatas.
 - npm test simula a gravação das cinco formas de pagamento e preserva as verificações anteriores.
+
+POSIÇÃO HISTÓRICA DO CREDIÁRIO
+- O relatório de crediário mostra separadamente o saldo na data final do período e a carteira atual.
+- A leitura selecionada define vencimentos, inadimplência, clientes em atraso e detalhamento dos contratos.
+- Pagamentos parciais, quitações e cancelamentos posteriores não alteram a posição existente no encerramento consultado.
+- Recebimentos, estornos e vendas realizadas permanecem vinculados ao período escolhido.
 
 FUNCIONAMENTO SOMENTE ONLINE
 - O sistema depende de internet para abrir e consultar os dados do Firebase.

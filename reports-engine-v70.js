@@ -1,4 +1,4 @@
-import { formatCurrency, formatDate } from './utils.js';
+import { formatCurrency, formatDate, getBrazilDateString } from './utils.js';
 import {
   buildReport as buildLegacyReport,
   PAYMENT_FILTERS,
@@ -9,6 +9,7 @@ import {
 import {
   allocateMoney,
   buildFinancialLedger,
+  buildSalePaymentEvents,
   cleanFinancialDate,
   fromCents,
   getDirectSaleNet,
@@ -485,22 +486,153 @@ const purchasesReport = context => {
   );
 };
 
+const creditDaysBetween = (startDate, endDate) => {
+  const start = cleanFinancialDate(startDate);
+  const end = cleanFinancialDate(endDate);
+  if (!start || !end) return 0;
+  return Math.max(0, Math.floor((Date.parse(`${end}T12:00:00Z`) - Date.parse(`${start}T12:00:00Z`)) / 86400000));
+};
+
+const creditOpenAmount = sale => sumMoney(
+  (Array.isArray(sale?.installments) ? sale.installments : []).filter(item => !item?.paid),
+  item => Math.max(0, numeric(item?.amount))
+);
+
+const creditOverdueAmount = (sale, referenceDate) => sumMoney(
+  (Array.isArray(sale?.installments) ? sale.installments : []).filter(item => (
+    !item?.paid && !!cleanFinancialDate(item?.dueDate) && cleanFinancialDate(item.dueDate) < referenceDate
+  )),
+  item => Math.max(0, numeric(item?.amount))
+);
+
+const buildCreditSnapshot = (sales, cutoffDate, referenceDate) => {
+  const visibleSales = (sales || []).filter(sale => (
+    isTermSale(sale)
+    && sale?.status !== 'canceled'
+    && !!cleanFinancialDate(sale?.saleDate)
+    && cleanFinancialDate(sale.saleDate) <= cutoffDate
+  ));
+  const openSales = visibleSales.filter(sale => toCents(creditOpenAmount(sale)) > 0);
+  const overdueInstallments = openSales.flatMap(sale => (
+    (sale.installments || []).filter(item => (
+      !item?.paid && !!cleanFinancialDate(item?.dueDate) && cleanFinancialDate(item.dueDate) < referenceDate
+    )).map(item => ({
+      days: creditDaysBetween(item.dueDate, referenceDate),
+      amount: money(item.amount)
+    }))
+  ));
+  const open = sumMoney(openSales, creditOpenAmount);
+  const overdue = sumMoney(openSales, sale => creditOverdueAmount(sale, referenceDate));
+  const delinquent = new Set(openSales.filter(sale => toCents(creditOverdueAmount(sale, referenceDate)) > 0)
+    .map(sale => sale.customerId || sale.customerName || sale.id));
+
+  return {
+    date: referenceDate,
+    sales: visibleSales,
+    open,
+    overdue,
+    delinquent: delinquent.size,
+    delinquencyRate: toCents(open) > 0 ? overdue / open * 100 : 0,
+    averageLateDays: overdueInstallments.length
+      ? overdueInstallments.reduce((total, item) => total + item.days, 0) / overdueInstallments.length : 0,
+    longestLateDays: overdueInstallments.length ? Math.max(...overdueInstallments.map(item => item.days)) : 0
+  };
+};
+
+const creditRows = (snapshot, startDate, endDate) => snapshot.sales
+  .filter(sale => inFinancialPeriod(sale.saleDate, startDate, endDate)
+    || toCents(creditOpenAmount(sale)) > 0
+    || buildSalePaymentEvents(sale).some(event => event.kind !== 'entry' && inFinancialPeriod(event.date, startDate, endDate)))
+  .map(sale => {
+    const payments = buildSalePaymentEvents(sale).filter(event => event.kind !== 'entry');
+    const periodPayments = payments.filter(event => inFinancialPeriod(event.date, startDate, endDate));
+    const latePayments = periodPayments.filter(event => (
+      !!cleanFinancialDate(event.installment?.dueDate)
+      && cleanFinancialDate(event.date) > cleanFinancialDate(event.installment.dueDate)
+    ));
+    const open = creditOpenAmount(sale);
+    const overdue = creditOverdueAmount(sale, snapshot.date);
+    const refunded = sumMoney(sale.cancellations || [], event => event.customerRefundAmount ?? event.refundAmount ?? 0);
+    const received = fromCents(toCents(sale.entryAmount) + toCents(sumMoney(payments, event => event.amount)) - toCents(refunded));
+    const longestPaidDelay = latePayments.length
+      ? Math.max(...latePayments.map(event => creditDaysBetween(event.installment.dueDate, event.date))) : 0;
+
+    return {
+      overdue,
+      columns: [
+        formatDate(cleanFinancialDate(sale.saleDate)),
+        sale.customerName || 'Cliente',
+        formatCurrency(sale.totalPrice),
+        formatCurrency(received),
+        formatCurrency(open),
+        formatCurrency(overdue),
+        latePayments.length ? formatCurrency(sumMoney(latePayments, event => event.amount)) : '—',
+        latePayments.length ? `${longestPaidDelay} dias` : '—',
+        overdue > 0 ? 'Continua devendo' : latePayments.length ? 'Atrasou e pagou' : open > 0 ? 'Em dia' : 'Quitado'
+      ]
+    };
+  })
+  .sort((left, right) => right.overdue - left.overdue)
+  .map(row => row.columns);
+
 const creditReport = context => {
-  const projectedContext = { ...context, sales: projectSalesAsOf(context.sales || [], context.endDate) };
-  const current = buildLegacyReport(projectedContext);
-  const termSales = (context.sales || []).filter(isTermSale);
+  const endDate = cleanFinancialDate(context.endDate);
+  const today = cleanFinancialDate(context.creditToday || getBrazilDateString());
+  const historicalDate = endDate < today ? endDate : today;
+  const sales = context.sales || [];
+  const historicalSales = projectSalesAsOf(sales, historicalDate);
+  const historical = buildCreditSnapshot(historicalSales, endDate, historicalDate);
+  const current = buildCreditSnapshot(sales, endDate, today);
+  const mode = context.creditPositionMode === 'current' ? 'current' : 'as-of';
+  const selected = mode === 'current' ? current : historical;
+  const periodReport = buildLegacyReport({ ...context, sales: historicalSales });
+  const termSales = sales.filter(isTermSale);
   const cash = summarizeFinancialLedger(buildFinancialLedger({ sales: termSales }), context.startDate, context.endDate);
   const received = sumMoney(cash.rows.filter(item => item.source === 'sale'), item => item.amount);
   const refunds = sumMoney(cash.rows.filter(item => item.source === 'sale-refund'), item => item.amount);
-  const metrics = current.metrics.map(item => item.label === 'Recebido no período'
-    ? metric(item.label, received, 'currency', 'positive')
-    : item);
+  const metrics = periodReport.metrics.flatMap(item => {
+    switch (item.label) {
+      case 'Recebido no período': return [metric(item.label, received, 'currency', 'positive')];
+      case 'Saldo atual a receber': return [
+        metric('Saldo na data final do período', historical.open),
+        metric('Saldo atual da carteira', current.open)
+      ];
+      case 'Valor vencido': return [metric(item.label, selected.overdue, 'currency', selected.overdue > 0 ? 'negative' : '')];
+      case 'Clientes inadimplentes': return [metric(item.label, selected.delinquent, 'number')];
+      case 'Inadimplência da carteira': return [metric(item.label, selected.delinquencyRate, 'percent')];
+      case 'Média de dias em atraso atual': return [metric('Média de dias em atraso', selected.averageLateDays, 'number')];
+      case 'Maior atraso atual (dias)': return [metric('Maior atraso (dias)', selected.longestLateDays, 'number')];
+      default: return [item];
+    }
+  });
   const receivedIndex = metrics.findIndex(item => item.label === 'Recebido no período');
   if (receivedIndex >= 0) metrics.splice(receivedIndex + 1, 0,
     metric('Estornos no período', refunds, 'currency', refunds > 0 ? 'negative' : ''),
     metric('Recebimento líquido no período', fromCents(toCents(received) - toCents(refunds)), 'currency')
   );
-  return { ...current, metrics };
+  const positionLabel = mode === 'current'
+    ? `Situação atual da carteira em ${formatDate(today)}`
+    : `Situação da carteira na data final do período: ${formatDate(historicalDate)}`;
+
+  return {
+    ...periodReport,
+    subtitle: `${positionLabel}. Recebimentos e contratos continuam vinculados ao período selecionado.`,
+    metrics,
+    rows: creditRows(selected, context.startDate, context.endDate),
+    creditPosition: {
+      mode,
+      label: positionLabel,
+      referenceDate: selected.date,
+      historical: { date: historical.date, open: historical.open },
+      current: { date: current.date, open: current.open }
+    },
+    notes: [
+      `A posição na data final reconstrói parcelas, pagamentos parciais, quitações e cancelamentos somente até ${formatDate(historicalDate)}.`,
+      `A carteira atual mostra a situação de ${formatDate(today)} dos contratos existentes até a data final selecionada.`,
+      'Valor vencido, inadimplência e detalhamento acompanham a leitura de carteira escolhida; recebimentos e estornos respeitam o período consultado.',
+      ...(periodReport.notes || [])
+    ]
+  };
 };
 
 export const buildReport = context => {

@@ -275,8 +275,8 @@ const bootstrap = read('bootstrap-v71.js');
 assert.ok(bootstrap.includes("['Relatórios', './aba-relatorios-v73.js?v=74'"));
 assert.ok(bootstrap.includes("import('./reports-engine-v73.js?v=74')"));
 const index = read('index.html');
-assert.ok(index.includes('bootstrap-v75.js?v=77'));
-assert.ok(index.includes('styles-runtime-v75.css?v=77'));
+assert.ok(index.includes('bootstrap-v75.js?v=78'));
+assert.ok(index.includes('styles-runtime-v75.css?v=78'));
 
 for (const validator of ['scripts/validate-v69.mjs', 'scripts/validate-v71.mjs']) {
   const inherited = spawnSync(process.execPath, [validator], {

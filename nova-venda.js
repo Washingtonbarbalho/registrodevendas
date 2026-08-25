@@ -523,20 +523,24 @@ export const NewSaleScreen = ({ mode: initialMode, onClose, customers, products,
                             React.createElement('h3', { className: "font-bold text-slate-800 flex items-center gap-2" }, React.createElement(CreditCard, { className: "text-slate-400" }), "3. Pagamento"),
                             React.createElement('div', { className: "flex items-center gap-2" }, React.createElement(Calendar, { size: 14, className: "text-slate-400"}), React.createElement('input', { type: "date", className: "text-xs font-bold text-slate-600 outline-none bg-transparent w-28", value: saleDate, onChange: e => setSaleDate(e.target.value) }))
                         ),
-                        React.createElement('div', { className: "sale-payment-methods", role: "group", 'aria-label': "Forma de pagamento" },
+                        React.createElement('label', { className: "sale-payment-select-field", htmlFor: "sale-payment-method" },
+                            React.createElement('span', null, "Forma de pagamento"),
+                            React.createElement('select', {
+                                id: "sale-payment-method",
+                                value: paymentMethod,
+                                onChange: event => selectPaymentMethod(event.target.value),
+                                className: `sale-payment-select ${mode === 'prazo' ? 'is-term' : ''}`
+                            },
                             [
-                                ['pix', 'PIX', QrCode],
-                                ['money', 'Dinheiro', Banknote],
-                                ['debit', 'Débito', CreditCard],
-                                ['credit', 'Crédito', CreditCard],
-                                ['crediario', 'Crediário', Calendar]
-                            ].map(([method, label, Icon]) => React.createElement('button', {
+                                ['pix', 'PIX'],
+                                ['money', 'Dinheiro'],
+                                ['debit', 'Débito'],
+                                ['credit', 'Crédito'],
+                                ['crediario', 'Crediário']
+                            ].map(([method, label]) => React.createElement('option', {
                                 key: method,
-                                type: "button",
-                                onClick: () => selectPaymentMethod(method),
-                                'aria-pressed': paymentMethod === method,
-                                className: `sale-payment-method ${paymentMethod === method ? 'is-selected' : ''} ${method === 'crediario' ? 'is-term' : ''}`
-                            }, React.createElement(Icon, { size: 20 }), React.createElement('span', null, label)))
+                                value: method
+                            }, label)))
                         )
                     ),
 

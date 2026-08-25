@@ -33,40 +33,37 @@
 }
 .sales-create-button.is-unified:hover { background: #1e293b; }
 
-.sale-payment-methods {
+.sale-payment-select-field {
     display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: 8px;
+    gap: 7px;
     margin-bottom: 16px;
 }
-.sale-payment-method {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 7px;
-    min-width: 0;
-    min-height: 76px;
-    padding: 10px 6px;
+.sale-payment-select-field > span {
+    color: #64748b;
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+.sale-payment-select {
+    width: 100%;
+    min-height: 46px;
+    padding: 10px 12px;
     border: 1px solid #e2e8f0;
     border-radius: 12px;
-    color: #64748b;
-    background: #fff;
+    outline: none;
+    color: #1e293b;
+    background: #f8fafc;
+    font-size: 13px;
+    font-weight: 700;
     transition: border-color .15s ease, color .15s ease, background .15s ease, box-shadow .15s ease;
 }
-.sale-payment-method:hover { border-color: #cbd5e1; background: #f8fafc; }
-.sale-payment-method > span { overflow: hidden; max-width: 100%; text-overflow: ellipsis; white-space: nowrap; font-size: 10px; font-weight: 800; }
-.sale-payment-method.is-selected {
+.sale-payment-select:focus {
     border-color: #10b981;
-    color: #047857;
-    background: #ecfdf5;
-    box-shadow: 0 0 0 1px rgba(16, 185, 129, .13);
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, .13);
 }
-.sale-payment-method.is-term.is-selected {
+.sale-payment-select.is-term:focus {
     border-color: #f59e0b;
-    color: #92400e;
-    background: #fffbeb;
-    box-shadow: 0 0 0 1px rgba(245, 158, 11, .13);
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, .13);
 }
 
 .sales-filter-panel {
@@ -524,7 +521,6 @@
     .sales-unified-heading { align-items: stretch; }
     .sales-create-actions { display: grid; grid-template-columns: 1fr; width: 100%; }
     .sales-create-button { min-width: 0; padding: 10px 8px; font-size: 10px; }
-    .sale-payment-methods { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     .sales-search-line { grid-template-columns: minmax(0, 1fr) 46px; gap: 7px; padding: 10px; }
     .sales-search-box { grid-template-columns: 20px minmax(0, 1fr) 28px; min-height: 42px; padding-left: 10px; }
     .sales-search-box input { font-size: 11px; }
@@ -568,12 +564,11 @@
 }
 
 @media (max-width: 390px) {
-    .sale-payment-methods { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .sales-pending-summary span { overflow: hidden; text-overflow: ellipsis; }
     .auth71-options { align-items: flex-start; }
 }
 
 @media (prefers-reduced-motion: reduce) {
     .sales-create-button,
-    .sale-payment-method { animation: none; transition: none; }
+    .sale-payment-select { animation: none; transition: none; }
 }

@@ -1,43 +1,43 @@
-// Runtime estático v77 — gerado por scripts/build-runtime-v75.mjs.
+// Runtime estático v78 — gerado por scripts/build-runtime-v75.mjs.
 import React, { useState, useEffect, useMemo } from 'https://esm.sh/react@18.2.0';
 import { createRoot } from 'https://esm.sh/react-dom@18.2.0/client';
 import { Users, User, LogOut, Lock, LayoutDashboard, Receipt, WalletCards, Package, Contact, Store, ShieldCheck, BadgePercent, Banknote, Plus } from 'https://esm.sh/lucide-react@0.292.0';
 
 // Firebase
-import { app, db, auth, APP_ID } from './firebase-config.js?v=77';
+import { app, db, auth, APP_ID } from './firebase-config.js?v=78';
 import { collection, onSnapshot, query, doc, getDoc, updateDoc, deleteDoc, addDoc, serverTimestamp, setDoc, runTransaction, writeBatch } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js";
 
 // Utils
-import { getCurrentMonthStart, getCurrentMonthEnd, getBrazilDateString, addDays, formatCurrency, formatDate } from './utils.js?v=77';
-import { aggregateSaleItems, buildSaleInventoryPlan } from './inventory-reliability-v69.js?v=77';
-import { applyInstallmentPayment, buildFinancialLedger, fromCents, getHistoryCashAmount, getInstallmentFaceAmount, getRealizedSalesProfit, getSalesAccrualSummary, isTermSale, normalizeSaleMoney, reverseInstallmentPayment, sumMoney, summarizeFinancialLedger, toCents } from './financial-core-v70.js?v=77';
+import { getCurrentMonthStart, getCurrentMonthEnd, getBrazilDateString, addDays, formatCurrency, formatDate } from './utils.js?v=78';
+import { aggregateSaleItems, buildSaleInventoryPlan } from './inventory-reliability-v69.js?v=78';
+import { applyInstallmentPayment, buildFinancialLedger, fromCents, getHistoryCashAmount, getInstallmentFaceAmount, getRealizedSalesProfit, getSalesAccrualSummary, isTermSale, normalizeSaleMoney, reverseInstallmentPayment, sumMoney, summarizeFinancialLedger, toCents } from './financial-core-v70.js?v=78';
 
 // Modais
 import { 
     UserProfileModal, CustomerFormModal, ProductDetailsModal, EditInstallmentModal, 
     SaleDetailsModal, PixCodeModal, InstallmentListModal, PaymentConfirmationModal, 
     ConfirmModal, WhatsAppChooserModal, ProductModal
-} from './modals-runtime-v75.js?v=77';
-import { StockMovementModal } from './stock-movement-modal-v68.js?v=77';
+} from './modals-runtime-v75.js?v=78';
+import { StockMovementModal } from './stock-movement-modal-v68.js?v=78';
 
 // Telas Secundárias
-import { AdminUsersPanel } from './auth-admin.js?v=77';
-import { AuthScreen } from './auth-screen-v71.js?v=77';
-import { NewSaleScreen } from './nova-venda-runtime-v75.js?v=77';
+import { AdminUsersPanel } from './auth-admin.js?v=78';
+import { AuthScreen } from './auth-screen-v71.js?v=78';
+import { NewSaleScreen } from './nova-venda-runtime-v75.js?v=78';
 
 // Abas do Dashboard
-import { AbaVisaoGeral } from './aba-visao-geral-fixed.js?v=77';
-import { AbaVendas } from './aba-vendas-v71.js?v=77';
-import { AbaProdutos } from './aba-produtos-v67.js?v=77';
-import { AbaClientes } from './aba-clientes-runtime-v75.js?v=77';
-import { AbaTaxas } from './aba-taxas.js?v=77';
-import { AbaFinanceiro } from './aba-financeiro-v68.js?v=77';
-import { BatchStockModal } from './batch-stock-modal-v68.js?v=77';
-import { AbaRelatorios } from './aba-relatorios-v73.js?v=77';
-import { AbaComercial } from './aba-comercial-v74.js?v=77';
-import { normalizePaymentSettings } from './payment-settings.js?v=77';
-import { shareSalePdf } from './sale-pdf-v65.js?v=77';
+import { AbaVisaoGeral } from './aba-visao-geral-fixed.js?v=78';
+import { AbaVendas } from './aba-vendas-v71.js?v=78';
+import { AbaProdutos } from './aba-produtos-v67.js?v=78';
+import { AbaClientes } from './aba-clientes-runtime-v75.js?v=78';
+import { AbaTaxas } from './aba-taxas.js?v=78';
+import { AbaFinanceiro } from './aba-financeiro-v68.js?v=78';
+import { BatchStockModal } from './batch-stock-modal-v68.js?v=78';
+import { AbaRelatorios } from './aba-relatorios-v73.js?v=78';
+import { AbaComercial } from './aba-comercial-v74.js?v=78';
+import { normalizePaymentSettings } from './payment-settings.js?v=78';
+import { shareSalePdf } from './sale-pdf-v65.js?v=78';
 
 const Dashboard = ({ user, userProfile, onLogout }) => {
     const [view, setView] = useState('dashboard');
