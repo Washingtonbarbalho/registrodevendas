@@ -4,13 +4,14 @@ import {
   ArrowDown, ArrowUp, Banknote, CalendarDays, CreditCard, Edit3, Eye,
   Package, Plus, Receipt, Search, Trash2, Wallet, X
 } from 'https://esm.sh/lucide-react@0.292.0';
-import { db, APP_ID } from './firebase-config.js?v=80';
+import { db, APP_ID } from './firebase-config.js?v=81';
 import { doc, onSnapshot, runTransaction, serverTimestamp, setDoc } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js';
 import { MoneyInput } from './components.js';
 import { formatCurrency, formatDate, getBrazilDateString, getCurrentMonthEnd, getCurrentMonthStart, parseMoney } from './utils.js';
 import { normalizePaymentInstallments } from './purchase-payment-v68.js';
 import { buildFinancialLedger, getInstallmentFaceAmount, getPurchaseGroups, money, sumMoney, toCents } from './financial-core-v70.js';
 import { buildFinancialAccountDetails } from './financial-account-details-v80.js';
+import { showAppConfirm } from './ui-interactions-v81.js?v=81';
 
 const h = React.createElement;
 const EMPTY_DATA = { entries: [], accounts: [] };
@@ -502,7 +503,18 @@ export const AbaFinanceiro = ({
   };
 
   const deleteManual = async (kind, id) => {
-    if (!confirm('Excluir este lançamento manual?')) return;
+    const confirmed = await showAppConfirm(
+      kind === 'entry'
+        ? 'O lançamento será removido definitivamente do extrato financeiro.'
+        : 'A conta será removida definitivamente do financeiro.',
+      {
+        title: kind === 'entry' ? 'Excluir lançamento?' : 'Excluir conta?',
+        confirmLabel: 'Sim, excluir',
+        cancelLabel: 'Manter registro',
+        danger: true
+      }
+    );
+    if (!confirmed) return;
     if (kind === 'entry') await saveData({ ...data, entries: data.entries.filter(item => item.id !== id) });
     else await saveData({ ...data, accounts: data.accounts.filter(item => item.id !== id) });
   };

@@ -26,6 +26,7 @@ const criticalFiles = [
   'app-runtime-v75.js',
   'firebase-config.js',
   'financial-account-details-v80.js',
+  'ui-interactions-v81.js',
   'analysis-period-v79.js',
   'executive-insights-v79.js',
   'report-filters-v79.js',
@@ -48,6 +49,7 @@ const criticalFiles = [
   'scripts/validate-credit-position-v78.mjs',
   'scripts/validate-executive-v79.mjs',
   'scripts/validate-financial-details-v80.mjs',
+  'scripts/validate-ui-interactions-v81.mjs',
   'scripts/validate-v75.mjs'
 ];
 criticalFiles.forEach(checkSyntax);
@@ -106,7 +108,7 @@ for (const staticRuntimeFile of [
   const source = read(staticRuntimeFile);
   assert.ok(!source.includes('URL.createObjectURL'), `${staticRuntimeFile} ainda cria módulo blob.`);
   assert.ok(!source.includes('http://localhost'), `${staticRuntimeFile} contém endereço de compilação.`);
-  assert.ok(!/\.js\?v=(?:75|76|77|78|79)['"]/.test(source), `${staticRuntimeFile} ainda referencia módulos desatualizados.`);
+  assert.ok(!/\.js\?v=(?:75|76|77|78|79|80)['"]/.test(source), `${staticRuntimeFile} ainda referencia módulos desatualizados.`);
 }
 
 for (const firebaseConsumer of [
@@ -151,7 +153,9 @@ for (const marker of [
   '.dashboard79-executive',
   '.reports79-executive-overview',
   '.finance80-details-button',
-  '.finance80-account-modal'
+  '.finance80-account-modal',
+  '.app81-dialog-overlay',
+  '.app81-select-panel'
 ]) {
   assert.ok(styles.includes(marker), `Pacote CSS incompleto: ${marker}`);
 }
@@ -230,11 +234,12 @@ for (const [label, validator] of [
   ['vendas unificadas', 'scripts/validate-unified-sales-v77.mjs'],
   ['posição histórica do crediário', 'scripts/validate-credit-position-v78.mjs'],
   ['evolução executiva', 'scripts/validate-executive-v79.mjs'],
-  ['detalhes das contas a pagar e a receber', 'scripts/validate-financial-details-v80.mjs']
+  ['detalhes das contas a pagar e a receber', 'scripts/validate-financial-details-v80.mjs'],
+  ['interações profissionais', 'scripts/validate-ui-interactions-v81.mjs']
 ]) {
   const result = spawnSync(process.execPath, [validator], { cwd: root, encoding: 'utf8' });
   if (result.status !== 0) throw new Error(`Falha em ${label}:\n${result.stderr || result.stdout}`);
   process.stdout.write(result.stdout);
 }
 
-console.log(`Aplicação v${version} validada: repositório enxuto, detalhes financeiros e todos os fluxos anteriores preservados.`);
+console.log(`Aplicação v${version} validada: interações profissionais e todos os fluxos anteriores preservados.`);

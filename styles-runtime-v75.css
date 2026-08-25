@@ -1,4 +1,4 @@
-/* Estilos consolidados v80 — folha de estilo principal do sistema. */
+/* Estilos consolidados v81 — folha de estilo principal do sistema. */
 :root {
     --app-bg: #f6f7fb;
     --surface: #ffffff;
@@ -6310,4 +6310,271 @@ body > div[id="root"] > div[class*="bg-slate-900"][class*="z-[100]"] {
 @media (max-width: 390px) {
   .finance80-detail-grid { grid-template-columns: minmax(0, 1fr); }
   .finance80-account-title { display: grid; }
+}
+
+/* Interações profissionais: avisos, confirmações e listas de seleção. */
+.app81-ui-enhanced select:not([multiple]):not([data-native-select="true"]) {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  padding-right: 38px !important;
+  cursor: pointer !important;
+  background-image:
+    linear-gradient(45deg, transparent 50%, #64748b 50%),
+    linear-gradient(135deg, #64748b 50%, transparent 50%) !important;
+  background-position:
+    calc(100% - 17px) calc(50% - 2px),
+    calc(100% - 12px) calc(50% - 2px) !important;
+  background-size: 5px 5px, 5px 5px !important;
+  background-repeat: no-repeat !important;
+}
+.app81-ui-enhanced select:not([multiple]):not([data-native-select="true"]):focus-visible {
+  outline: 3px solid rgba(245, 158, 11, .2) !important;
+  border-color: #f59e0b !important;
+}
+.app81-ui-host { position: relative; z-index: 10000; }
+.app81-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  background: rgba(15, 23, 42, .68);
+  backdrop-filter: blur(7px);
+  -webkit-backdrop-filter: blur(7px);
+  animation: app81-overlay-in .16s ease-out;
+}
+.app81-dialog-panel {
+  display: flex;
+  flex-direction: column;
+  width: min(440px, 100%);
+  max-height: min(760px, calc(100dvh - 36px));
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, .85);
+  border-radius: 22px;
+  color: #0f172a;
+  background: #fff;
+  box-shadow: 0 28px 85px rgba(15, 23, 42, .34);
+  animation: app81-dialog-in .2s cubic-bezier(.2, .8, .2, 1);
+}
+.app81-dialog-header {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 36px;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 18px 13px;
+}
+.app81-dialog-icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  color: #1d4ed8;
+  background: #eff6ff;
+  font-size: 19px;
+  font-weight: 900;
+}
+.app81-dialog-panel[data-tone="success"] .app81-dialog-icon { color: #047857; background: #ecfdf5; }
+.app81-dialog-panel[data-tone="warning"] .app81-dialog-icon { color: #b45309; background: #fffbeb; }
+.app81-dialog-panel[data-tone="error"] .app81-dialog-icon,
+.app81-dialog-panel[data-tone="danger"] .app81-dialog-icon { color: #b91c1c; background: #fef2f2; }
+.app81-dialog-heading { min-width: 0; }
+.app81-dialog-eyebrow {
+  display: block;
+  margin-bottom: 3px;
+  color: #94a3b8;
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.app81-dialog-heading h2 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 16px;
+  font-weight: 850;
+  line-height: 1.25;
+}
+.app81-dialog-close {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 11px;
+  color: #64748b;
+  background: #f8fafc;
+  font-size: 24px;
+  line-height: 1;
+}
+.app81-dialog-close:hover { color: #0f172a; background: #f1f5f9; }
+.app81-dialog-message {
+  margin: 0;
+  padding: 0 18px 18px;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.58;
+  white-space: pre-line;
+}
+.app81-dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+  padding: 13px 18px 17px;
+  border-top: 1px solid #eef2f7;
+  background: #fff;
+}
+.app81-dialog-button {
+  min-width: 112px;
+  min-height: 42px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 850;
+  transition: transform .15s ease, background .15s ease, box-shadow .15s ease;
+}
+.app81-dialog-button:active { transform: scale(.98); }
+.app81-dialog-button:focus-visible,
+.app81-select-option:focus-visible,
+.app81-dialog-close:focus-visible { outline: 3px solid rgba(245, 158, 11, .28); outline-offset: 2px; }
+.app81-dialog-button.is-secondary { color: #475569; background: #f1f5f9; }
+.app81-dialog-button.is-secondary:hover { background: #e2e8f0; }
+.app81-dialog-button.is-primary {
+  color: #fff;
+  background: #0f172a;
+  box-shadow: 0 7px 18px rgba(15, 23, 42, .16);
+}
+.app81-dialog-button.is-primary:hover { background: #1e293b; }
+.app81-dialog-button.is-danger { background: #dc2626; box-shadow: 0 7px 18px rgba(220, 38, 38, .2); }
+.app81-dialog-button.is-danger:hover { background: #b91c1c; }
+
+.app81-select-panel { width: min(520px, 100%); }
+.app81-select-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+  gap: 10px;
+  padding: 0 18px 14px;
+  overflow: hidden;
+}
+.app81-select-search {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 42px;
+  flex: 0 0 auto;
+  padding: 0 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  color: #94a3b8;
+  background: #f8fafc;
+}
+.app81-select-search input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  color: #334155;
+  background: transparent;
+  font-size: 12px;
+}
+.app81-select-search input::placeholder { color: #94a3b8; }
+.app81-select-list {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 5px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 2px;
+  scrollbar-width: thin;
+}
+.app81-select-group {
+  padding: 10px 9px 4px;
+  color: #94a3b8;
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+}
+.app81-select-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 44px;
+  flex: 0 0 auto;
+  padding: 9px 11px 9px 13px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  color: #475569;
+  background: #fff;
+  text-align: left;
+}
+.app81-select-option:hover { border-color: #e2e8f0; background: #f8fafc; }
+.app81-select-option.is-selected { border-color: #fde68a; color: #0f172a; background: #fffbeb; }
+.app81-select-option:disabled { opacity: .45; cursor: not-allowed; }
+.app81-select-option-label { min-width: 0; font-size: 12px; font-weight: 750; line-height: 1.4; }
+.app81-select-option-check {
+  display: grid;
+  place-items: center;
+  width: 25px;
+  height: 25px;
+  flex: 0 0 25px;
+  border-radius: 8px;
+  color: #fff;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 900;
+}
+.app81-select-option.is-selected .app81-select-option-check { background: #f59e0b; }
+.app81-select-empty { padding: 30px 14px; color: #94a3b8; font-size: 12px; text-align: center; }
+
+@keyframes app81-overlay-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes app81-dialog-in {
+  from { opacity: 0; transform: translateY(10px) scale(.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (max-width: 720px) {
+  .app81-dialog-overlay { align-items: flex-end; padding: 0; }
+  .app81-dialog-panel {
+    width: 100%;
+    max-height: min(86dvh, 760px);
+    border-width: 1px 0 0;
+    border-radius: 23px 23px 0 0;
+    padding-bottom: env(safe-area-inset-bottom);
+    animation-name: app81-sheet-in;
+  }
+  .app81-dialog-panel::before {
+    content: '';
+    align-self: center;
+    width: 38px;
+    height: 4px;
+    margin-top: 8px;
+    border-radius: 999px;
+    background: #cbd5e1;
+  }
+  .app81-dialog-header { padding-top: 12px; }
+  .app81-dialog-footer { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .app81-dialog-footer:has(.app81-dialog-button:only-child) { grid-template-columns: minmax(0, 1fr); }
+  .app81-dialog-button { width: 100%; min-width: 0; min-height: 44px; }
+  .app81-select-panel { min-height: min(68dvh, 590px); }
+  .app81-select-panel .app81-dialog-footer { grid-template-columns: minmax(0, 1fr); }
+}
+
+@keyframes app81-sheet-in {
+  from { opacity: .7; transform: translateY(45px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app81-dialog-overlay,
+  .app81-dialog-panel { animation: none; }
 }

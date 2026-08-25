@@ -1,4 +1,4 @@
-REGISTRO DE VENDAS — VERSÃO 80
+REGISTRO DE VENDAS — VERSÃO 81
 
 ARQUITETURA ATIVA
 - app-runtime-v75.js é o código principal oficial, já consolidado e editado diretamente.
@@ -34,6 +34,13 @@ DETALHES DO FINANCEIRO
 - Contas de crediário exibem WhatsApp, produtos da venda e histórico dos pagamentos, inclusive excedentes distribuídos.
 - Compras parceladas exibem produtos, totais da compra, parcelas pagas, saldo, fornecedor e cancelamentos.
 - Contas manuais mantêm categoria, observações e acesso rápido à edição.
+
+INTERAÇÕES VISUAIS
+- Avisos e mensagens usam modais próprios, com identificação visual de sucesso, atenção, informação ou erro.
+- Confirmações sensíveis não utilizam mais a caixa padrão do navegador.
+- As listas suspensas abrem um seletor visual consistente no celular e no computador.
+- Seletores com muitas alternativas possuem busca, agrupamento e destaque da opção atual.
+- A navegação por teclado, foco, tecla Esc e preferência por movimento reduzido são respeitadas.
 
 PAINEL EXECUTIVO E PERÍODO COMPARTILHADO
 - A visão inicial apresenta faturamento, resultado líquido, quantidade de vendas, ticket médio e comparação com o período anterior.

@@ -1,10 +1,10 @@
 // Gerado por scripts/consolidate-legacy-runtime-v75.mjs — modais-base consolidados.
 import React, { useState, useEffect, useMemo } from 'https://esm.sh/react@18.2.0';
 import { PackageMinus, AlertTriangle, MessageCircle, Copy, QrCode, X, User, Wallet, Clock, Users, CheckCircle, Edit2, Package, Tag, Info, ShieldAlert, History, XCircle, Receipt, BadgePercent, Calendar, PieChart, Trash2, ArrowUpCircle, ArrowDownCircle } from 'https://esm.sh/lucide-react@0.292.0';
-import { formatCurrency, parseMoney, maskMoney, maskPhone, applyPixMask, generatePixPayload, maskCpfCnpj, maskCep, formatDate, getBrazilDateString } from './utils.js?v=80';
-import { MoneyInput } from './components.js?v=80';
+import { formatCurrency, parseMoney, maskMoney, maskPhone, applyPixMask, generatePixPayload, maskCpfCnpj, maskCep, formatDate, getBrazilDateString } from './utils.js?v=81';
+import { MoneyInput } from './components.js?v=81';
 import QRCode from 'https://esm.sh/qrcode@1.5.4';
-import { getHistoryCashAmount } from './financial-core-v70.js?v=80';
+import { getHistoryCashAmount } from './financial-core-v70.js?v=81';
 
 const formatDateTime = (dateStr) => {
     if (!dateStr) return '--/--/---- --:--';
@@ -14,8 +14,8 @@ const formatDateTime = (dateStr) => {
 
 export const ConfirmModal = ({ isOpen, onClose, onConfirm, title, message, isCancel, onReasonChange, reasonValue }) => {
     if (!isOpen) return null;
-    return React.createElement('div', { className: "app-modal-overlay fixed inset-0 flex items-center justify-center p-4 z-[70] backdrop-blur-sm" },
-        React.createElement('div', { className: "app-modal-panel bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl animate-fade-in text-center flex flex-col max-h-[90vh]" },
+    return React.createElement('div', { className: "app-modal-overlay fixed inset-0 flex items-center justify-center p-4 z-[70] backdrop-blur-sm", role: 'presentation' },
+        React.createElement('div', { className: "app-modal-panel bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl animate-fade-in text-center flex flex-col max-h-[90vh]", role: 'alertdialog', 'aria-modal': 'true', 'aria-label': title || 'Confirmação' },
             React.createElement('div', { className: `mx-auto w-12 h-12 rounded-full flex items-center justify-center mb-4 shrink-0 ${isCancel ? 'bg-orange-100' : 'bg-red-100'}` }, 
                 isCancel ? React.createElement(PackageMinus, { className: "text-orange-500" }) : React.createElement(AlertTriangle, { className: "text-red-500" })
             ),

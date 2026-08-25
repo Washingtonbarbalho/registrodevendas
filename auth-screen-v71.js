@@ -8,7 +8,7 @@ import {
   sendPasswordResetEmail,
   signInWithEmailAndPassword
 } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js';
-import { APP_ID, auth, db } from './firebase-config.js?v=80';
+import { APP_ID, auth, db } from './firebase-config.js?v=81';
 import { maskPhone } from './utils.js?v=74';
 
 const EMAIL_STORAGE_KEY = 'registro-vendas:login-email:v1';
@@ -165,7 +165,7 @@ export const AuthScreen = () => {
       notice && React.createElement('div', { className: 'auth71-feedback is-success', role: 'status' }, React.createElement(CheckCircle2, { size: 17 }), React.createElement('span', null, notice)),
 
       mode === 'login'
-        ? React.createElement('form', { className: 'auth71-form', onSubmit: handleLogin },
+        ? React.createElement('form', { className: 'auth71-form', noValidate: true, onSubmit: handleLogin },
           React.createElement('label', { className: 'auth71-field' },
             React.createElement('span', null, 'E-mail'),
             React.createElement('div', { className: 'auth71-input-wrap' },
@@ -209,7 +209,7 @@ export const AuthScreen = () => {
             React.createElement('button', { type: 'button', disabled: loading, onClick: () => switchMode('register') }, 'Criar conta')
           )
         )
-        : React.createElement('form', { className: 'auth71-form', onSubmit: handleRegister },
+        : React.createElement('form', { className: 'auth71-form', noValidate: true, onSubmit: handleRegister },
           React.createElement('button', { type: 'button', onClick: () => switchMode('login'), className: 'auth71-back' }, React.createElement(ArrowLeft, { size: 16 }), 'Voltar para o login'),
           React.createElement('label', { className: 'auth71-field' },
             React.createElement('span', null, 'E-mail'),

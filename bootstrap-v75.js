@@ -1,4 +1,6 @@
-const VERSION = '80';
+import { installUiInteractions } from './ui-interactions-v81.js?v=81';
+
+const VERSION = '81';
 
 const withStage = async (label, task) => {
   try {
@@ -10,6 +12,7 @@ const withStage = async (label, task) => {
 };
 
 export const startApp = async () => {
+  installUiInteractions();
   performance.mark?.('registro-vendas:start');
   await withStage('Falha ao carregar a aplicação consolidada', async () => {
     await import(`./app-runtime-v75.js?v=${VERSION}`);

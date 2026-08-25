@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'https://esm.sh/react@18.2.0';
 import { Store, AlertTriangle, Mail, UserCheck, Lock, UserCog, Shield, X, Search, Edit2, Trash2 } from 'https://esm.sh/lucide-react@0.292.0';
-import { db, auth, APP_ID, ADMIN_EMAIL } from './firebase-config.js?v=80';
+import { db, auth, APP_ID, ADMIN_EMAIL } from './firebase-config.js?v=81';
 import { collection, query, doc, getDoc, onSnapshot, serverTimestamp, writeBatch, deleteField } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js";
 import { maskPhone, applyPixMask } from './utils.js';
 import { Pagination } from './components.js';
+import { showAppConfirm } from './ui-interactions-v81.js?v=81';
 
 export const AuthScreen = () => {
     const [step, setStep] = useState('email'); 
@@ -194,7 +195,11 @@ export const AdminUsersPanel = ({ onClose }) => {
     };
 
     const handleDeleteUser = async (userId) => {
-        if(!confirm("Tem certeza? O acesso será revogado imediatamente e o cadastro sairá da lista. Os dados comerciais serão preservados.")) return;
+        const confirmed = await showAppConfirm(
+            "O acesso será revogado imediatamente e o cadastro sairá da lista. Os dados comerciais serão preservados.",
+            { title: 'Revogar acesso do usuário?', confirmLabel: 'Revogar acesso', cancelLabel: 'Manter usuário', danger: true }
+        );
+        if (!confirmed) return;
         const batch = writeBatch(db);
         batch.set(doc(db, 'artifacts', APP_ID, 'users', userId, 'profile', 'info'), {
             approved: false,
