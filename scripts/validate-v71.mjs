@@ -132,7 +132,7 @@ assert.equal(summary.pendingAmount, 60);
 assert.equal(summary.cashNetAmount, 100, 'Vendas canceladas não podem entrar no resumo de caixa.');
 
 assert.deepEqual(buildSalesView({ sales, ...period, type: 'direct' }).map(sale => sale.id),
-  ['direct-august', 'canceled-august'], 'O filtro À vista deve reunir vendas diretas, inclusive canceladas.');
+  ['direct-august', 'canceled-august'], 'O filtro No caixa deve reunir vendas diretas, inclusive canceladas.');
 assert.deepEqual(buildSalesView({ sales, ...period, type: 'term' }).map(sale => sale.id),
   ['term-open'], 'O filtro A prazo deve manter as pendências antigas visíveis.');
 assert.deepEqual(buildSalesView({ sales, ...period, status: 'completed' }).map(sale => sale.id),
@@ -327,7 +327,7 @@ assert.ok(!authSource.includes("localStorage.setItem('password'"), 'A senha nunc
 const salesUi = fs.readFileSync(new URL('../aba-vendas-v71.js', import.meta.url), 'utf8');
 for (const marker of [
   'Mês atual + pendências', 'Todo o histórico', 'Período personalizado',
-  'Todas', 'À vista', 'A prazo', 'Em aberto', 'Concluídas', 'Canceladas',
+  'Todas', 'No caixa', 'A prazo', 'Em aberto', 'Concluídas', 'Canceladas',
   'Nova venda', "setNewSaleMode('unified')"
 ]) {
   assert.ok(salesUi.includes(marker), `Filtro ou ação de vendas ausente: ${marker}`);
@@ -336,6 +336,14 @@ assert.equal((salesUi.match(/setNewSaleMode\(/g) || []).length, 1,
   'A área de vendas deve apresentar uma única entrada para cadastrar uma venda.');
 assert.ok(!salesUi.includes("React.createElement('select', { value: status"),
   'Os estados da venda devem ser acessados diretamente nas abas, sem filtro duplicado.');
+assert.ok(!salesUi.includes("'À vista'"),
+  'A classificação do fluxo direto não pode ser confundida com a modalidade de pagamento.');
+
+for (const historyFile of ['customer-history-runtime-v75.js', 'modals-runtime-v75.js']) {
+  const historySource = fs.readFileSync(new URL(`../${historyFile}`, import.meta.url), 'utf8');
+  assert.ok(historySource.includes('Venda no caixa'), `${historyFile} precisa usar a classificação Venda no caixa.`);
+  assert.ok(!historySource.includes('Venda à vista'), `${historyFile} ainda usa a classificação antiga.`);
+}
 
 const baseSale = fs.readFileSync(new URL('../nova-venda-runtime-v75.js', import.meta.url), 'utf8');
 for (const marker of [

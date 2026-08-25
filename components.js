@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'https://esm.sh/react@18.2.0';
 import { ChevronLeft, ChevronRight, MoreHorizontal, LayoutGrid, X, SlidersHorizontal, ChevronDown, CalendarDays } from 'https://esm.sh/lucide-react@0.292.0';
 import { maskMoney, formatDate } from './utils.js';
-import { showAppDateRange } from './ui-interactions-v81.js?v=86';
+import { showAppDateRange } from './ui-interactions-v81.js?v=87';
 
 export const MoneyInput = ({ value, onChange, placeholder, className, autoFocus, disabled }) => {
     const [display, setDisplay] = useState(typeof value === 'number' ? maskMoney((value * 100).toFixed(0)) : value);

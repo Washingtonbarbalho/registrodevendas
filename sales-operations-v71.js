@@ -5,7 +5,7 @@ import {
   isTermSale,
   sumMoney,
   toCents
-} from './financial-core-v70.js?v=86';
+} from './financial-core-v70.js?v=87';
 
 export const SALES_VIEW_DEFAULTS = Object.freeze({
   query: '',
@@ -55,7 +55,7 @@ export const getSalePaymentLabel = sale => {
     return `${count}x a prazo`;
   }
   if (sale?.paymentMethod === 'credit') return `Crédito ${Number(sale?.cardInstallments) || 1}x`;
-  return paymentLabels[sale?.paymentMethod] || 'À vista';
+  return paymentLabels[sale?.paymentMethod] || 'Pagamento não informado';
 };
 
 export const getNextOpenDueDate = sale => (Array.isArray(sale?.installments) ? sale.installments : [])

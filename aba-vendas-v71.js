@@ -3,8 +3,8 @@ import {
   ArrowDownUp, Banknote, CheckCircle2, ChevronRight, CreditCard,
   Plus, Receipt, RotateCcw, Search, SlidersHorizontal, WalletCards, X, XCircle
 } from 'https://esm.sh/lucide-react@0.292.0';
-import { DateRangePicker, Pagination } from './components.js?v=86';
-import { formatCurrency, formatDate, getCurrentMonthEnd, getCurrentMonthStart } from './utils.js?v=86';
+import { DateRangePicker, Pagination } from './components.js?v=87';
+import { formatCurrency, formatDate, getCurrentMonthEnd, getCurrentMonthStart } from './utils.js?v=87';
 import {
   buildSalesView,
   getNextOpenDueDate,
@@ -14,9 +14,9 @@ import {
   getSalePendingAmount,
   SALES_VIEW_DEFAULTS,
   summarizeSalesView
-} from './sales-operations-v71.js?v=86';
-import { getDirectSaleNet } from './financial-core-v70.js?v=86';
-import { showAppDateRange } from './ui-interactions-v81.js?v=86';
+} from './sales-operations-v71.js?v=87';
+import { getDirectSaleNet } from './financial-core-v70.js?v=87';
+import { showAppDateRange } from './ui-interactions-v81.js?v=87';
 
 const ITEMS_PER_PAGE = 12;
 
@@ -41,7 +41,7 @@ const statusPresentation = sale => {
 const SalesFilterTabs = ({ value, onChange, summary }) => {
   const options = [
     ['all', 'Todas', summary.count],
-    ['direct', 'À vista', summary.directCount],
+    ['direct', 'No caixa', summary.directCount],
     ['term', 'A prazo', summary.termCount],
     ['open', 'Em aberto', summary.openCount],
     ['completed', 'Concluídas', summary.completedCount],
@@ -87,7 +87,7 @@ const SaleRow = ({ sale, onOpen }) => {
         React.createElement('p', { className: 'sales-row-title' }, customer),
         React.createElement('span', { className: `sales-kind-badge ${type === 'direct' ? 'is-direct' : 'is-term'}` },
           type === 'direct' ? React.createElement(WalletCards, { size: 12 }) : React.createElement(Receipt, { size: 12 }),
-          type === 'direct' ? 'À vista' : 'A prazo'
+          type === 'direct' ? 'No caixa' : 'A prazo'
         )
       ),
       React.createElement('p', { className: 'sales-row-subtitle' }, `${formatSaleMoment(sale)}${channel ? ` · ${channel}` : ''}`),
