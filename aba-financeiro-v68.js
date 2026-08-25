@@ -4,14 +4,14 @@ import {
   ArrowDown, ArrowUp, Banknote, CreditCard, Edit3, Eye,
   Package, Plus, Receipt, Search, Trash2, Wallet, X
 } from 'https://esm.sh/lucide-react@0.292.0';
-import { db, APP_ID } from './firebase-config.js?v=84';
+import { db, APP_ID } from './firebase-config.js?v=85';
 import { doc, onSnapshot, runTransaction, serverTimestamp, setDoc } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js';
-import { DateRangePicker, MoneyInput } from './components.js?v=84';
+import { DateRangePicker, MoneyInput } from './components.js?v=85';
 import { formatCurrency, formatDate, getBrazilDateString, getCurrentMonthEnd, getCurrentMonthStart, parseMoney } from './utils.js';
-import { normalizePaymentInstallments } from './purchase-payment-v68.js';
-import { buildFinancialLedger, getInstallmentFaceAmount, getPurchaseGroups, money, sumMoney, toCents } from './financial-core-v70.js';
+import { buildPaymentInstallments, clampInstallments, normalizePaymentInstallments } from './purchase-payment-v68.js';
+import { buildFinancialLedger, getInstallmentFaceAmount, getPurchaseGroups, money, sumMoney, summarizeFinancialLedger, toCents } from './financial-core-v70.js';
 import { buildFinancialAccountDetails, filterFinancialAccounts } from './financial-account-details-v80.js';
-import { showAppConfirm } from './ui-interactions-v81.js?v=84';
+import { showAppConfirm } from './ui-interactions-v81.js?v=85';
 
 const h = React.createElement;
 const EMPTY_DATA = { entries: [], accounts: [] };
@@ -77,6 +77,7 @@ const FormModal = ({ open, kind, initial, onClose, onSave }) => {
   const [party, setParty] = useState('');
   const [value, setValue] = useState('');
   const [date, setDate] = useState(getBrazilDateString());
+  const [installmentsCount, setInstallmentsCount] = useState('1');
   const [category, setCategory] = useState('');
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
@@ -85,14 +86,22 @@ const FormModal = ({ open, kind, initial, onClose, onSave }) => {
   useEffect(() => {
     if (!open) return;
     setType(initial?.type || 'income');
-    setDescription(initial?.description || '');
+    setDescription(initial?.baseDescription || initial?.description || '');
     setParty(initial?.party || '');
     setValue(initial?.value ? String(initial.value).replace('.', ',') : '');
     setDate(cleanDate(initial?.date || initial?.dueDate) || getBrazilDateString());
+    setInstallmentsCount('1');
     setCategory(initial?.category || '');
     setNotes(initial?.notes || '');
     setSaving(false);
   }, [open, kind, initial]);
+
+  const isNewAccount = kind !== 'movement' && !initial;
+  const parsedValue = parseMoney(value);
+  const installmentCount = clampInstallments(installmentsCount);
+  const installmentPlan = useMemo(() => isNewAccount && parsedValue > 0 && date
+    ? buildPaymentInstallments(parsedValue, installmentCount, date)
+    : [], [isNewAccount, parsedValue, installmentCount, date]);
 
   if (!open) return null;
   const title = initial ? 'Editar lançamento' : kind === 'movement' ? 'Nova movimentação' : kind === 'receivable' ? 'Nova conta a receber' : 'Nova conta a pagar';
@@ -102,9 +111,23 @@ const FormModal = ({ open, kind, initial, onClose, onSave }) => {
     if (!description.trim()) return alert('Informe a descrição.');
     if (!(parsed > 0)) return alert('Informe um valor válido.');
     if (!date) return alert('Informe a data.');
+    if (isNewAccount && installmentPlan.length !== installmentCount) return alert('Não foi possível montar o parcelamento.');
+    if (isNewAccount && installmentPlan.some(item => toCents(item.amount) <= 0)) return alert('O valor total deve permitir pelo menos R$ 0,01 por parcela.');
     setSaving(true);
     try {
-      await onSave({ kind, type: kind === 'movement' ? type : kind, description: description.trim(), party: party.trim(), value: money(parsed), date, category: category.trim(), notes: notes.trim(), id: initial?.id || null });
+      await onSave({
+        kind,
+        type: kind === 'movement' ? type : kind,
+        description: description.trim(),
+        party: party.trim(),
+        value: money(parsed),
+        date,
+        installmentsCount: isNewAccount ? installmentCount : 1,
+        installmentPlan: isNewAccount ? installmentPlan : [],
+        category: category.trim(),
+        notes: notes.trim(),
+        id: initial?.id || null
+      });
       onClose();
     } finally {
       setSaving(false);
@@ -121,14 +144,46 @@ const FormModal = ({ open, kind, initial, onClose, onSave }) => {
       )
     ));
   }
+  const dateField = h('label', { className: 'finance46-field' },
+    h('span', null, kind === 'movement'
+      ? 'Data *'
+      : isNewAccount && installmentCount > 1
+        ? 'Vencimento da 1ª parcela *'
+        : 'Vencimento *'),
+    h('input', { type: 'date', value: date, onChange: event => setDate(event.target.value) }));
+  const amountFields = kind === 'movement'
+    ? h('div', { className: 'finance46-fields-grid' },
+        h('label', { className: 'finance46-field' },
+          h('span', null, 'Valor *'),
+          h(MoneyInput, { value, onChange: setValue, className: 'finance46-money' })),
+        dateField)
+    : h(React.Fragment, null,
+        h('label', { className: 'finance46-field finance46-field-wide' },
+          h('span', null, isNewAccount ? 'Valor total *' : 'Valor da conta *'),
+          h(MoneyInput, { value, onChange: setValue, className: 'finance46-money' })),
+        h('div', { className: 'finance46-fields-grid' },
+          isNewAccount && h('label', { className: 'finance46-field' },
+            h('span', null, 'Parcelamento'),
+            h('select', {
+              value: installmentsCount,
+              onChange: event => setInstallmentsCount(String(clampInstallments(event.target.value)))
+            }, Array.from({ length: 24 }, (_, index) =>
+              h('option', { key: index + 1, value: String(index + 1) }, `${index + 1}x`)))),
+          dateField),
+        isNewAccount && installmentPlan.length > 1 && h('div', { className: 'finance85-installment-preview' },
+          h('div', { className: 'finance85-installment-heading' },
+            h('span', null, 'Prévia das parcelas'),
+            h('strong', null, `${installmentPlan.length}x · ${formatCurrency(parsedValue)}`)),
+          h('div', { className: 'finance85-installment-list' }, installmentPlan.map(item =>
+            h('div', { key: item.number },
+              h('span', null, `${item.number}/${installmentPlan.length} · ${formatDate(item.dueDate)}`),
+              h('strong', null, formatCurrency(item.amount)))))));
+
   bodyChildren.push(h('section', { key: 'info', className: 'finance46-card' },
     h('div', { className: 'finance46-section-label' }, 'Informações'),
     h('label', { className: 'finance46-field finance46-field-wide' }, h('span', null, 'Descrição *'), h('input', { value: description, onChange: e => setDescription(e.target.value) })),
     kind !== 'movement' && h('label', { className: 'finance46-field finance46-field-wide' }, h('span', null, kind === 'receivable' ? 'Cliente / origem' : 'Fornecedor / favorecido'), h('input', { value: party, onChange: e => setParty(e.target.value), placeholder: 'Opcional' })),
-    h('div', { className: 'finance46-fields-grid' },
-      h('label', { className: 'finance46-field' }, h('span', null, 'Valor *'), h(MoneyInput, { value, onChange: setValue, className: 'finance46-money' })),
-      h('label', { className: 'finance46-field' }, h('span', null, kind === 'movement' ? 'Data *' : 'Vencimento *'), h('input', { type: 'date', value: date, onChange: e => setDate(e.target.value) }))
-    ),
+    amountFields,
     h('label', { className: 'finance46-field finance46-field-wide' }, h('span', null, 'Categoria'), h('input', { value: category, onChange: e => setCategory(e.target.value) })),
     h('label', { className: 'finance46-field finance46-field-wide' }, h('span', null, 'Observação'), h('textarea', { rows: 3, value: notes, onChange: e => setNotes(e.target.value) }))
   ));
@@ -483,17 +538,23 @@ export const AbaFinanceiro = ({
     });
   }, [tab, receivables, payables, accountFilter, search, startDate, endDate]);
 
+  const cashSummary = useMemo(() => summarizeFinancialLedger(
+    sharedLedger,
+    '',
+    getBrazilDateString()
+  ), [sharedLedger]);
+
   const totals = useMemo(() => {
     const income = sumMoney(movements.filter(item => item.type === 'income'), item => item.amount);
     const expense = sumMoney(movements.filter(item => item.type === 'expense'), item => item.amount);
     return {
       income: money(income),
       expense: money(expense),
-      balance: money(income - expense),
+      cashBalance: cashSummary.balance,
       openReceivable: sumMoney(receivables.filter(item => !item.paid && !item.canceled), item => item.value),
       openPayable: sumMoney(payables.filter(item => !item.paid && !item.canceled), item => item.value)
     };
-  }, [movements, receivables, payables]);
+  }, [movements, receivables, payables, cashSummary]);
 
   const saveManual = async form => {
     setError('');
@@ -502,13 +563,67 @@ export const AbaFinanceiro = ({
     if (form.kind === 'movement') {
       const nextItem = { id: form.id || makeId('mov'), type: form.type, description: form.description, value: form.value, date: form.date, dateTime: dateWithCurrentTime(form.date), category: form.category, notes: form.notes, createdAt: form.id ? (data.entries.find(item => item.id === form.id)?.createdAt || now) : now };
       await saveData({ ...data, entries: form.id ? data.entries.map(item => item.id === form.id ? nextItem : item) : [...data.entries, nextItem] });
+    } else if (form.id) {
+      const direction = form.kind === 'receivable' ? 'receivable' : 'payable';
+      const existing = data.accounts.find(item => item.id === form.id);
+      if (!existing) throw new Error('Esta conta não está mais disponível para edição.');
+      const count = clampInstallments(existing.installmentsCount || 1);
+      const number = Math.min(count, Math.max(1, parseInt(existing.installmentNumber, 10) || 1));
+      const nextItem = {
+        ...existing,
+        direction,
+        baseDescription: form.description,
+        description: count > 1 ? `${form.description} · Parcela ${number}/${count}` : form.description,
+        party: form.party,
+        value: form.value,
+        dueDate: form.date,
+        category: form.category,
+        notes: form.notes
+      };
+      let nextAccounts = data.accounts.map(item => item.id === form.id ? nextItem : item);
+      if (existing.installmentGroupId) {
+        const groupTotal = sumMoney(
+          nextAccounts.filter(item => item.installmentGroupId === existing.installmentGroupId),
+          item => item.value
+        );
+        nextAccounts = nextAccounts.map(item => item.installmentGroupId === existing.installmentGroupId
+          ? { ...item, installmentOriginalTotal: groupTotal }
+          : item);
+      }
+      await saveData({ ...data, accounts: nextAccounts });
     } else {
       const direction = form.kind === 'receivable' ? 'receivable' : 'payable';
-      const existing = form.id ? data.accounts.find(item => item.id === form.id) : null;
-      const nextItem = { id: form.id || makeId('acc'), direction, description: form.description, party: form.party, value: form.value, dueDate: form.date, category: form.category, notes: form.notes, paid: existing?.paid || false, paidAt: existing?.paidAt || null, paidAtDateTime: existing?.paidAtDateTime || null, createdAt: existing?.createdAt || now };
-      await saveData({ ...data, accounts: form.id ? data.accounts.map(item => item.id === form.id ? nextItem : item) : [...data.accounts, nextItem] });
+      const count = clampInstallments(form.installmentsCount);
+      const plan = buildPaymentInstallments(form.value, count, form.date);
+      const groupId = count > 1 ? makeId('acc-group') : null;
+      const nextAccounts = plan.map(item => ({
+        id: makeId(`acc-${item.number}`),
+        direction,
+        baseDescription: form.description,
+        description: count > 1 ? `${form.description} · Parcela ${item.number}/${count}` : form.description,
+        party: form.party,
+        value: item.amount,
+        dueDate: item.dueDate,
+        category: form.category,
+        notes: form.notes,
+        paid: false,
+        paidAt: null,
+        paidAtDateTime: null,
+        createdAt: now,
+        ...(count > 1 ? {
+          installmentGroupId: groupId,
+          installmentNumber: item.number,
+          installmentsCount: count,
+          installmentOriginalTotal: money(form.value)
+        } : {})
+      }));
+      await saveData({ ...data, accounts: [...data.accounts, ...nextAccounts] });
     }
-    setMessage(form.id ? 'Lançamento atualizado.' : 'Lançamento salvo.');
+    setMessage(form.id
+      ? 'Lançamento atualizado.'
+      : form.kind !== 'movement' && form.installmentsCount > 1
+        ? `${form.installmentsCount} parcelas salvas.`
+        : 'Lançamento salvo.');
   };
 
   const toggleManualAccount = async item => {
@@ -589,7 +704,7 @@ export const AbaFinanceiro = ({
   const openCount = list => list.filter(item => !item.paid && !item.canceled).length;
   const openCompletePortfolio = direction => setPortfolioDirection(direction);
   const cards = [
-    { label: 'Saldo do período', value: totals.balance, icon: Wallet, cls: totals.balance >= 0 ? 'is-green' : 'is-red' },
+    { label: 'Saldo total em caixa', value: totals.cashBalance, icon: Wallet, cls: totals.cashBalance >= 0 ? 'is-green' : 'is-red', meta: 'Histórico realizado até hoje' },
     { label: 'Entradas', value: totals.income, icon: ArrowUp, cls: 'is-green' },
     { label: 'Saídas', value: totals.expense, icon: ArrowDown, cls: 'is-red' },
     { label: 'A receber', value: totals.openReceivable, icon: Receipt, cls: 'is-blue', meta: `${openCount(receivables)} em aberto`, direction: 'receivable' },

@@ -1,4 +1,4 @@
-REGISTRO DE VENDAS — VERSÃO 84
+REGISTRO DE VENDAS — VERSÃO 85
 
 ARQUITETURA ATIVA
 - app-runtime-v75.js é o código principal oficial, já consolidado e editado diretamente.
@@ -29,6 +29,10 @@ POSIÇÃO HISTÓRICA DO CREDIÁRIO
 - Recebimentos, estornos e vendas realizadas permanecem vinculados ao período escolhido.
 
 DETALHES DO FINANCEIRO
+- O primeiro cartão mostra o saldo total em caixa: todas as entradas realizadas menos todas as saídas realizadas até hoje, sem depender do período filtrado.
+- Contas manuais a receber e a pagar podem ser lançadas à vista ou em até 24 parcelas mensais.
+- O valor total é dividido com centavos exatos, e vencimentos em dias 29, 30 ou 31 são ajustados corretamente em meses mais curtos.
+- Cada parcela é criada como uma conta individual e pode ser recebida, paga, reaberta, editada ou excluída separadamente.
 - Os cartões A receber e A pagar abrem um modal independente com toda a carteira, inclusive parcelas de meses futuros.
 - A aba, a pesquisa, a situação e o período da página financeira permanecem exatamente como estavam.
 - O modal mantém busca própria, filtros de situação, ordem de vencimento e as mesmas ações da listagem financeira.

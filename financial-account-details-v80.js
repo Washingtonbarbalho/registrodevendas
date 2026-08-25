@@ -165,19 +165,22 @@ const buildPurchaseDetails = (account, products) => {
 
 const buildManualDetails = (account, direction) => {
   const originalAmount = money(account.value);
+  const installmentsCount = Math.max(1, parseInt(account.installmentsCount, 10) || 1);
+  const installmentNumber = Math.min(installmentsCount, Math.max(1, parseInt(account.installmentNumber, 10) || 1));
+  const isInstallment = !!account.installmentGroupId && installmentsCount > 1;
   return {
-    sourceLabel: 'Lançamento manual',
+    sourceLabel: isInstallment ? 'Lançamento manual parcelado' : 'Lançamento manual',
     party: account.party || 'Não informado',
     partyLabel: direction === 'receivable' ? 'Cliente / origem' : 'Fornecedor / favorecido',
     originalAmount,
     paidAmount: account.paid ? originalAmount : 0,
     remainingAmount: account.paid ? 0 : originalAmount,
-    installmentNumber: null,
-    installmentsCount: null,
+    installmentNumber: isInstallment ? installmentNumber : null,
+    installmentsCount: isInstallment ? installmentsCount : null,
     originDate: cleanFinancialDate(account.createdAt),
     originDateLabel: 'Data do lançamento',
-    originTotal: originalAmount,
-    originTotalLabel: 'Valor do lançamento',
+    originTotal: isInstallment ? money(account.installmentOriginalTotal) : originalAmount,
+    originTotalLabel: isInstallment ? 'Valor total do parcelamento' : 'Valor do lançamento',
     paymentMethod: '',
     notes: account.notes || '',
     products: [],

@@ -4,7 +4,7 @@ import { createPortal } from 'https://esm.sh/react-dom@18.2.0';
 import {
     X, ShoppingBag, Receipt, CreditCard, Banknote, QrCode, ChevronRight
 } from 'https://esm.sh/lucide-react@0.292.0';
-import { formatCurrency, formatDate } from './utils.js?v=84';
+import { formatCurrency, formatDate } from './utils.js?v=85';
 
 const getSaleTypeLabel = sale => sale.saleType === 'direct' ? 'Venda à vista' : 'Venda a prazo';
 

@@ -48,6 +48,22 @@ assert.equal(paidManual.daysUntilDue, null);
 assert.equal(paidManual.history[0].amount, 99.99);
 assert.equal(paidManual.history[0].label, 'Pagamento registrado');
 
+const manualInstallment = buildFinancialAccountDetails({
+  source: 'manual',
+  direction: 'receivable',
+  description: 'Consultoria · Parcela 1/3',
+  value: 33.34,
+  dueDate: '2026-08-31',
+  installmentGroupId: 'manual-group-1',
+  installmentNumber: 1,
+  installmentsCount: 3,
+  installmentOriginalTotal: 100
+}, { today });
+assert.equal(manualInstallment.installmentNumber, 1);
+assert.equal(manualInstallment.installmentsCount, 3);
+assert.equal(manualInstallment.originTotal, 100);
+assert.equal(manualInstallment.originTotalLabel, 'Valor total do parcelamento');
+
 const installments = [1, 2, 3].map(number => ({
   number,
   amount: 100,
@@ -244,6 +260,12 @@ for (const marker of [
   'const AccountPortfolioModal =',
   'finance83-portfolio-modal',
   'finance83-portfolio-scroll',
+  'finance85-installment-preview',
+  'installmentGroupId',
+  'installmentOriginalTotal',
+  'buildPaymentInstallments(form.value, count, form.date)',
+  'Saldo total em caixa',
+  "summarizeFinancialLedger(\n    sharedLedger,\n    '',\n    getBrazilDateString()",
   "scope: 'all'",
   "scope: 'period'",
   'filteredAccounts.map(item => h(AccountRow, { key: item.id, item, tab: direction, ...rowActions }))',
@@ -259,5 +281,7 @@ assert.ok(!source.includes('setAccountScope('),
   'A carteira completa não pode ser exibida alterando o escopo do filtro da página financeira.');
 assert.ok(!source.includes('finance82-portfolio-notice'),
   'O aviso de carteira completa na própria página não pode retornar.');
+assert.ok(!source.includes("label: 'Saldo do período'"),
+  'O primeiro cartão financeiro deve mostrar o caixa histórico realizado.');
 
-console.log('Financeiro validado: carteira em modal independente, contas futuras e mesmas ações da listagem.');
+console.log('Financeiro validado: parcelamento manual, saldo total em caixa, carteira independente e detalhes completos.');

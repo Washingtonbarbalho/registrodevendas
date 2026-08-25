@@ -56,6 +56,14 @@ const supplierPlan = buildPaymentInstallments(100, 3, '2026-07-31');
 assert.deepEqual(supplierPlan.map(item => item.amount), [33.34, 33.33, 33.33]);
 assert.deepEqual(supplierPlan.map(item => item.dueDate), ['2026-07-31', '2026-08-31', '2026-09-30']);
 
+const fullCashPosition = summarizeFinancialLedger([
+  { type: 'income', amount: 100, date: '2026-07-10' },
+  { type: 'expense', amount: 40, date: '2026-08-10' },
+  { type: 'income', amount: 500, date: '2026-09-10' }
+], '', '2026-08-25');
+assert.equal(fullCashPosition.balance, 60,
+  'O saldo total em caixa deve reunir todo o histórico realizado e ignorar movimentações futuras.');
+
 const initialInstallments = [1, 2, 3].map(number => ({
   number,
   amount: 30,
@@ -378,6 +386,12 @@ for (const marker of [
 const financeSource = fs.readFileSync(new URL('../aba-financeiro-v68.js', import.meta.url), 'utf8');
 assert.ok(financeSource.includes('buildFinancialLedger({ sales, products, financialData: data, purchaseGroups })'));
 assert.ok(financeSource.includes('runTransaction(db, async transaction =>'));
+assert.ok(financeSource.includes('buildPaymentInstallments(form.value, count, form.date)'),
+  'Contas manuais devem reutilizar o parcelamento exato das compras.');
+assert.ok(financeSource.includes('installmentOriginalTotal: money(form.value)'),
+  'O valor total do parcelamento manual precisa ser preservado.');
+assert.ok(financeSource.includes("summarizeFinancialLedger(\n    sharedLedger,\n    '',\n    getBrazilDateString()"),
+  'O saldo total em caixa deve considerar todo o histórico realizado até hoje.');
 assert.ok(!financeSource.includes('const makePurchaseGroup ='), 'Financeiro não deve manter uma segunda implementação de compras.');
 
 const reportsSource = fs.readFileSync(new URL('../aba-relatorios-v73.js', import.meta.url), 'utf8');

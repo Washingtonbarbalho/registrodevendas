@@ -1,4 +1,4 @@
-/* Estilos consolidados v84 — folha de estilo principal do sistema. */
+/* Estilos consolidados v85 — folha de estilo principal do sistema. */
 :root {
     --app-bg: #f6f7fb;
     --surface: #ffffff;
@@ -3991,6 +3991,52 @@ body > div[id="root"] > div[class*="bg-slate-900"][class*="z-[100]"] {
 
 .finance46-money {
     padding-left: 39px !important;
+}
+
+.finance85-installment-preview {
+    display: grid;
+    gap: 9px;
+    padding: 12px;
+    border: 1px solid #dbeafe;
+    border-radius: 13px;
+    background: #f8fbff;
+}
+
+.finance85-installment-heading,
+.finance85-installment-list > div {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.finance85-installment-heading {
+    padding-bottom: 8px;
+    border-bottom: 1px solid #dbeafe;
+}
+
+.finance85-installment-heading span,
+.finance85-installment-list span {
+    color: #64748b;
+    font-size: 10px;
+    font-weight: 700;
+}
+
+.finance85-installment-heading strong,
+.finance85-installment-list strong {
+    color: #1e3a8a;
+    font-size: 11px;
+    font-weight: 850;
+    white-space: nowrap;
+}
+
+.finance85-installment-list {
+    display: grid;
+    gap: 7px;
+    max-height: 172px;
+    padding-right: 3px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
 }
 
 .finance46-modal-footer {

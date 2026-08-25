@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'https://esm.sh/react@18.2.0';
 import { createPortal } from 'https://esm.sh/react-dom@18.2.0';
 import { CalendarDays, CreditCard, Package, Search, Trash2, X } from 'https://esm.sh/lucide-react@0.292.0';
-import { db, APP_ID } from './firebase-config.js?v=84';
+import { db, APP_ID } from './firebase-config.js?v=85';
 import { doc, runTransaction } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js';
 import { MoneyInput } from './components.js';
 import { formatCurrency, getBrazilDateString, maskMoney, parseMoney } from './utils.js';
