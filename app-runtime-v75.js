@@ -1,59 +1,59 @@
-// Aplicação consolidada v82 — código-fonte principal do sistema.
+// Aplicação consolidada v83 — código-fonte principal do sistema.
 import React, { useState, useEffect, useMemo } from 'https://esm.sh/react@18.2.0';
 import { createRoot } from 'https://esm.sh/react-dom@18.2.0/client';
-import { Users, User, LogOut, Lock, LayoutDashboard, Receipt, WalletCards, Package, Contact, Store, ShieldCheck, BadgePercent, Banknote, Plus } from 'https://esm.sh/lucide-react@0.292.0';
+import { Users, User, LogOut, Lock, LayoutDashboard, Receipt, WalletCards, Package, Contact, Store, ShieldCheck, BadgePercent, Banknote, MoreHorizontal, Plus } from 'https://esm.sh/lucide-react@0.292.0';
 
 // Firebase
-import { app, db, auth, APP_ID } from './firebase-config.js?v=82';
+import { app, db, auth, APP_ID } from './firebase-config.js?v=83';
 import { collection, onSnapshot, query, doc, getDoc, updateDoc, deleteDoc, addDoc, serverTimestamp, setDoc, runTransaction, writeBatch } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js";
 
 // Utils
-import { getCurrentMonthStart, getCurrentMonthEnd, getBrazilDateString, addDays, formatCurrency, formatDate } from './utils.js?v=82';
-import { aggregateSaleItems, buildSaleInventoryPlan } from './inventory-reliability-v69.js?v=82';
-import { applyInstallmentPayment, buildFinancialLedger, fromCents, getHistoryCashAmount, getInstallmentFaceAmount, getRealizedSalesProfit, getSalesAccrualSummary, isTermSale, normalizeSaleMoney, reverseInstallmentPayment, sumMoney, summarizeFinancialLedger, toCents } from './financial-core-v70.js?v=82';
+import { getCurrentMonthStart, getCurrentMonthEnd, getBrazilDateString, addDays, formatCurrency, formatDate } from './utils.js?v=83';
+import { aggregateSaleItems, buildSaleInventoryPlan } from './inventory-reliability-v69.js?v=83';
+import { applyInstallmentPayment, buildFinancialLedger, fromCents, getHistoryCashAmount, getInstallmentFaceAmount, getRealizedSalesProfit, getSalesAccrualSummary, isTermSale, normalizeSaleMoney, reverseInstallmentPayment, sumMoney, summarizeFinancialLedger, toCents } from './financial-core-v70.js?v=83';
 
 // Modais
 import { 
     UserProfileModal, CustomerFormModal, ProductDetailsModal, EditInstallmentModal, 
     SaleDetailsModal, PixCodeModal, InstallmentListModal, PaymentConfirmationModal, 
     ConfirmModal, WhatsAppChooserModal, ProductModal
-} from './modals-runtime-v75.js?v=82';
-import { StockMovementModal } from './stock-movement-modal-v68.js?v=82';
+} from './modals-runtime-v75.js?v=83';
+import { StockMovementModal } from './stock-movement-modal-v68.js?v=83';
 
 // Telas Secundárias
-import { AdminUsersPanel } from './auth-admin.js?v=82';
-import { AuthScreen } from './auth-screen-v71.js?v=82';
-import { NewSaleScreen } from './nova-venda-runtime-v75.js?v=82';
+import { AdminUsersPanel } from './auth-admin.js?v=83';
+import { AuthScreen } from './auth-screen-v71.js?v=83';
+import { NewSaleScreen } from './nova-venda-runtime-v75.js?v=83';
 
 // Abas do Dashboard
-import { AbaVisaoGeral } from './aba-visao-geral-fixed.js?v=82';
-import { AbaVendas } from './aba-vendas-v71.js?v=82';
-import { AbaProdutos } from './aba-produtos-v67.js?v=82';
-import { AbaClientes } from './aba-clientes-runtime-v75.js?v=82';
-import { AbaTaxas } from './aba-taxas.js?v=82';
-import { AbaFinanceiro } from './aba-financeiro-v68.js?v=82';
-import { BatchStockModal } from './batch-stock-modal-v68.js?v=82';
-import { AbaRelatorios } from './aba-relatorios-v73.js?v=82';
-import { AbaComercial } from './aba-comercial-v74.js?v=82';
-import { normalizePaymentSettings } from './payment-settings.js?v=82';
-import { shareSalePdf } from './sale-pdf-v65.js?v=82';
-import { readSharedAnalysisPeriod, resolveAnalysisPeriod, writeSharedAnalysisPeriod } from './analysis-period-v79.js?v=82';
+import { AbaVisaoGeral } from './aba-visao-geral-fixed.js?v=83';
+import { AbaVendas } from './aba-vendas-v71.js?v=83';
+import { AbaProdutos } from './aba-produtos-v67.js?v=83';
+import { AbaClientes } from './aba-clientes-runtime-v75.js?v=83';
+import { AbaTaxas } from './aba-taxas.js?v=83';
+import { AbaFinanceiro } from './aba-financeiro-v68.js?v=83';
+import { BatchStockModal } from './batch-stock-modal-v68.js?v=83';
+import { AbaRelatorios } from './aba-relatorios-v73.js?v=83';
+import { AbaComercial } from './aba-comercial-v74.js?v=83';
+import { normalizePaymentSettings } from './payment-settings.js?v=83';
+import { shareSalePdf } from './sale-pdf-v65.js?v=83';
+import { readSharedAnalysisPeriod, resolveAnalysisPeriod, writeSharedAnalysisPeriod } from './analysis-period-v79.js?v=83';
 
 const Dashboard = ({ user, userProfile, onLogout }) => {
     const [view, setView] = useState('dashboard');
-    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
     const [showAdminPanel, setShowAdminPanel] = useState(false);
 
     useEffect(() => {
-        if (!mobileMenuOpen) return undefined;
+        if (!mobileMoreOpen) return undefined;
         const previousOverflow = document.body.style.overflow;
         document.body.style.overflow = 'hidden';
         const closeOnEscape = event => {
-            if (event.key === 'Escape') setMobileMenuOpen(false);
+            if (event.key === 'Escape') setMobileMoreOpen(false);
         };
         const closeOnDesktop = () => {
-            if (window.innerWidth >= 1024) setMobileMenuOpen(false);
+            if (window.innerWidth >= 1024) setMobileMoreOpen(false);
         };
         window.addEventListener('keydown', closeOnEscape);
         window.addEventListener('resize', closeOnDesktop);
@@ -62,7 +62,7 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
             window.removeEventListener('keydown', closeOnEscape);
             window.removeEventListener('resize', closeOnDesktop);
         };
-    }, [mobileMenuOpen]);
+    }, [mobileMoreOpen]);
     const [customers, setCustomers] = useState([]);
     const [products, setProducts] = useState([]);
     const [sales, setSales] = useState([]);
@@ -885,15 +885,16 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         { id: 'sales', label: 'Vendas', shortLabel: 'Vendas', icon: Receipt },
         { id: 'products', label: 'Produtos', shortLabel: 'Produtos', icon: Package },
         { id: 'customers', label: 'Clientes', shortLabel: 'Clientes', icon: Contact },
-        { id: 'finance', label: 'Financeiro', shortLabel: 'Fin.', icon: Banknote },
+        { id: 'finance', label: 'Financeiro', shortLabel: 'Financeiro', icon: Banknote },
         { id: 'commercial', label: 'Comercial', shortLabel: 'Comercial', icon: Store },
         { id: 'reports', label: 'Relatórios', shortLabel: 'Relat.', icon: LayoutDashboard },
         { id: 'rates', label: 'Taxas e juros', shortLabel: 'Taxas', icon: BadgePercent }
     ];
     const currentNav = navItems.find(item => item.id === view) || navItems[0];
-    const mobilePrimaryNav = ['dashboard', 'sales', 'products', 'customers']
+    const mobilePrimaryNav = ['dashboard', 'sales', 'products', 'customers', 'finance']
         .map(id => navItems.find(item => item.id === id))
         .filter(Boolean);
+    const mobileOverflowNav = navItems.filter(item => !mobilePrimaryNav.some(primary => primary.id === item.id));
 
     return React.createElement('div', { className: "app-shell" },
         React.createElement('aside', { className: "app-sidebar" },
@@ -926,24 +927,10 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         React.createElement('div', { className: "app-main" },
             React.createElement('header', { className: "app-topbar" },
                 React.createElement('div', { className: "app-topbar-leading" },
-                    React.createElement('button', {
-                        type: "button",
-                        onClick: () => setMobileMenuOpen(open => !open),
-                        className: `mobile-menu-toggle ${mobileMenuOpen ? 'is-open' : ''}`,
-                        'aria-label': mobileMenuOpen ? "Fechar menu" : "Abrir menu",
-                        'aria-expanded': mobileMenuOpen,
-                        'aria-controls': "mobile-navigation-drawer"
-                    },
-                        React.createElement('span', { className: "mobile-menu-lines", 'aria-hidden': "true" },
-                            React.createElement('span', null),
-                            React.createElement('span', null),
-                            React.createElement('span', null)
-                        )
-                    ),
                     React.createElement('div', { className: "min-w-0" },
-                    React.createElement('p', { className: "app-topbar-title truncate" }, currentNav.label),
-                    React.createElement('p', { className: "app-topbar-subtitle truncate" }, `Olá, ${userProfile?.name?.split(' ')[0] || 'bem-vindo'} • ${userProfile?.storeName || 'Sua loja'}`)
-                ),
+                        React.createElement('p', { className: "app-topbar-title truncate" }, currentNav.label),
+                        React.createElement('p', { className: "app-topbar-subtitle truncate" }, `Olá, ${userProfile?.name?.split(' ')[0] || 'bem-vindo'} • ${userProfile?.storeName || 'Sua loja'}`)
+                    )
                 ),
                 React.createElement('div', { className: "flex items-center gap-2" },
                     userProfile?.role === 'admin' && React.createElement('button', {
@@ -961,58 +948,6 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
                         className: "app-icon-button lg:hidden",
                         title: "Sair"
                     }, React.createElement(LogOut, { size: 18 }))
-                )
-            ),
-
-            mobileMenuOpen && React.createElement('div', {
-                className: "mobile-menu-backdrop",
-                onClick: () => setMobileMenuOpen(false),
-                role: "presentation"
-            },
-                React.createElement('aside', {
-                    id: "mobile-navigation-drawer",
-                    className: "mobile-menu-drawer",
-                    role: "dialog",
-                    'aria-modal': "true",
-                    'aria-label': "Menu de navegação",
-                    onClick: event => event.stopPropagation()
-                },
-                    React.createElement('div', { className: "mobile-menu-header" },
-                        React.createElement('div', { className: "mobile-menu-brand" },
-                            React.createElement('div', { className: "mobile-menu-brand-mark" }, React.createElement(Store, { size: 21 })),
-                            React.createElement('div', { className: "min-w-0" },
-                                React.createElement('p', { className: "mobile-menu-store-name truncate" }, userProfile?.storeName || "Registro de Vendas"),
-                                React.createElement('p', { className: "mobile-menu-caption" }, "Menu principal")
-                            )
-                        ),
-                        React.createElement('button', {
-                            type: "button",
-                            onClick: () => setMobileMenuOpen(false),
-                            className: "mobile-menu-close",
-                            'aria-label': "Fechar menu"
-                        }, "×")
-                    ),
-                    React.createElement('nav', { className: "mobile-menu-nav", 'aria-label': "Navegação mobile" },
-                        navItems.map(item => React.createElement('button', {
-                            key: item.id,
-                            type: "button",
-                            onClick: () => { setView(item.id); setMobileMenuOpen(false); },
-                            className: `mobile-menu-nav-button ${view === item.id ? 'is-active' : ''}`
-                        },
-                            React.createElement('span', { className: "mobile-menu-nav-icon" }, React.createElement(item.icon, { size: 20 })),
-                            React.createElement('span', { className: "mobile-menu-nav-label" }, item.label),
-                            view === item.id && React.createElement('span', { className: "mobile-menu-current-dot", 'aria-label': "Aba atual" })
-                        ))
-                    ),
-                    React.createElement('div', { className: "mobile-menu-footer" },
-                        React.createElement('div', { className: "mobile-menu-user" },
-                            React.createElement('div', { className: "mobile-menu-user-avatar" }, React.createElement(User, { size: 17 })),
-                            React.createElement('div', { className: "min-w-0" },
-                                React.createElement('p', { className: "mobile-menu-user-name truncate" }, userProfile?.name || "Usuário"),
-                                React.createElement('p', { className: "mobile-menu-user-email truncate" }, user.email)
-                            )
-                        )
-                    )
                 )
             ),
 
@@ -1089,25 +1024,68 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
             )
         ),
 
+        mobileMoreOpen && React.createElement('div', {
+            className: "mobile83-more-backdrop",
+            onClick: () => setMobileMoreOpen(false),
+            role: "presentation"
+        }, React.createElement('section', {
+            id: "mobile-more-navigation",
+            className: "mobile83-more-sheet",
+            role: "dialog",
+            'aria-modal': "true",
+            'aria-labelledby': "mobile83-more-title",
+            onClick: event => event.stopPropagation()
+        },
+            React.createElement('header', { className: "mobile83-more-header" },
+                React.createElement('div', null,
+                    React.createElement('h2', { id: "mobile83-more-title" }, "Mais opções"),
+                    React.createElement('p', null, "Acesse as demais áreas do sistema")),
+                React.createElement('button', {
+                    type: "button",
+                    onClick: () => setMobileMoreOpen(false),
+                    className: "mobile83-more-close",
+                    'aria-label': "Fechar mais opções"
+                }, "×")),
+            React.createElement('nav', { className: "mobile83-more-nav", 'aria-label': "Outras áreas do sistema" },
+                mobileOverflowNav.map(item => React.createElement('button', {
+                    key: item.id,
+                    type: "button",
+                    onClick: () => { setView(item.id); setMobileMoreOpen(false); },
+                    className: `mobile83-more-nav-button ${view === item.id ? 'is-active' : ''}`
+                },
+                    React.createElement('span', { className: "mobile83-more-nav-icon" }, React.createElement(item.icon, { size: 20 })),
+                    React.createElement('span', { className: "mobile83-more-nav-label" }, item.label),
+                    view === item.id && React.createElement('span', { className: "mobile83-more-current-dot", 'aria-label': "Aba atual" })
+                )))
+        )),
+
         React.createElement('nav', { className: "mobile-quick-nav", 'aria-label': "Acessos rápidos" },
             mobilePrimaryNav.slice(0, 2).map(item => React.createElement('button', {
                 key: item.id,
                 type: "button",
-                onClick: () => { setView(item.id); setMobileMenuOpen(false); },
+                onClick: () => { setView(item.id); setMobileMoreOpen(false); },
                 className: `mobile-quick-nav-button ${view === item.id ? 'is-active' : ''}`
             }, React.createElement(item.icon, { size: 19 }), React.createElement('span', null, item.shortLabel))),
             React.createElement('button', {
                 type: "button",
-                onClick: () => { setNewSaleMode('unified'); setMobileMenuOpen(false); },
+                onClick: () => { setNewSaleMode('unified'); setMobileMoreOpen(false); },
                 className: "mobile-quick-sale-button",
                 'aria-label': "Registrar nova venda"
             }, React.createElement('span', { className: "mobile-quick-sale-icon" }, React.createElement(Plus, { size: 23 })), React.createElement('span', null, "Nova")),
             mobilePrimaryNav.slice(2).map(item => React.createElement('button', {
                 key: item.id,
                 type: "button",
-                onClick: () => { setView(item.id); setMobileMenuOpen(false); },
+                onClick: () => { setView(item.id); setMobileMoreOpen(false); },
                 className: `mobile-quick-nav-button ${view === item.id ? 'is-active' : ''}`
-            }, React.createElement(item.icon, { size: 19 }), React.createElement('span', null, item.shortLabel)))
+            }, React.createElement(item.icon, { size: 19 }), React.createElement('span', null, item.shortLabel))),
+            React.createElement('button', {
+                type: "button",
+                onClick: () => setMobileMoreOpen(open => !open),
+                className: `mobile-quick-nav-button mobile83-more-trigger ${mobileMoreOpen || mobileOverflowNav.some(item => item.id === view) ? 'is-active' : ''}`,
+                'aria-label': "Mais opções de navegação",
+                'aria-expanded': mobileMoreOpen,
+                'aria-controls': "mobile-more-navigation"
+            }, React.createElement(MoreHorizontal, { size: 19 }), React.createElement('span', null, "Mais"))
         ),
 
         React.createElement(UserProfileModal, { isOpen: profileModalOpen, onClose: () => setProfileModalOpen(false), userProfile: userProfile, onSave: handleUpdateProfile }),

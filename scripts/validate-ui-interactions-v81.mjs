@@ -260,8 +260,12 @@ for (const file of ['components.js', 'aba-vendas-v71.js', 'aba-relatorios-v73.js
 const finance = read('aba-financeiro-v68.js');
 assert.equal((finance.match(/type:\s*['"]date['"]/g) || []).length, 1,
   'O Financeiro deve manter apenas a data individual de cadastro, sem datas nativas no filtro de período.');
-assert.ok(finance.includes('showingCompletePortfolio'),
-  'Os cartões financeiros precisam distinguir a carteira completa do período filtrado.');
+assert.ok(finance.includes('const AccountPortfolioModal ='),
+  'Os cartões financeiros precisam abrir a carteira completa em um modal independente.');
+assert.ok(finance.includes("scope: 'period'") && finance.includes("scope: 'all'"),
+  'A página deve manter seu período enquanto o modal consulta contas de todos os vencimentos.');
+assert.ok(!finance.includes('showingCompletePortfolio'),
+  'A carteira completa não pode substituir a listagem filtrada da página financeira.');
 
 const authScreen = read('auth-screen-v71.js');
 assert.equal((authScreen.match(/React\.createElement\('form', \{[^}]*noValidate: true/g) || []).length, 2,
@@ -273,7 +277,9 @@ for (const marker of [
   '.app81-select-search', '.app81-select-option.is-selected',
   '@keyframes app81-sheet-in', '@media (prefers-reduced-motion: reduce)',
   '.period82-trigger', '.app82-calendar-panel', '.app82-calendar-grid',
-  '.app82-calendar-day.is-start', '.finance82-summary-action', '.finance82-portfolio-notice'
+  '.app82-calendar-day.is-start', '.finance82-summary-action',
+  '.finance83-portfolio-modal', '.finance83-portfolio-scroll',
+  '.mobile83-more-sheet', '.mobile83-more-nav-button'
 ]) assert.ok(styles.includes(marker), `Estilo interativo ausente: ${marker}`);
 
-console.log(`Interface v${version} validada: calendário único, carteira financeira completa, 57 avisos e 28 seletores.`);
+console.log(`Interface v${version} validada: calendário único, carteira em modal, navegação mobile, 57 avisos e 28 seletores.`);

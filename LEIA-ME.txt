@@ -1,4 +1,4 @@
-REGISTRO DE VENDAS — VERSÃO 82
+REGISTRO DE VENDAS — VERSÃO 83
 
 ARQUITETURA ATIVA
 - app-runtime-v75.js é o código principal oficial, já consolidado e editado diretamente.
@@ -29,9 +29,10 @@ POSIÇÃO HISTÓRICA DO CREDIÁRIO
 - Recebimentos, estornos e vendas realizadas permanecem vinculados ao período escolhido.
 
 DETALHES DO FINANCEIRO
-- Os cartões A receber e A pagar abrem diretamente toda a carteira pendente, inclusive parcelas de meses futuros.
-- A carteira completa mantém busca, filtros de situação, ordem de vencimento, detalhes e ações de pagamento.
-- A escolha de um período volta automaticamente à visualização filtrada por vencimento.
+- Os cartões A receber e A pagar abrem um modal independente com toda a carteira, inclusive parcelas de meses futuros.
+- A aba, a pesquisa, a situação e o período da página financeira permanecem exatamente como estavam.
+- O modal mantém busca própria, filtros de situação, ordem de vencimento e as mesmas ações da listagem financeira.
+- É possível consultar detalhes, receber parcelas, pagar ou reabrir contas, editar registros e abrir vendas ou produtos.
 - Cada conta a receber e cada conta a pagar possui um botão Detalhes.
 - O modal mostra origem, cliente ou fornecedor, vencimento, situação, parcela, valor original, valor pago e saldo em aberto.
 - Contas de crediário exibem WhatsApp, produtos da venda e histórico dos pagamentos, inclusive excedentes distribuídos.
@@ -47,6 +48,12 @@ INTERAÇÕES VISUAIS
 - O primeiro toque define a data inicial e o segundo define a final, aplicando o período automaticamente.
 - O calendário permite navegar entre meses, selecionar apenas um dia e corrigir datas escolhidas em ordem inversa.
 - A navegação por teclado, foco, tecla Esc e preferência por movimento reduzido são respeitadas.
+
+NAVEGAÇÃO NO CELULAR
+- O menu lateral e o botão de gaveta foram removidos exclusivamente da versão mobile.
+- A barra inferior reúne Início, Vendas, Nova venda, Produtos, Clientes, Financeiro e Mais.
+- Mais abre um painel flutuante apenas com Comercial, Relatórios e Taxas e juros.
+- A navegação lateral do computador continua disponível sem alterações.
 
 PAINEL EXECUTIVO E PERÍODO COMPARTILHADO
 - A visão inicial apresenta faturamento, resultado líquido, quantidade de vendas, ticket médio e comparação com o período anterior.

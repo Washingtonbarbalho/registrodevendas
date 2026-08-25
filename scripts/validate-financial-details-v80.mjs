@@ -241,10 +241,23 @@ for (const marker of [
   'Saldo em aberto',
   'Produtos da venda',
   'Produtos da compra',
+  'const AccountPortfolioModal =',
+  'finance83-portfolio-modal',
+  'finance83-portfolio-scroll',
+  "scope: 'all'",
+  "scope: 'period'",
+  'filteredAccounts.map(item => h(AccountRow, { key: item.id, item, tab: direction, ...rowActions }))',
   'openCompletePortfolio',
-  "setAccountScope('all')",
+  'setPortfolioDirection(direction)',
   'finance82-summary-action',
-  'Carteira completa: todos os vencimentos'
+  'Todos os vencimentos, inclusive parcelas dos próximos meses.'
 ]) assert.ok(source.includes(marker), `Detalhe financeiro ausente na interface: ${marker}`);
 
-console.log('Financeiro validado: detalhes completos e carteira clicável com contas futuras a receber e a pagar.');
+assert.match(source, /const openCompletePortfolio = direction => setPortfolioDirection\(direction\);/,
+  'Os cartões devem abrir somente o modal da carteira, sem modificar a aba, a busca ou os filtros da página.');
+assert.ok(!source.includes('setAccountScope('),
+  'A carteira completa não pode ser exibida alterando o escopo do filtro da página financeira.');
+assert.ok(!source.includes('finance82-portfolio-notice'),
+  'O aviso de carteira completa na própria página não pode retornar.');
+
+console.log('Financeiro validado: carteira em modal independente, contas futuras e mesmas ações da listagem.');

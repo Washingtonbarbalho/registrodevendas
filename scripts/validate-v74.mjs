@@ -228,7 +228,9 @@ const generated = read('app-runtime-v75.js');
 for (const marker of [
   "import { AbaComercial }", "{ id: 'commercial', label: 'Comercial'",
   "view === 'commercial' ? React.createElement(AbaComercial",
-  "const mobilePrimaryNav = ['dashboard', 'sales', 'products', 'customers']"
+  "const mobilePrimaryNav = ['dashboard', 'sales', 'products', 'customers', 'finance']",
+  'mobileOverflowNav.map(item => React.createElement',
+  'mobile83-more-nav-button'
 ]) assert.ok(generated.includes(marker), `Integração final ausente: ${marker}`);
 assert.ok(!generated.includes("const mobilePrimaryNav = ['dashboard', 'sales', 'products', 'commercial']"),
   'A aba Comercial não deve substituir Clientes na barra rápida mobile.');

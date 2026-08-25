@@ -150,7 +150,11 @@ for (const marker of [
   "{ id: 'sales', label: 'Vendas', shortLabel: 'Vendas'",
   "view === 'sales' ? React.createElement(AbaVendas",
   'mobile-quick-nav',
-  "const mobilePrimaryNav = ['dashboard', 'sales', 'products', 'customers']",
+  "const mobilePrimaryNav = ['dashboard', 'sales', 'products', 'customers', 'finance']",
+  'const mobileOverflowNav = navItems.filter',
+  'mobile83-more-backdrop',
+  'mobile83-more-nav-button',
+  "React.createElement('span', null, \"Mais\")",
   "{ id: 'commercial', label: 'Comercial'",
   "view === 'commercial' ? React.createElement(AbaComercial",
   "setNewSaleMode('unified')",
@@ -168,8 +172,11 @@ for (const obsolete of [
   "{ id: 'cashier'",
   "const mobilePrimaryNav = ['dashboard', 'sales', 'products', 'finance']",
   "item.id === 'finance' ? 'Financeiro' : item.shortLabel",
-  "React.createElement('span', null, \"Mais\")",
   "'aria-label': \"Abrir todos os módulos\"",
+  'mobile-menu-toggle',
+  'mobile-menu-drawer',
+  'mobile-menu-nav-button',
+  'mobileMenuOpen',
   'quick-sale-sheet',
   'quickSaleMenuOpen',
   'Qual venda deseja registrar?',
@@ -456,7 +463,10 @@ assert.equal(identifyTab('Comercial'), 'commercial');
 assert.equal(identifyTab('Relatórios'), 'reports');
 assert.equal(identifyTab('Relat.'), 'reports');
 assert.equal(identifyTab('Vendas no caixa'), 'sales');
-assert.ok(persistenceSource.includes('.mobile-menu-nav-button'), 'A navegação pelo menu lateral precisa preservar a aba.');
+assert.ok(persistenceSource.includes('.mobile83-more-nav-button'),
+  'A navegação pelo painel flutuante Mais precisa preservar a aba.');
+assert.ok(!persistenceSource.includes('.mobile-menu-nav-button'),
+  'A gaveta lateral removida não pode permanecer na restauração da navegação.');
 
 const index = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 assert.match(index, /bootstrap-v75\.js\?v=\d+/, 'O runtime técnico consolidado precisa estar ativo.');

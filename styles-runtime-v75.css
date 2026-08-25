@@ -1,4 +1,4 @@
-/* Estilos consolidados v82 — folha de estilo principal do sistema. */
+/* Estilos consolidados v83 — folha de estilo principal do sistema. */
 :root {
     --app-bg: #f6f7fb;
     --surface: #ffffff;
@@ -4274,249 +4274,10 @@ body > div[id="root"] > div[class*="bg-slate-900"][class*="z-[100]"] {
 
 .mobile-bottom-nav{grid-template-columns:repeat(8,minmax(0,1fr))}.mobile-nav-button{min-width:0}.mobile-nav-button span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}@media(max-width:420px){.mobile-bottom-nav{left:5px;right:5px;padding:5px}.mobile-nav-button{font-size:7px;gap:2px}.mobile-nav-button svg{width:17px;height:17px}}
 
-/* v66 — menu lateral mobile */
-
-.app-topbar-leading {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    min-width: 0;
-    flex: 1;
-}
-
-.mobile-menu-toggle {
-    display: inline-grid;
-    place-items: center;
-    width: 40px;
-    height: 40px;
-    flex: 0 0 40px;
-    border-radius: 12px;
-    color: #334155;
-    background: #fff;
-    border: 1px solid #e5e7eb;
-    box-shadow: 0 1px 2px rgba(15, 23, 42, .04), 0 1px 3px rgba(15, 23, 42, .06);
-}
-
-.mobile-menu-lines {
-    position: relative;
-    display: block;
-    width: 19px;
-    height: 15px;
-}
-.mobile-menu-lines > span {
-    position: absolute;
-    left: 0;
-    width: 19px;
-    height: 2px;
-    border-radius: 999px;
-    background: currentColor;
-    transition: transform .2s ease, opacity .18s ease, top .2s ease;
-}
-.mobile-menu-lines > span:nth-child(1) { top: 0; }
-.mobile-menu-lines > span:nth-child(2) { top: 6.5px; }
-.mobile-menu-lines > span:nth-child(3) { top: 13px; }
-.mobile-menu-toggle.is-open .mobile-menu-lines > span:nth-child(1) { top: 6.5px; transform: rotate(45deg); }
-.mobile-menu-toggle.is-open .mobile-menu-lines > span:nth-child(2) { opacity: 0; }
-.mobile-menu-toggle.is-open .mobile-menu-lines > span:nth-child(3) { top: 6.5px; transform: rotate(-45deg); }
-
-.mobile-menu-backdrop {
-    position: fixed;
-    inset: 72px 0 0;
-    z-index: 70;
-    display: flex;
-    background: rgba(15, 23, 42, .46);
-    backdrop-filter: blur(2px);
-    animation: mobile-menu-fade .18s ease-out both;
-}
-
-.mobile-menu-drawer {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    width: min(84vw, 320px);
-    height: 100%;
-    padding: 14px 14px max(16px, env(safe-area-inset-bottom));
-    color: #e2e8f0;
-    background: linear-gradient(165deg, #111827 0%, #0f172a 68%, #111827 100%);
-    border-right: 1px solid rgba(255, 255, 255, .08);
-    box-shadow: 18px 0 55px rgba(15, 23, 42, .28);
-    animation: mobile-menu-slide .22s cubic-bezier(.2,.75,.25,1) both;
-}
-
-.mobile-menu-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    padding: 4px 2px 16px;
-    border-bottom: 1px solid rgba(255, 255, 255, .08);
-}
-.mobile-menu-brand {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    min-width: 0;
-}
-.mobile-menu-brand-mark {
-    display: grid;
-    place-items: center;
-    width: 40px;
-    height: 40px;
-    flex: 0 0 40px;
-    border-radius: 13px;
-    color: #1f2937;
-    background: linear-gradient(145deg, #fde68a, #f4b400);
-}
-.mobile-menu-store-name {
-    margin: 0;
-    color: #fff;
-    font-size: 14px;
-    font-weight: 800;
-}
-.mobile-menu-caption {
-    margin: 2px 0 0;
-    color: #94a3b8;
-    font-size: 10px;
-    font-weight: 650;
-}
-.mobile-menu-close {
-    display: grid;
-    place-items: center;
-    width: 36px;
-    height: 36px;
-    flex: 0 0 36px;
-    border-radius: 11px;
-    color: #94a3b8;
-    background: rgba(255, 255, 255, .05);
-    font-size: 27px;
-    line-height: 1;
-}
-.mobile-menu-close:hover,
-.mobile-menu-close:active {
-    color: #fff;
-    background: rgba(255, 255, 255, .09);
-}
-
-.mobile-menu-nav {
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-    flex: 1;
-    min-height: 0;
-    overflow-y: auto;
-    padding: 14px 0;
-    overscroll-behavior: contain;
-    -webkit-overflow-scrolling: touch;
-}
-.mobile-menu-nav-button {
-    display: grid;
-    grid-template-columns: 40px minmax(0, 1fr) 10px;
-    align-items: center;
-    gap: 10px;
-    width: 100%;
-    min-height: 52px;
-    padding: 6px 12px 6px 8px;
-    border-radius: 13px;
-    color: #cbd5e1;
-    text-align: left;
-    transition: color .16s ease, background .16s ease;
-}
-.mobile-menu-nav-button:hover,
-.mobile-menu-nav-button:active {
-    color: #fff;
-    background: rgba(255, 255, 255, .06);
-}
-.mobile-menu-nav-button.is-active {
-    color: #fff;
-    background: rgba(244, 180, 0, .14);
-    box-shadow: inset 3px 0 0 #f4b400;
-}
-.mobile-menu-nav-icon {
-    display: grid;
-    place-items: center;
-    width: 36px;
-    height: 36px;
-    border-radius: 11px;
-    color: #94a3b8;
-    background: rgba(255, 255, 255, .04);
-}
-.mobile-menu-nav-button.is-active .mobile-menu-nav-icon {
-    color: #f4b400;
-    background: rgba(244, 180, 0, .09);
-}
-.mobile-menu-nav-label {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-size: 13px;
-    font-weight: 750;
-}
-.mobile-menu-current-dot {
-    width: 7px;
-    height: 7px;
-    justify-self: end;
-    border-radius: 999px;
-    background: #f4b400;
-    box-shadow: 0 0 0 3px rgba(244, 180, 0, .12);
-}
-
-.mobile-menu-footer {
-    padding-top: 12px;
-    border-top: 1px solid rgba(255, 255, 255, .08);
-}
-.mobile-menu-user {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    min-width: 0;
-    padding: 7px 5px;
-}
-.mobile-menu-user-avatar {
-    display: grid;
-    place-items: center;
-    width: 36px;
-    height: 36px;
-    flex: 0 0 36px;
-    border-radius: 11px;
-    color: #f4b400;
-    background: rgba(244, 180, 0, .1);
-    border: 1px solid rgba(244, 180, 0, .16);
-}
-.mobile-menu-user-name {
-    margin: 0;
-    color: #fff;
-    font-size: 11px;
-    font-weight: 800;
-}
-.mobile-menu-user-email {
-    margin: 2px 0 0;
-    color: #94a3b8;
-    font-size: 9px;
-}
-
-/* A barra inferior antiga deixou de existir, portanto não é necessário reservar espaço para ela. */
-.app-main { padding-bottom: 0; }
-
-@keyframes mobile-menu-fade {
-    from { opacity: 0; }
-    to { opacity: 1; }
-}
-@keyframes mobile-menu-slide {
-    from { transform: translateX(-102%); }
-    to { transform: translateX(0); }
-}
-
-@media (min-width: 1024px) {
-    .mobile-menu-toggle,
-    .mobile-menu-backdrop { display: none !important; }
-    .app-topbar-leading { display: block; }
-}
-
+/* Cabeçalho simplificado, sem gaveta de navegação no celular. */
+.app-topbar-leading { display: block; min-width: 0; flex: 1; }
 @media (max-width: 420px) {
-    .mobile-menu-drawer { width: min(88vw, 310px); }
     .app-topbar { gap: 8px; padding-left: 10px; padding-right: 10px; }
-    .app-topbar-leading { gap: 8px; }
-    .mobile-menu-toggle { width: 38px; height: 38px; flex-basis: 38px; }
 }
 
 /* v67 — movimentação de estoque em lote + filtros financeiros */
@@ -5312,6 +5073,7 @@ body > div[id="root"] > div[class*="bg-slate-900"][class*="z-[100]"] {
 
 /* Acessos rápidos no celular */
 .mobile-quick-nav { display: none; }
+.mobile83-more-backdrop { display: none; }
 
 @media (max-width: 1023px) {
     .app-main { padding-bottom: calc(72px + env(safe-area-inset-bottom)); }
@@ -5322,7 +5084,7 @@ body > div[id="root"] > div[class*="bg-slate-900"][class*="z-[100]"] {
         right: 0;
         bottom: 0;
         display: grid;
-        grid-template-columns: repeat(5, minmax(0, 1fr));
+        grid-template-columns: repeat(7, minmax(0, 1fr));
         align-items: end;
         min-height: calc(63px + env(safe-area-inset-bottom));
         padding: 6px max(6px, env(safe-area-inset-left)) max(5px, env(safe-area-inset-bottom)) max(6px, env(safe-area-inset-right));
@@ -5363,6 +5125,89 @@ body > div[id="root"] > div[class*="bg-slate-900"][class*="z-[100]"] {
         background: #fbbf24;
         box-shadow: 0 7px 18px rgba(217, 119, 6, .28);
     }
+    .mobile83-more-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 44;
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+        padding: 12px 12px calc(78px + env(safe-area-inset-bottom));
+        background: rgba(15, 23, 42, .4);
+        backdrop-filter: blur(3px);
+        -webkit-backdrop-filter: blur(3px);
+    }
+    .mobile83-more-sheet {
+        width: min(460px, 100%);
+        max-height: calc(100dvh - 106px - env(safe-area-inset-bottom));
+        overflow-y: auto;
+        padding: 15px;
+        border: 1px solid rgba(255, 255, 255, .8);
+        border-radius: 21px;
+        background: #fff;
+        box-shadow: 0 18px 52px rgba(15, 23, 42, .22);
+        animation: mobile83-more-enter .2s cubic-bezier(.2, .75, .25, 1) both;
+    }
+    .mobile83-more-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 1px 1px 14px;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    .mobile83-more-header h2 { margin: 0; color: #0f172a; font-size: 15px; font-weight: 850; }
+    .mobile83-more-header p { margin: 4px 0 0; color: #64748b; font-size: 10px; }
+    .mobile83-more-close {
+        display: grid;
+        width: 36px;
+        height: 36px;
+        flex: 0 0 36px;
+        place-items: center;
+        border-radius: 11px;
+        color: #64748b;
+        background: #f1f5f9;
+        font-size: 25px;
+        line-height: 1;
+    }
+    .mobile83-more-nav { display: grid; gap: 6px; padding-top: 11px; }
+    .mobile83-more-nav-button {
+        display: grid;
+        grid-template-columns: 40px minmax(0, 1fr) 9px;
+        align-items: center;
+        gap: 10px;
+        width: 100%;
+        min-height: 53px;
+        padding: 6px 11px 6px 7px;
+        border-radius: 13px;
+        color: #334155;
+        text-align: left;
+    }
+    .mobile83-more-nav-button:hover { background: #f8fafc; }
+    .mobile83-more-nav-button.is-active { color: #92400e; background: #fffbeb; }
+    .mobile83-more-nav-icon {
+        display: grid;
+        width: 37px;
+        height: 37px;
+        place-items: center;
+        border-radius: 11px;
+        color: #64748b;
+        background: #f1f5f9;
+    }
+    .mobile83-more-nav-button.is-active .mobile83-more-nav-icon { color: #b45309; background: #fef3c7; }
+    .mobile83-more-nav-label { overflow: hidden; font-size: 12px; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
+    .mobile83-more-current-dot { width: 7px; height: 7px; justify-self: end; border-radius: 999px; background: #f59e0b; }
+}
+
+@keyframes mobile83-more-enter {
+    from { opacity: .45; transform: translateY(15px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 380px) {
+    .mobile-quick-nav-button,
+    .mobile-quick-sale-button { font-size: 7px; }
+    .mobile-quick-sale-icon { width: 41px; height: 41px; }
 }
 
 @media (max-width: 767px) {
@@ -6576,7 +6421,8 @@ body > div[id="root"] > div[class*="bg-slate-900"][class*="z-[100]"] {
 
 @media (prefers-reduced-motion: reduce) {
   .app81-dialog-overlay,
-  .app81-dialog-panel { animation: none; }
+  .app81-dialog-panel,
+  .mobile83-more-sheet { animation: none; }
 }
 
 /* Carteira financeira completa e calendário visual compartilhado. */
@@ -6635,28 +6481,49 @@ body > div[id="root"] > div[class*="bg-slate-900"][class*="z-[100]"] {
 .finance82-summary-action.is-amber.is-active { border-color: #fcd34d; background: #fffdf5; }
 .finance44-period.finance82-period { display: block; min-width: 248px; }
 .finance82-period-trigger { min-height: 42px; }
-.finance82-portfolio-notice {
+.finance83-portfolio-modal {
+  width: min(940px, calc(100vw - 32px));
+  max-height: min(840px, calc(100dvh - 32px));
+}
+.finance80-account-overlay { z-index: 170; }
+.finance83-portfolio-summary {
   display: flex;
   align-items: center;
-  gap: 9px;
-  padding: 11px 13px;
-  border: 1px solid #bfdbfe;
-  border-radius: 13px;
-  color: #1d4ed8;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 15px 15px 0;
+  padding: 14px 16px;
+  border: 1px solid #dbeafe;
+  border-radius: 15px;
   background: #eff6ff;
 }
-.finance82-portfolio-notice > span { flex: 1; font-size: 11px; font-weight: 700; line-height: 1.45; }
-.finance82-portfolio-notice > button {
-  min-height: 34px;
-  padding: 0 10px;
-  border: 0;
-  border-radius: 9px;
+.finance83-portfolio-summary.is-payable { border-color: #fde68a; background: #fffbeb; }
+.finance83-portfolio-summary > div { display: grid; min-width: 0; gap: 5px; }
+.finance83-portfolio-summary > div > span { color: #475569; font-size: 10px; font-weight: 750; }
+.finance83-portfolio-summary > div > strong { color: #0f172a; font-size: 20px; font-weight: 850; }
+.finance83-portfolio-count {
+  padding: 7px 9px;
+  border-radius: 999px;
   color: #1d4ed8;
   background: #fff;
   font-size: 10px;
   font-weight: 850;
   white-space: nowrap;
 }
+.finance83-portfolio-summary.is-payable .finance83-portfolio-count { color: #b45309; }
+.finance83-portfolio-tools { display: flex; align-items: center; gap: 10px; padding: 14px 15px 0; }
+.finance83-portfolio-search { min-width: 0; }
+.finance83-portfolio-filter { flex: 0 0 auto; }
+.finance83-portfolio-scroll {
+  min-height: 0;
+  flex: 1 1 auto;
+  padding: 12px 15px 15px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+.finance83-portfolio-list { margin: 0; }
+.finance83-portfolio-footer { justify-content: flex-end; }
 
 .app82-calendar-panel { width: min(484px, 100%); }
 .app82-calendar-panel .app81-dialog-message { padding-bottom: 12px; }
@@ -6755,8 +6622,14 @@ body > div[id="root"] > div[class*="bg-slate-900"][class*="z-[100]"] {
 @media (max-width: 720px) {
   .finance44-period.finance82-period { width: 100%; min-width: 0; }
   .period82-report-field { grid-column: auto; }
-  .finance82-portfolio-notice { flex-wrap: wrap; }
-  .finance82-portfolio-notice > button { margin-left: 26px; }
+  .finance83-portfolio-summary { margin-right: 11px; margin-left: 11px; padding: 12px; }
+  .finance83-portfolio-summary > div > strong { font-size: 17px; }
+  .finance83-portfolio-count { font-size: 9px; }
+  .finance83-portfolio-tools { align-items: stretch; flex-direction: column; padding-right: 11px; padding-left: 11px; }
+  .finance83-portfolio-filter { width: 100%; }
+  .finance83-portfolio-filter button { flex: 1; }
+  .finance83-portfolio-scroll { padding-right: 11px; padding-left: 11px; }
+  .finance83-portfolio-footer .finance46-button { width: 100%; }
   .app82-calendar-panel { max-height: min(91dvh, 760px); }
   .app82-calendar-body { gap: 10px; padding-right: 15px; padding-left: 15px; }
   .app82-calendar-day { min-height: 38px; }
@@ -6764,6 +6637,7 @@ body > div[id="root"] > div[class*="bg-slate-900"][class*="z-[100]"] {
 }
 
 @media (max-width: 380px) {
+  .finance83-portfolio-summary { align-items: flex-start; flex-direction: column; }
   .app82-calendar-preview { grid-template-columns: minmax(0, 1fr) 17px minmax(0, 1fr); gap: 4px; }
   .app82-calendar-preview-item { padding: 10px 8px; }
   .app82-calendar-preview-item > strong { font-size: 10px; }

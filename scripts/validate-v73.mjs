@@ -269,8 +269,12 @@ for (const marker of ['Visão executiva', 'REPORT_GROUPS', 'Comparar com o perí
   assert.ok(uiSource.includes(marker), `Recurso da tela de relatórios ausente: ${marker}`);
 }
 const navigation = read('app-runtime-v75.js');
-assert.ok(navigation.includes("['dashboard', 'sales', 'products', 'customers']"));
-assert.ok(!navigation.includes("['dashboard', 'sales', 'products', 'finance']"));
+assert.ok(navigation.includes("['dashboard', 'sales', 'products', 'customers', 'finance']"),
+  'A barra inferior precisa manter Clientes e acrescentar Financeiro.');
+assert.ok(navigation.includes('mobileOverflowNav.map(item => React.createElement'),
+  'Relatórios precisa continuar acessível pelo painel flutuante Mais.');
+assert.ok(!navigation.includes("['dashboard', 'sales', 'products', 'finance']"),
+  'Financeiro não pode substituir Clientes na barra inferior.');
 assert.ok(navigation.includes("import { AbaRelatorios } from './aba-relatorios-v73.js?v="));
 const index = read('index.html');
 assert.match(index, /bootstrap-v75\.js\?v=\d+/);

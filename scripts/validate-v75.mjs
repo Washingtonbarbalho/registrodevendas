@@ -81,7 +81,9 @@ for (const marker of [
   `from './analysis-period-v79.js?v=${version}'`,
   'readSharedAnalysisPeriod',
   'analysisPeriod: dashPeriod',
-  "const mobilePrimaryNav = ['dashboard', 'sales', 'products', 'customers']",
+  "const mobilePrimaryNav = ['dashboard', 'sales', 'products', 'customers', 'finance']",
+  'mobile83-more-sheet',
+  'mobile83-more-nav-button',
   "setNewSaleMode('unified')"
 ]) assert.ok(runtime.includes(marker), `Runtime técnico incompleto: ${marker}`);
 
@@ -94,6 +96,9 @@ for (const obsolete of [
   'aba-backup-v75.js',
   "id: 'backup'",
   'BackupAutoSnapshot',
+  'mobile-menu-toggle',
+  'mobile-menu-drawer',
+  'mobile-menu-nav-button',
   'quick-sale-sheet',
   'quickSaleMenuOpen'
 ]) assert.ok(!runtime.includes(obsolete), `Recurso antigo ainda ativo: ${obsolete}`);
@@ -108,7 +113,7 @@ for (const staticRuntimeFile of [
   const source = read(staticRuntimeFile);
   assert.ok(!source.includes('URL.createObjectURL'), `${staticRuntimeFile} ainda cria módulo blob.`);
   assert.ok(!source.includes('http://localhost'), `${staticRuntimeFile} contém endereço de compilação.`);
-  assert.ok(!/\.js\?v=(?:75|76|77|78|79|80|81)['"]/.test(source), `${staticRuntimeFile} ainda referencia módulos desatualizados.`);
+  assert.ok(!/\.js\?v=(?:75|76|77|78|79|80|81|82)['"]/.test(source), `${staticRuntimeFile} ainda referencia módulos desatualizados.`);
 }
 
 for (const firebaseConsumer of [
@@ -157,6 +162,10 @@ for (const marker of [
   '.app81-dialog-overlay',
   '.app81-select-panel',
   '.finance82-summary-action',
+  '.finance83-portfolio-modal',
+  '.finance83-portfolio-scroll',
+  '.mobile83-more-sheet',
+  '.mobile83-more-nav-button',
   '.app82-calendar-panel',
   '.period82-trigger'
 ]) {
@@ -166,6 +175,8 @@ assert.ok(!styles.includes('.backup-'), 'Estilos da aba de backup não devem per
 assert.ok(!styles.includes('.offline-status-'), 'Estilos do modo offline não devem permanecer no pacote.');
 assert.ok(!styles.includes('.quick-sale-sheet'), 'A escolha antecipada do tipo de venda não deve manter estilos ativos.');
 assert.ok(!styles.includes('.sale-payment-methods'), 'Os botões anteriores de pagamento não devem permanecer no pacote.');
+assert.ok(!styles.includes('.mobile-menu-drawer'), 'A gaveta lateral mobile removida não deve manter estilos ativos.');
+assert.ok(!styles.includes('.finance82-portfolio-notice'), 'A carteira completa não pode voltar a substituir o filtro da página.');
 
 const firebase = read('firebase-config.js');
 assert.ok(firebase.includes('const firestore = getFirestore(app);'));
