@@ -104,7 +104,8 @@ export const Pagination = ({ totalItems, itemsPerPage, currentPage, onPageChange
 
 export const DateRangeFilter = ({ period, startDate, endDate, onPeriodChange, onStartChange, onEndChange }) => {
     const [expanded, setExpanded] = useState(false);
-    const summary = period === 'month' ? 'Mês atual' : `${formatDate(startDate)} até ${formatDate(endDate)}`;
+    const periodLabels = { week: 'Últimos 7 dias', month: 'Mês atual', last30: 'Últimos 30 dias' };
+    const summary = periodLabels[period] || `${formatDate(startDate)} até ${formatDate(endDate)}`;
 
     return React.createElement('div', { className: "date-filter" },
         React.createElement('div', { className: "date-filter-summary", onClick: () => setExpanded(!expanded) },
@@ -117,14 +118,14 @@ export const DateRangeFilter = ({ period, startDate, endDate, onPeriodChange, on
         ),
         expanded && React.createElement('div', { className: "mt-4 pt-4 border-t border-slate-100 space-y-3 animate-fade-in" },
             React.createElement('div', { className: "grid grid-cols-2 gap-2" },
-                React.createElement('button', {
-                    onClick: () => onPeriodChange('month'),
-                    className: `min-h-10 rounded-xl text-xs font-extrabold transition-colors ${period === 'month' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`
-                }, "Mês atual"),
-                React.createElement('button', {
-                    onClick: () => onPeriodChange('custom'),
-                    className: `min-h-10 rounded-xl text-xs font-extrabold transition-colors ${period === 'custom' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`
-                }, "Personalizar")
+                [['week', '7 dias'], ['month', 'Mês atual'], ['last30', '30 dias'], ['custom', 'Personalizar']].map(([value, label]) =>
+                    React.createElement('button', {
+                        key: value,
+                        type: "button",
+                        onClick: () => onPeriodChange(value),
+                        className: `min-h-10 rounded-xl text-xs font-extrabold transition-colors ${period === value ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`
+                    }, label)
+                )
             ),
             period === 'custom' && React.createElement('div', { className: "grid grid-cols-1 sm:grid-cols-2 gap-3" },
                 React.createElement('label', { className: "block" },

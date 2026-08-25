@@ -26,7 +26,11 @@ export const applyCommercialPatch = source => {
                         sales,
                         products,
                         customers,
-                        userProfile
+                        userProfile,
+                        analysisEndDate: dashEndDate,
+                        onAnalysisPeriodChange: setDashPeriod,
+                        onAnalysisStartDateChange: setDashStartDate,
+                        onAnalysisEndDateChange: setDashEndDate
                     })
                     : view === 'reports' ? React.createElement(AbaRelatorios, {`, 'a tela Comercial');
 

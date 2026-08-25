@@ -1,12 +1,12 @@
 // Gerado por scripts/consolidate-legacy-runtime-v75.mjs — nova venda consolidada.
 import React, { useState, useEffect } from 'https://esm.sh/react@18.2.0';
 import { ChevronLeft, User, UserPlus, X, Search, CheckCircle, ShoppingBag, Tag, PlusCircle, Trash2, CreditCard, Calendar, QrCode, Banknote, Copy, BadgePercent, RefreshCw, ThumbsUp, ShieldAlert } from 'https://esm.sh/lucide-react@0.292.0';
-import { db, APP_ID } from './firebase-config.js?v=78';
+import { db, APP_ID } from './firebase-config.js?v=79';
 import { collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
-import { formatCurrency, parseMoney, maskPhone, getBrazilDateString, addDays, generatePixPayload, analyzeCustomerCredit } from './utils.js?v=78';
-import { MoneyInput } from './components.js?v=78';
-import { getCardRate, getCarnetRate, normalizePaymentSettings, evaluateTermEntryRules } from './payment-settings.js?v=78';
-import { splitMoney } from './financial-core-v70.js?v=78';
+import { formatCurrency, parseMoney, maskPhone, getBrazilDateString, addDays, generatePixPayload, analyzeCustomerCredit } from './utils.js?v=79';
+import { MoneyInput } from './components.js?v=79';
+import { getCardRate, getCarnetRate, normalizePaymentSettings, evaluateTermEntryRules } from './payment-settings.js?v=79';
+import { splitMoney } from './financial-core-v70.js?v=79';
 import QRCode from 'https://esm.sh/qrcode@1.5.4';
 
 const LocalPixQrCode = ({ payload }) => {
@@ -270,10 +270,18 @@ export const NewSaleScreen = ({ mode: initialMode, onClose, customers, products,
 
         const totalLineCost = currentCost * qty;
         const totalLinePrice = unitPrice * qty;
+        const regularUnitPrice = Number(prod.salePrice) || 0;
+        const promotionalUnitPrice = Math.round((unitPrice + unitDiscount + Number.EPSILON) * 100) / 100;
+        const promotionIsActive = !!(prod.isPromo && prod.promoStart && prod.promoEnd
+            && Math.round((Number(prod.promoPrice) || 0) * 100) === Math.round(promotionalUnitPrice * 100));
+        const promotionUnitDiscount = promotionIsActive
+            ? Math.round((Math.max(0, regularUnitPrice - promotionalUnitPrice) + Number.EPSILON) * 100) / 100
+            : 0;
         
         const newItem = { 
             tempId: Date.now(), productId: prod.id, productName: prod.name, productCode: prod.code, 
             quantity: qty, cost: totalLineCost, price: totalLinePrice, unitPrice: unitPrice, 
+            regularUnitPrice, promotionalUnitPrice, promotionUnitDiscount, promotionApplied: promotionUnitDiscount > 0,
             unitCost: currentCost, unitDiscount: unitDiscount, discountReason: unitDiscount > 0 ? currentDiscountReason.trim() : '' 
         };
         

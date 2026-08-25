@@ -48,7 +48,7 @@ const splitMoney = (value, count) => {
   return Array.from({ length: count }, (_, index) => (base + Number(index < remainder)) / 100);
 };
 
-const createHarness = () => {
+const createHarness = ({ promotional = false } = {}) => {
   const states = [];
   let cursor = 0;
   let tree;
@@ -82,7 +82,10 @@ const createHarness = () => {
   const customers = [{ id: 'customer-1', name: 'CLIENTE TESTE', phone: '85999999999', income: 2500 }];
   const products = [{
     id: 'product-1', name: 'Perfume de teste', code: '123',
-    quantity: 4, costPrice: 40, salePrice: 100
+    quantity: 4, costPrice: 40, salePrice: promotional ? 120 : 100,
+    ...(promotional ? {
+      isPromo: true, promoPrice: 90, promoStart: '2026-08-01', promoEnd: '2026-08-31'
+    } : {})
   }];
 
   const dependencies = {
@@ -218,6 +221,17 @@ for (const [label, expectedMethod] of directMethods) {
   assert.equal(sale.saved[0].anonymousSale, true, 'Vendas diretas devem continuar permitindo cliente opcional.');
   assert.equal(sale.closed, 1);
 }
+
+const promotionalSale = createHarness({ promotional: true });
+promotionalSale.addProduct();
+await promotionalSale.findButton('Finalizar Venda').props.onClick();
+assert.equal(promotionalSale.saved.length, 1);
+assert.equal(promotionalSale.saved[0].totalPrice, 90);
+assert.equal(promotionalSale.saved[0].items[0].regularUnitPrice, 120);
+assert.equal(promotionalSale.saved[0].items[0].promotionalUnitPrice, 90);
+assert.equal(promotionalSale.saved[0].items[0].promotionUnitDiscount, 30);
+assert.equal(promotionalSale.saved[0].items[0].promotionApplied, true,
+  'A promoção precisa ser preservada na própria venda para manter o histórico confiável.');
 
 const termSale = createHarness();
 termSale.addProduct();

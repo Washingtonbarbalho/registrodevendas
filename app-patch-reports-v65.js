@@ -16,7 +16,13 @@ export const applyReportsPatch = source => {
                         sales,
                         products,
                         customers,
-                        userProfile
+                        userProfile,
+                        analysisPeriod: dashPeriod,
+                        analysisStartDate: dashStartDate,
+                        analysisEndDate: dashEndDate,
+                        onAnalysisPeriodChange: setDashPeriod,
+                        onAnalysisStartDateChange: setDashStartDate,
+                        onAnalysisEndDateChange: setDashEndDate
                     })
                     : view === 'finance' ? React.createElement(AbaFinanceiro, {`, 'a tela dos Relatórios');
   return source;

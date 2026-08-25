@@ -29,6 +29,7 @@ import { AbaProdutos } from './aba-produtos.js';
 import { AbaClientes } from './aba-clientes.js';
 import { AbaTaxas } from './aba-taxas.js';
 import { normalizePaymentSettings } from './payment-settings.js';
+import { readSharedAnalysisPeriod, resolveAnalysisPeriod, writeSharedAnalysisPeriod } from './analysis-period-v79.js';
 
 const Dashboard = ({ user, userProfile, onLogout }) => {
     const [view, setView] = useState('dashboard');
@@ -41,9 +42,9 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
     
     const [newSaleMode, setNewSaleMode] = useState(null);
 
-    const [dashPeriod, setDashPeriod] = useState('month'); 
-    const [dashStartDate, setDashStartDate] = useState(getCurrentMonthStart());
-    const [dashEndDate, setDashEndDate] = useState(getCurrentMonthEnd());
+    const [dashPeriod, setDashPeriod] = useState(() => readSharedAnalysisPeriod(user.uid).period);
+    const [dashStartDate, setDashStartDate] = useState(() => readSharedAnalysisPeriod(user.uid).startDate);
+    const [dashEndDate, setDashEndDate] = useState(() => readSharedAnalysisPeriod(user.uid).endDate);
 
     const ITEMS_PER_PAGE = 10;
     const [salesPage, setSalesPage] = useState(1);
@@ -105,7 +106,15 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         return () => { unsubC(); unsubP(); unsubS(); unsubSettings(); };
     }, [user.uid]);
 
-    useEffect(() => { if (dashPeriod === 'month') { setDashStartDate(getCurrentMonthStart()); setDashEndDate(getCurrentMonthEnd()); } }, [dashPeriod]);
+    useEffect(() => {
+        if (dashPeriod === 'custom') return;
+        const selected = resolveAnalysisPeriod(dashPeriod, getBrazilDateString());
+        setDashStartDate(selected.startDate);
+        setDashEndDate(selected.endDate);
+    }, [dashPeriod]);
+    useEffect(() => {
+        writeSharedAnalysisPeriod(user.uid, { period: dashPeriod, startDate: dashStartDate, endDate: dashEndDate });
+    }, [user.uid, dashPeriod, dashStartDate, dashEndDate]);
     useEffect(() => { if (salesPeriod === 'month') { setSalesStart(getCurrentMonthStart()); setSalesEnd(getCurrentMonthEnd()); } }, [salesPeriod]);
     useEffect(() => { if (cashierPeriod === 'month') { setCashierStart(getCurrentMonthStart()); setCashierEnd(getCurrentMonthEnd()); } }, [cashierPeriod]);
 
@@ -796,7 +805,9 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
                         React.createElement('span', { className: "text-sm font-bold" }, "Carregando seus dados...")
                     )
                     : view === 'dashboard' ? React.createElement(AbaVisaoGeral, {
-                        dashPeriod, dashStartDate, dashEndDate, setDashPeriod, setDashStartDate, setDashEndDate, dashboardTotals, setInstallmentListModal
+                        dashPeriod, dashStartDate, dashEndDate, setDashPeriod, setDashStartDate, setDashEndDate,
+                        dashboardTotals, setInstallmentListModal, sales, products, customers, userProfile,
+                        onNavigate: setView, onNewSale: () => setNewSaleMode('unified')
                     })
                     : view === 'sales' ? React.createElement(AbaVendasPrazo, {
                         setNewSaleMode, salesPeriod, salesStart, salesEnd, setSalesPeriod, setSalesStart, setSalesEnd,

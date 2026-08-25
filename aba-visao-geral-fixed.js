@@ -1,10 +1,11 @@
-import React from 'https://esm.sh/react@18.2.0';
+import React, { useMemo } from 'https://esm.sh/react@18.2.0';
 import {
     TrendingUp, Wallet, AlertTriangle, ChevronRight, BellRing, Target,
-    LineChart, CircleDollarSign, CalendarClock
+    LineChart, CircleDollarSign, CalendarClock, Plus, MessageCircle, Package, BarChart3
 } from 'https://esm.sh/lucide-react@0.292.0';
-import { formatCurrency, getBrazilDateString } from './utils.js?v=31';
-import { DateRangeFilter } from './components.js?v=31';
+import { formatCurrency, getBrazilDateString } from './utils.js?v=79';
+import { DateRangeFilter } from './components.js?v=79';
+import { buildExecutiveInsights } from './executive-insights-v79.js?v=79';
 
 const MetricCard = ({ label, value, note, icon, color, background, glow, onClick }) => React.createElement('div', {
     onClick,
@@ -40,9 +41,23 @@ const installmentNote = (count, singular, plural) => `${count} ${count === 1 ? s
 
 export const AbaVisaoGeral = ({
     dashPeriod, dashStartDate, dashEndDate, setDashPeriod, setDashStartDate,
-    setDashEndDate, dashboardTotals, setInstallmentListModal
+    setDashEndDate, dashboardTotals, setInstallmentListModal,
+    sales = [], products = [], customers = [], userProfile = {}, onNavigate, onNewSale
 }) => {
     const today = getBrazilDateString();
+    const insights = useMemo(() => buildExecutiveInsights({
+        sales,
+        products,
+        customers,
+        userProfile,
+        financialData: userProfile?.financialData || {},
+        startDate: dashStartDate,
+        endDate: dashEndDate,
+        today
+    }), [sales, products, customers, userProfile, dashStartDate, dashEndDate, today]);
+    const revenueTrend = insights.comparison?.metrics.find(item => item.label === 'Faturamento líquido');
+    const resultTrend = insights.comparison?.metrics.find(item => item.label === 'Resultado líquido');
+    const revenueGoal = insights.goals.metrics.find(item => item.id === 'revenue');
     const allUpcoming = dashboardTotals.upcomingList || [];
     const todayList = sortInstallments(allUpcoming.filter(item => item.dueDate === today));
     const nextSevenDaysList = sortInstallments(allUpcoming.filter(item => item.dueDate > today));
@@ -68,6 +83,61 @@ export const AbaVisaoGeral = ({
             onStartChange: setDashStartDate,
             onEndChange: setDashEndDate
         }),
+
+        React.createElement('section', { className: "dashboard79-executive" },
+            React.createElement('div', { className: "dashboard79-heading" },
+                React.createElement('div', null,
+                    React.createElement('span', null, "Acompanhamento do negócio"),
+                    React.createElement('h3', null, "Resumo executivo")
+                ),
+                React.createElement('button', { type: "button", onClick: () => onNavigate?.('reports') }, "Ver relatórios")
+            ),
+            React.createElement('div', { className: "dashboard79-summary-grid" },
+                [
+                    { label: 'Faturamento líquido', value: formatCurrency(insights.revenue), trend: revenueTrend },
+                    { label: 'Resultado líquido', value: formatCurrency(insights.netResult), trend: resultTrend },
+                    { label: 'Vendas no período', value: String(insights.salesCount), trend: insights.comparison?.metrics.find(item => item.label === 'Vendas válidas') },
+                    { label: 'Ticket médio', value: formatCurrency(insights.ticket), trend: insights.comparison?.metrics.find(item => item.label === 'Ticket médio') }
+                ].map(item => React.createElement('article', { key: item.label, className: "dashboard79-summary-card" },
+                    React.createElement('span', null, item.label),
+                    React.createElement('strong', null, item.value),
+                    item.trend && React.createElement('small', { className: `is-${item.trend.tone}` },
+                        `${item.trend.deltaDisplay} em relação ao período anterior`)
+                ))
+            ),
+            React.createElement('div', { className: "dashboard79-goal" },
+                React.createElement('div', { className: "dashboard79-goal-copy" },
+                    React.createElement(Target, { size: 18 }),
+                    React.createElement('div', null,
+                        React.createElement('strong', null, "Meta de faturamento"),
+                        React.createElement('span', null, revenueGoal?.target > 0
+                            ? `${formatCurrency(revenueGoal.actual)} de ${formatCurrency(revenueGoal.target)}`
+                            : "Defina sua meta na área Comercial")
+                    )
+                ),
+                React.createElement('strong', null, revenueGoal?.target > 0
+                    ? `${Math.round(revenueGoal.percent)}%` : "—")
+            ),
+            revenueGoal?.target > 0 && React.createElement('div', { className: "dashboard79-goal-track" },
+                React.createElement('span', { style: { width: `${revenueGoal.progress}%` } }))
+        ),
+
+        React.createElement('section', { className: "dashboard79-actions" },
+            React.createElement('h3', null, "Ações rápidas"),
+            React.createElement('div', { className: "dashboard79-action-grid" },
+                [
+                    { label: 'Nova venda', icon: Plus, onClick: onNewSale, detail: 'Registrar agora' },
+                    { label: 'Cobrar clientes', icon: MessageCircle, onClick: () => onNavigate?.('commercial'), detail: `${insights.pendingCollections} cobranças` },
+                    { label: 'Repor estoque', icon: Package, onClick: () => onNavigate?.('products'), detail: `${insights.stockAlerts} alertas` },
+                    { label: 'Ver relatórios', icon: BarChart3, onClick: () => onNavigate?.('reports'), detail: `${insights.repurchaseOpportunities} recompras` }
+                ].map(action => React.createElement('button', {
+                    key: action.label, type: "button", onClick: action.onClick, className: "dashboard79-action"
+                }, React.createElement(action.icon, { size: 18 }), React.createElement('span', null,
+                    React.createElement('strong', null, action.label),
+                    React.createElement('small', null, action.detail)
+                )))
+            )
+        ),
 
         React.createElement('div', { className: "dashboard-grid dashboard-grid-v31" },
             React.createElement(MetricCard, {

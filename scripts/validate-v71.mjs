@@ -494,8 +494,8 @@ assert.equal(identifyTab('Vendas no caixa'), 'sales');
 assert.ok(persistenceSource.includes('.mobile-menu-nav-button'), 'A navegação pelo menu lateral precisa preservar a aba.');
 
 const index = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-assert.ok(index.includes('bootstrap-v75.js?v=78'), 'O runtime técnico consolidado v78 precisa estar ativo.');
-assert.ok(index.includes('styles-runtime-v75.css?v=78'), 'Os estilos consolidados precisam estar ativos.');
+assert.ok(index.includes('bootstrap-v75.js?v=79'), 'O runtime técnico consolidado v79 precisa estar ativo.');
+assert.ok(index.includes('styles-runtime-v75.css?v=79'), 'Os estilos consolidados precisam estar ativos.');
 
 const inherited = spawnSync(process.execPath, ['scripts/validate-v70.mjs'], {
   cwd: fileURLToPath(new URL('..', import.meta.url)),

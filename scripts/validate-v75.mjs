@@ -16,7 +16,7 @@ const runBuild = () => {
     cwd: root,
     encoding: 'utf8'
   });
-  if (result.status !== 0) throw new Error(`Falha ao gerar o runtime v78:\n${result.stderr || result.stdout}`);
+  if (result.status !== 0) throw new Error(`Falha ao gerar o runtime v79:\n${result.stderr || result.stdout}`);
 };
 
 runBuild();
@@ -28,6 +28,15 @@ const criticalFiles = [
   'app-patch-final-v71.js',
   'app-runtime-v75.js',
   'firebase-config.js',
+  'analysis-period-v79.js',
+  'executive-insights-v79.js',
+  'report-filters-v79.js',
+  'report-export-v74.js',
+  'reports-engine-v70.js',
+  'reports-engine-v73.js',
+  'nova-venda.js',
+  'aba-visao-geral-fixed.js',
+  'aba-relatorios-v73.js',
   'modals-core-runtime-v75.js',
   'modals-runtime-v75.js',
   'nova-venda-runtime-v75.js',
@@ -37,6 +46,7 @@ const criticalFiles = [
   'scripts/consolidate-legacy-runtime-v75.mjs',
   'scripts/validate-unified-sales-v77.mjs',
   'scripts/validate-credit-position-v78.mjs',
+  'scripts/validate-executive-v79.mjs',
   'scripts/validate-v75.mjs'
 ];
 criticalFiles.forEach(checkSyntax);
@@ -58,10 +68,13 @@ for (const file of generatedFiles) {
 
 const runtime = read('app-runtime-v75.js');
 for (const marker of [
-  'Runtime estático v78',
-  "from './modals-runtime-v75.js?v=78'",
-  "from './nova-venda-runtime-v75.js?v=78'",
-  "from './aba-clientes-runtime-v75.js?v=78'",
+  'Runtime estático v79',
+  "from './modals-runtime-v75.js?v=79'",
+  "from './nova-venda-runtime-v75.js?v=79'",
+  "from './aba-clientes-runtime-v75.js?v=79'",
+  "from './analysis-period-v79.js?v=79'",
+  'readSharedAnalysisPeriod',
+  'analysisPeriod: dashPeriod',
   "const mobilePrimaryNav = ['dashboard', 'sales', 'products', 'customers']",
   "setNewSaleMode('unified')"
 ]) assert.ok(runtime.includes(marker), `Runtime técnico incompleto: ${marker}`);
@@ -103,21 +116,21 @@ for (const firebaseConsumer of [
   'aba-financeiro-v68.js',
   'aba-comercial-v74.js'
 ]) {
-  assert.ok(read(firebaseConsumer).includes("firebase-config.js?v=78"),
+  assert.ok(read(firebaseConsumer).includes("firebase-config.js?v=79"),
     `${firebaseConsumer} não usa a configuração atual do Firebase.`);
 }
 
 const bootstrap = read('bootstrap-v75.js');
-assert.ok(bootstrap.includes("const VERSION = '78'"));
+assert.ok(bootstrap.includes("const VERSION = '79'"));
 assert.ok(bootstrap.includes("import(`./app-runtime-v75.js?v=${VERSION}`)"));
 for (const obsolete of ['registerOfflineSupport', 'serviceWorker', 'offline-status', 'URL.createObjectURL']) {
   assert.ok(!bootstrap.includes(obsolete), `Bootstrap ainda contém suporte removido: ${obsolete}`);
 }
 
 const index = read('index.html');
-assert.ok(index.includes("import('./bootstrap-v75.js?v=78')"));
-assert.ok(index.includes('styles-runtime-v75.css?v=78'));
-assert.ok(index.includes('manifest.json?v=78'));
+assert.ok(index.includes("import('./bootstrap-v75.js?v=79')"));
+assert.ok(index.includes('styles-runtime-v75.css?v=79'));
+assert.ok(index.includes('manifest.json?v=79'));
 assert.equal([...index.matchAll(/<link\s+rel="stylesheet"\s+href="\.\/[^"]+"/g)].length, 1,
   'A página deve carregar apenas um pacote local de CSS.');
 for (const cleanupMarker of ['getRegistrations()', 'registration.unregister()', "startsWith('registro-vendas-')", "deleteDatabase('registro-vendas-backups-v75')", 'location.reload()']) {
@@ -127,7 +140,16 @@ assert.ok(!index.includes('serviceWorker.register'), 'O sistema não deve regist
 assert.ok(!index.includes('offline-status-v75.js'), 'O aviso de modo offline não deve ser carregado.');
 
 const styles = read('styles-runtime-v75.css');
-for (const marker of ['Estilos consolidados v78', 'Fonte: styles.css', 'Fonte: v74-commercial.css', '.sale-payment-select-field', '.reports73-credit-position-note']) {
+for (const marker of [
+  'Estilos consolidados v79',
+  'Fonte: styles.css',
+  'Fonte: v74-commercial.css',
+  'Fonte: v79-executive.css',
+  '.sale-payment-select-field',
+  '.reports73-credit-position-note',
+  '.dashboard79-executive',
+  '.reports79-executive-overview'
+]) {
   assert.ok(styles.includes(marker), `Pacote CSS incompleto: ${marker}`);
 }
 assert.ok(!styles.includes('.backup-'), 'Estilos da aba de backup não devem permanecer no pacote.');
@@ -167,7 +189,7 @@ assert.equal(manifest.id, './');
 assert.equal(manifest.start_url, './');
 assert.equal(manifest.display, 'standalone');
 assert.ok(!manifest.description.toLowerCase().includes('offline'));
-assert.equal(manifest.icons[0].src, 'app-icon.svg?v=78');
+assert.equal(manifest.icons[0].src, 'app-icon.svg?v=79');
 
 const unifiedSales = spawnSync(process.execPath, ['scripts/validate-unified-sales-v77.mjs'], {
   cwd: root,
@@ -183,6 +205,13 @@ const creditPosition = spawnSync(process.execPath, ['scripts/validate-credit-pos
 if (creditPosition.status !== 0) throw new Error(`Falha nas posições de crediário:\n${creditPosition.stderr || creditPosition.stdout}`);
 process.stdout.write(creditPosition.stdout);
 
+const executive = spawnSync(process.execPath, ['scripts/validate-executive-v79.mjs'], {
+  cwd: root,
+  encoding: 'utf8'
+});
+if (executive.status !== 0) throw new Error(`Falha na evolução executiva:\n${executive.stderr || executive.stdout}`);
+process.stdout.write(executive.stdout);
+
 const inherited = spawnSync(process.execPath, ['scripts/validate-v74.mjs'], {
   cwd: root,
   encoding: 'utf8'
@@ -190,4 +219,4 @@ const inherited = spawnSync(process.execPath, ['scripts/validate-v74.mjs'], {
 if (inherited.status !== 0) throw new Error(`Regressão herdada da v74:\n${inherited.stderr || inherited.stdout}`);
 process.stdout.write(inherited.stdout);
 
-console.log('Aplicação v78 validada: pagamento em lista suspensa, crediário histórico e atual, runtime somente online e regressões cobertas.');
+console.log('Aplicação v79 validada: painel e relatórios executivos, período compartilhado, filtros avançados, curva ABC, exportações, crediário histórico e regressões cobertas.');

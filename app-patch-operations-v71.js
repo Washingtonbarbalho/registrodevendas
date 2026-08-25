@@ -89,7 +89,13 @@ export const applyOperationsPatch = source => {
   const unifiedSalesRender = `                    : view === 'sales' ? React.createElement(AbaVendas, {
                         sales,
                         setNewSaleMode,
-                        setSelectedSaleDetail
+                        setSelectedSaleDetail,
+                        analysisPeriod: dashPeriod,
+                        analysisStartDate: dashStartDate,
+                        analysisEndDate: dashEndDate,
+                        onAnalysisPeriodChange: setDashPeriod,
+                        onAnalysisStartDateChange: setDashStartDate,
+                        onAnalysisEndDateChange: setDashEndDate
                     })
 `;
   source = source.slice(0, salesStart) + unifiedSalesRender + source.slice(productsStart);

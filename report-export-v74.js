@@ -211,6 +211,37 @@ const styleWorksheet = (XLSX, worksheet, sheet) => {
   });
 };
 
+const safeCsvCell = value => {
+  let text = value === null || value === undefined ? '' : String(value).replace(/\u00a0/g, ' ');
+  if (/^[\t\r]*[=+@]/.test(text) || /^[\t\r]*-[^\d]/.test(text)) text = `'${text}`;
+  return `"${text.replace(/"/g, '""')}"`;
+};
+
+export const buildReportCsvContent = ({ report, storeName = 'Registro de Vendas', startDate, endDate } = {}) => {
+  if (!report) throw new Error('Relatório não informado para a exportação CSV.');
+  const lines = [
+    [report.title || 'Relatório'],
+    ['Loja', storeName],
+    ['Data inicial', startDate || '', 'Data final', endDate || ''],
+    [],
+    ['Resumo'],
+    ['Indicador', 'Valor'],
+    ...(report.metrics || []).map(item => [item.label, item.display ?? item.value ?? '']),
+    [],
+    ['Detalhamento'],
+    [...(report.columns || [])],
+    ...(report.rows || []).map(row => [...row])
+  ];
+  if (report.notes?.length) lines.push([], ['Observações'], ...report.notes.map(note => [note]));
+  return `\uFEFF${lines.map(row => row.map(safeCsvCell).join(';')).join('\r\n')}`;
+};
+
+export const createReportCsvFile = input => new File([
+  buildReportCsvContent(input)
+], `relatorio-${input?.report?.id || 'geral'}-${input?.startDate || 'inicio'}-${input?.endDate || 'fim'}.csv`, {
+  type: 'text/csv;charset=utf-8'
+});
+
 export const createReportExcelFile = async input => {
   const XLSX = await import('https://esm.sh/xlsx@0.18.5');
   if (!XLSX?.utils?.book_new) throw new Error('Biblioteca de Excel indisponível.');

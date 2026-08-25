@@ -4,7 +4,7 @@ import {
   ArrowDown, ArrowUp, Banknote, CalendarDays, CreditCard, Edit3, Eye,
   Package, Plus, Receipt, Search, Trash2, Wallet, X
 } from 'https://esm.sh/lucide-react@0.292.0';
-import { db, APP_ID } from './firebase-config.js?v=78';
+import { db, APP_ID } from './firebase-config.js?v=79';
 import { doc, onSnapshot, runTransaction, serverTimestamp, setDoc } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js';
 import { MoneyInput } from './components.js';
 import { formatCurrency, formatDate, getBrazilDateString, getCurrentMonthEnd, getCurrentMonthStart, parseMoney } from './utils.js';
@@ -203,15 +203,21 @@ const AccountRow = ({ item, tab, toggleStockPayable, toggleManualAccount, openMa
   );
 };
 
-export const AbaFinanceiro = ({ userId, sales = [], products = [], onOpenSale, onOpenProduct, onReceiveInstallment }) => {
+export const AbaFinanceiro = ({
+  userId, sales = [], products = [], onOpenSale, onOpenProduct, onReceiveInstallment,
+  analysisStartDate, analysisEndDate, onAnalysisPeriodChange,
+  onAnalysisStartDateChange, onAnalysisEndDateChange
+}) => {
   const [tab, setTab] = useState('movements');
   const [data, setData] = useState(EMPTY_DATA);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [search, setSearch] = useState('');
-  const [startDate, setStartDate] = useState(getCurrentMonthStart());
-  const [endDate, setEndDate] = useState(getCurrentMonthEnd());
+  const [localStartDate, setLocalStartDate] = useState(getCurrentMonthStart());
+  const [localEndDate, setLocalEndDate] = useState(getCurrentMonthEnd());
+  const startDate = analysisStartDate || localStartDate;
+  const endDate = analysisEndDate || localEndDate;
   const [accountFilter, setAccountFilter] = useState('open');
   const [modalState, setModalState] = useState(null);
 
@@ -403,9 +409,17 @@ export const AbaFinanceiro = ({ userId, sales = [], products = [], onOpenSale, o
   const openManualEdit = item => setModalState({ kind: item.direction ? item.direction : 'movement', initial: item });
   const periodControl = h('div', { className: 'finance44-period' },
     h(CalendarDays, { size: 16 }),
-    h('input', { type: 'date', value: startDate, onChange: event => setStartDate(event.target.value) }),
+    h('input', { type: 'date', value: startDate, onChange: event => {
+      setLocalStartDate(event.target.value);
+      onAnalysisPeriodChange?.('custom');
+      onAnalysisStartDateChange?.(event.target.value);
+    } }),
     h('span', null, 'até'),
-    h('input', { type: 'date', value: endDate, onChange: event => setEndDate(event.target.value) })
+    h('input', { type: 'date', value: endDate, onChange: event => {
+      setLocalEndDate(event.target.value);
+      onAnalysisPeriodChange?.('custom');
+      onAnalysisEndDateChange?.(event.target.value);
+    } })
   );
 
   const listContent = (() => {

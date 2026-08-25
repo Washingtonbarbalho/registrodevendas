@@ -1,4 +1,4 @@
-REGISTRO DE VENDAS — VERSÃO 78
+REGISTRO DE VENDAS — VERSÃO 79
 
 ARQUITETURA ATIVA
 - app-runtime-v75.js reúne, em tempo de compilação, as correções das etapas anteriores.
@@ -26,6 +26,25 @@ POSIÇÃO HISTÓRICA DO CREDIÁRIO
 - A leitura selecionada define vencimentos, inadimplência, clientes em atraso e detalhamento dos contratos.
 - Pagamentos parciais, quitações e cancelamentos posteriores não alteram a posição existente no encerramento consultado.
 - Recebimentos, estornos e vendas realizadas permanecem vinculados ao período escolhido.
+
+PAINEL EXECUTIVO E PERÍODO COMPARTILHADO
+- A visão inicial apresenta faturamento, resultado líquido, quantidade de vendas, ticket médio e comparação com o período anterior.
+- Metas, tendências e ações rápidas de venda, cobrança, reposição e relatórios ficam disponíveis no painel.
+- Início, Vendas, Financeiro, Comercial e Relatórios compartilham a seleção do período de análise.
+- A última escolha de datas é lembrada por usuário; somente a preferência do filtro fica no navegador, sem armazenar dados comerciais.
+- Os atalhos incluem sete dias, mês atual, últimos 30 dias e período personalizado.
+
+RELATÓRIOS ORGANIZADOS POR ASSUNTO
+- Uma visão executiva apresenta os principais resultados antes da abertura dos detalhamentos.
+- Resultados e vendas: faturamento, ticket médio, comparação, crescimento, evolução diária e canais.
+- Clientes e crediário: posição histórica e atual, clientes novos e recorrentes, recompra, inadimplência e cobranças.
+- Produtos e estoque: vendas por produto, estoque mínimo, reposição, dias de cobertura e classificação ABC.
+- Financeiro, compras e taxas: entradas, saídas, despesas, compras, cartões e resultado líquido.
+- Descontos e promoções: promoções e descontos separados, motivos e impacto efetivo na margem.
+- Novas vendas guardam o preço normal e o promocional no próprio item para preservar a precisão histórica.
+- Os filtros por produto, cliente, pagamento, situação, categoria e canal aparecem somente quando fizerem sentido.
+- Produtos podem receber uma categoria opcional para segmentação dos relatórios.
+- Cada relatório pode ser compartilhado ou exportado como PDF executivo, PDF detalhado, Excel ou CSV.
 
 FUNCIONAMENTO SOMENTE ONLINE
 - O sistema depende de internet para abrir e consultar os dados do Firebase.

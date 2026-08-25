@@ -274,6 +274,7 @@ export const EditInstallmentModal = ({ isOpen, onClose, installment, onSave }) =
 export const ProductModal = ({ isOpen, onClose, onSave, lastCode, initialData }) => {
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
+    const [category, setCategory] = useState('');
     const [salePrice, setSalePrice] = useState('');
     const [costPrice, setCostPrice] = useState('');
     const [minimumStock, setMinimumStock] = useState('3');
@@ -286,7 +287,8 @@ export const ProductModal = ({ isOpen, onClose, onSave, lastCode, initialData })
 
     useEffect(() => {
         if (initialData && isOpen) {
-            setName(initialData.name || ''); setDescription(initialData.description || ''); 
+            setName(initialData.name || ''); setDescription(initialData.description || '');
+            setCategory(initialData.category || '');
             setSalePrice(initialData.salePrice || 0); setCostPrice(initialData.costPrice || 0); 
             setMinimumStock(String(initialData.minimumStock ?? 3));
             setReplenishmentLeadTimeDays(String(initialData.replenishmentLeadTimeDays ?? 7));
@@ -294,7 +296,7 @@ export const ProductModal = ({ isOpen, onClose, onSave, lastCode, initialData })
             setIsPromo(initialData.isPromo || false); setPromoPrice(initialData.promoPrice || 0); 
             setPromoStart(initialData.promoStart || ''); setPromoEnd(initialData.promoEnd || '');
         } else if (isOpen) {
-            setName(''); setDescription(''); setSalePrice(''); setCostPrice('');
+            setName(''); setDescription(''); setCategory(''); setSalePrice(''); setCostPrice('');
             setMinimumStock('3'); setReplenishmentLeadTimeDays('7'); setRepurchaseCycleDays('60');
             setIsPromo(false); setPromoPrice(''); setPromoStart(''); setPromoEnd('');
         }
@@ -316,7 +318,7 @@ export const ProductModal = ({ isOpen, onClose, onSave, lastCode, initialData })
     const handleSubmit = () => {
         if (!name || numSale <= 0) return alert("Nome e Preço de Venda são obrigatórios.");
         const dataToSave = {
-            code: nextCode, name: name.toUpperCase(), description, salePrice: numSale, costPrice: numCost,
+            code: nextCode, name: name.toUpperCase(), description, category: category.trim(), salePrice: numSale, costPrice: numCost,
             minimumStock: Math.max(0, parseInt(minimumStock, 10) || 0),
             replenishmentLeadTimeDays: Math.min(365, Math.max(0, parseInt(replenishmentLeadTimeDays, 10) || 0)),
             repurchaseCycleDays: Math.min(730, Math.max(0, parseInt(repurchaseCycleDays, 10) || 0)),
@@ -348,6 +350,15 @@ export const ProductModal = ({ isOpen, onClose, onSave, lastCode, initialData })
                     React.createElement('div', null,
                         React.createElement('label', { className: "block text-[10px] font-bold text-slate-500 uppercase mb-1" }, "Nome do Produto *"),
                         React.createElement('input', { className: "w-full p-3 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-yellow-500 uppercase", value: name, onChange: e => setName(e.target.value.toUpperCase()) })
+                    ),
+                    React.createElement('div', null,
+                        React.createElement('label', { className: "block text-[10px] font-bold text-slate-500 uppercase mb-1" }, "Categoria (Opcional)"),
+                        React.createElement('input', {
+                            className: "w-full p-3 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-yellow-500 text-sm",
+                            value: category,
+                            onChange: e => setCategory(e.target.value),
+                            placeholder: "Ex.: Perfumes, cuidados pessoais, maquiagem"
+                        })
                     ),
                     React.createElement('div', null,
                         React.createElement('label', { className: "block text-[10px] font-bold text-slate-500 uppercase mb-1" }, "Descrição (Opcional)"),

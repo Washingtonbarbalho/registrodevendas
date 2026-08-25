@@ -1,18 +1,22 @@
 import React, { useEffect, useMemo, useState } from 'https://esm.sh/react@18.2.0';
 import { createPortal } from 'https://esm.sh/react-dom@18.2.0';
-import { db, APP_ID } from './firebase-config.js?v=78';
+import { db, APP_ID } from './firebase-config.js?v=79';
 import { doc, onSnapshot } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js';
-import { formatCurrency, getBrazilDateString, getCurrentMonthStart } from './utils.js';
+import { formatCurrency, getBrazilDateString, getCurrentMonthEnd, getCurrentMonthStart } from './utils.js';
+import { DateRangeFilter } from './components.js?v=79';
 import {
   buildReport,
   PAYMENT_FILTERS,
   REPORT_DEFINITIONS,
+  REPORT_GROUPS,
   reportPeriodLabel,
-  SALE_CHANNELS,
-  shiftReportDate,
-  STRATEGIC_REPORTS
-} from './reports-engine-v73.js?v=78';
-import { createReportExcelFile, downloadFile, shareFile } from './report-export-v74.js';
+  SALE_CHANNELS
+} from './reports-engine-v73.js?v=79';
+import { createReportCsvFile, createReportExcelFile, downloadFile, shareFile } from './report-export-v74.js?v=79';
+import { buildRepurchaseSuggestions, buildWhatsappUrl } from './commercial-engine-v74.js?v=79';
+import { buildExecutiveInsights } from './executive-insights-v79.js?v=79';
+import { getReportCategories, getReportFilterCapabilities } from './report-filters-v79.js?v=79';
+import { resolveAnalysisPeriod } from './analysis-period-v79.js?v=79';
 
 const h = React.createElement;
 const EMPTY_FINANCIAL = { entries: [], accounts: [] };
@@ -23,6 +27,7 @@ const ICON_PATHS = {
   'net-result': ['M12 3v18', 'M17 7H9a4 4 0 0 0 0 8h6a4 4 0 0 1 0 8H7'],
   'sales-channels': ['M5 12h6', 'M13 6h6', 'M13 18h6', 'M11 12l2-6', 'M11 12l2 6', 'M3 10h2v4H3'],
   'stock-replenishment': ['M4 7l8-4 8 4-8 4-8-4', 'M4 7v10l8 4 8-4V7', 'M12 11v10', 'M17 13v4', 'M15 15h4'],
+  'stock-abc': ['M4 19V5', 'M4 19h16', 'M8 15v-4', 'M13 15V8', 'M18 15v-2'],
   'repeat-customers': ['M8 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8', 'M2 21c0-4 2.5-7 6-7s6 3 6 7', 'M18 8a4 4 0 1 1-3 7', 'M15 15h3v-3'],
   sales: ['M4 5h16v14H4z', 'M7 9h10', 'M7 13h7'],
   'sale-profit': ['M12 3v18', 'M16.5 7.5c0-1.8-2-3-4.5-3s-4.5 1.2-4.5 3 1.7 2.7 4.5 3 4.5 1.2 4.5 3-2 3-4.5 3-4.5-1.2-4.5-3'],
@@ -101,26 +106,44 @@ const BarChart = ({ chart }) => {
   );
 };
 
-const ReportTable = ({ report }) => h('section', { className: 'reports62-table-card' },
+const ReportTable = ({ report, storeName }) => h('section', { className: 'reports62-table-card' },
   h('div', { className: 'reports62-section-title' }, h(ReportIcon, { name: 'table', size: 17 }), h('strong', null, 'Detalhamento')),
   report.rows.length === 0
     ? h('div', { className: 'reports62-empty-table' }, 'Nenhum registro encontrado no período selecionado.')
     : h('div', { className: 'reports62-table-scroll' },
       h('table', { className: 'reports62-table' },
-        h('thead', null, h('tr', null, report.columns.map(column => h('th', { key: column }, column)))),
+        h('thead', null, h('tr', null,
+          report.columns.map(column => h('th', { key: column }, column)),
+          report.rowActions && h('th', { key: 'actions' }, 'Ação rápida')
+        )),
         h('tbody', null, report.rows.map((row, rowIndex) =>
-          h('tr', { key: rowIndex }, row.map((cell, cellIndex) => h('td', { key: cellIndex }, cell)))
+          h('tr', { key: rowIndex },
+            row.map((cell, cellIndex) => h('td', { key: cellIndex }, cell)),
+            report.rowActions && h('td', { key: 'action' }, (() => {
+              const action = report.rowActions[rowIndex];
+              const message = action?.type === 'repurchase'
+                ? `Olá, ${action.customerName}! Aqui é da ${storeName || 'nossa loja'}. Posso ajudar você a escolher sua próxima fragrância?`
+                : `Olá, ${action?.customerName || 'cliente'}! Aqui é da ${storeName || 'nossa loja'}. Como posso ajudar?`;
+              const url = buildWhatsappUrl(action?.phone, message);
+              return url ? h('a', {
+                href: url,
+                target: '_blank',
+                rel: 'noopener noreferrer',
+                className: 'reports79-whatsapp-action'
+              }, 'WhatsApp') : h('span', { className: 'reports79-without-phone' }, 'Sem telefone');
+            })())
+          )
         ))
       )
     )
 );
 
-const generatePdf = async ({ report, storeName, startDate, endDate, paymentFilter, saleChannel }) => {
+const generatePdf = async ({ report, storeName, startDate, endDate, paymentFilter, saleChannel, detailLevel = 'detailed' }) => {
   const module = await import('https://esm.sh/jspdf@2.5.1');
   const JsPdf = module.jsPDF || module.default?.jsPDF || module.default;
   if (!JsPdf) throw new Error('Biblioteca de PDF indisponível.');
 
-  const landscape = (report.columns?.length || 0) >= 6;
+  const landscape = detailLevel === 'detailed' && (report.columns?.length || 0) >= 6;
   const pdf = new JsPdf({ unit: 'mm', format: 'a4', orientation: landscape ? 'landscape' : 'portrait' });
   const width = pdf.internal.pageSize.getWidth();
   const height = pdf.internal.pageSize.getHeight();
@@ -262,10 +285,12 @@ const generatePdf = async ({ report, storeName, startDate, endDate, paymentFilte
     line(report.chart.title, { size: 11, bold: true, color: [15, 23, 42], after: 3 });
     report.chart.items.slice(0, 10).forEach(item => line(`${item.label}: ${item.display || formatCurrency(item.value)}`, { size: 8 }));
   }
-  y += 3;
-  line('Detalhamento', { size: 11, bold: true, color: [15, 23, 42], after: 3 });
-  if (!report.rows.length) line('Nenhum registro encontrado no período selecionado.', { color: [100, 116, 139] });
-  else drawTable(report.columns || [], report.rows || []);
+  if (detailLevel === 'detailed') {
+    y += 3;
+    line('Detalhamento', { size: 11, bold: true, color: [15, 23, 42], after: 3 });
+    if (!report.rows.length) line('Nenhum registro encontrado no período selecionado.', { color: [100, 116, 139] });
+    else drawTable(report.columns || [], report.rows || []);
+  }
 
   if (report.notes?.length) {
     y += 4;
@@ -279,39 +304,70 @@ const generatePdf = async ({ report, storeName, startDate, endDate, paymentFilte
     pdf.setTextColor(148, 163, 184);
     pdf.text(`Gerado em ${new Date().toLocaleString('pt-BR')} · Página ${page}/${pageCount}`, width / 2, height - 7, { align: 'center' });
   }
-  const filename = `relatorio-${report.id}-${startDate}-${endDate}.pdf`;
+  const filename = `relatorio-${report.id}-${detailLevel === 'executive' ? 'executivo' : 'detalhado'}-${startDate}-${endDate}.pdf`;
   const blob = pdf.output('blob');
   return new File([blob], filename, { type: 'application/pdf' });
 };
 
-const ReportModal = ({ definition, sales, products, customers, financialData, storeName, onClose }) => {
-  const [period, setPeriod] = useState('month');
-  const [startDate, setStartDate] = useState(getCurrentMonthStart());
-  const [endDate, setEndDate] = useState(getBrazilDateString());
+const ReportModal = ({
+  definition, sales, products, customers, financialData, storeName, onClose,
+  analysisPeriod, analysisStartDate, analysisEndDate, onAnalysisPeriodChange,
+  onAnalysisStartDateChange, onAnalysisEndDateChange
+}) => {
+  const [localPeriod, setLocalPeriod] = useState('month');
+  const [localStartDate, setLocalStartDate] = useState(getCurrentMonthStart());
+  const [localEndDate, setLocalEndDate] = useState(getCurrentMonthEnd());
+  const period = analysisPeriod || localPeriod;
+  const startDate = analysisStartDate || localStartDate;
+  const endDate = analysisEndDate || localEndDate;
   const [paymentFilter, setPaymentFilter] = useState('all');
+  const [productFilter, setProductFilter] = useState('all');
+  const [customerFilter, setCustomerFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [categoryFilter, setCategoryFilter] = useState('all');
   const [saleChannel, setSaleChannel] = useState('all');
   const [creditPositionMode, setCreditPositionMode] = useState('as-of');
   const [compareWithPrevious, setCompareWithPrevious] = useState(true);
+  const [exportFormat, setExportFormat] = useState('pdf-detailed');
   const [exportLoading, setExportLoading] = useState('');
   useBodyLock(true);
 
   useEffect(() => {
-    setPeriod('month');
-    setStartDate(getCurrentMonthStart());
-    setEndDate(getBrazilDateString());
     setPaymentFilter('all');
+    setProductFilter('all');
+    setCustomerFilter('all');
+    setStatusFilter('all');
+    setCategoryFilter('all');
     setSaleChannel('all');
     setCreditPositionMode('as-of');
     setCompareWithPrevious(true);
   }, [definition?.id]);
 
   const applyPeriod = next => {
-    const today = getBrazilDateString();
-    setPeriod(next);
-    if (next === 'week') { setStartDate(shiftReportDate(today, -6)); setEndDate(today); }
-    if (next === 'month') { setStartDate(getCurrentMonthStart()); setEndDate(today); }
-    if (next === 'last30') { setStartDate(shiftReportDate(today, -29)); setEndDate(today); }
+    setLocalPeriod(next);
+    onAnalysisPeriodChange?.(next);
+    if (next === 'custom') return;
+    const selection = resolveAnalysisPeriod(next, getBrazilDateString());
+    setLocalStartDate(selection.startDate);
+    setLocalEndDate(selection.endDate);
+    onAnalysisStartDateChange?.(selection.startDate);
+    onAnalysisEndDateChange?.(selection.endDate);
   };
+  const changeStartDate = value => {
+    setLocalPeriod('custom');
+    setLocalStartDate(value);
+    onAnalysisPeriodChange?.('custom');
+    onAnalysisStartDateChange?.(value);
+  };
+  const changeEndDate = value => {
+    setLocalPeriod('custom');
+    setLocalEndDate(value);
+    onAnalysisPeriodChange?.('custom');
+    onAnalysisEndDateChange?.(value);
+  };
+  const repurchaseSuggestions = useMemo(() => buildRepurchaseSuggestions({
+    sales, products, customers, today: getBrazilDateString(), horizonDays: 14
+  }), [sales, products, customers]);
 
   const report = useMemo(() => buildReport({
     reportId: definition.id,
@@ -322,13 +378,21 @@ const ReportModal = ({ definition, sales, products, customers, financialData, st
     startDate,
     endDate,
     paymentFilter,
+    productFilter,
+    customerFilter,
+    statusFilter,
+    categoryFilter,
     saleChannel,
     creditPositionMode,
+    repurchaseSuggestions,
     compareWithPrevious
-  }), [definition.id, sales, products, customers, financialData, startDate, endDate, paymentFilter, saleChannel, creditPositionMode, compareWithPrevious]);
+  }), [definition.id, sales, products, customers, financialData, startDate, endDate, paymentFilter,
+    productFilter, customerFilter, statusFilter, categoryFilter, saleChannel, creditPositionMode,
+    repurchaseSuggestions, compareWithPrevious]);
 
   const invalidPeriod = !startDate || !endDate || startDate > endDate;
-  const supportsChannel = ['sales', 'sales-channels'].includes(definition.id);
+  const capabilities = getReportFilterCapabilities(definition.id);
+  const categories = getReportCategories({ reportId: definition.id, products, financialData });
   const canCompare = ['result', 'sales', 'sale-profit', 'products', 'net-result', 'sales-channels', 'repeat-customers']
     .includes(definition.id);
   const exportInput = {
@@ -339,38 +403,36 @@ const ReportModal = ({ definition, sales, products, customers, financialData, st
     paymentFilterLabel: PAYMENT_FILTERS.find(([id]) => id === paymentFilter)?.[1] || 'Todas as formas',
     saleChannelLabel: SALE_CHANNELS.find(([id]) => id === saleChannel)?.[1] || 'Todos os canais'
   };
-  const handlePdf = async () => {
-    if (invalidPeriod) return;
-    setExportLoading('pdf');
-    try {
-      const file = await generatePdf({ report, storeName, startDate, endDate, paymentFilter, saleChannel });
-      downloadFile(file);
-    }
-    catch (error) { console.error(error); alert('Não foi possível gerar o PDF.'); }
-    finally { setExportLoading(''); }
+  const generateSelectedFile = async () => {
+    if (exportFormat === 'excel') return createReportExcelFile(exportInput);
+    if (exportFormat === 'csv') return createReportCsvFile(exportInput);
+    return generatePdf({
+      report, storeName, startDate, endDate, paymentFilter, saleChannel,
+      detailLevel: exportFormat === 'pdf-executive' ? 'executive' : 'detailed'
+    });
   };
-  const handleExcel = async () => {
+  const handleExport = async () => {
     if (invalidPeriod) return;
-    setExportLoading('excel');
+    setExportLoading('export');
     try {
-      const file = await createReportExcelFile(exportInput);
+      const file = await generateSelectedFile();
       downloadFile(file);
     } catch (error) {
       console.error(error);
-      alert('Não foi possível gerar o arquivo Excel.');
+      alert('Não foi possível gerar o arquivo selecionado.');
     } finally { setExportLoading(''); }
   };
   const handleShare = async () => {
     if (invalidPeriod) return;
     setExportLoading('share');
     try {
-      const file = await generatePdf({ report, storeName, startDate, endDate, paymentFilter, saleChannel });
+      const file = await generateSelectedFile();
       const result = await shareFile({
         file,
         title: report.title,
         text: `${storeName || 'Registro de Vendas'} · ${reportPeriodLabel(startDate, endDate)}`
       });
-      if (result.downloaded) alert('O compartilhamento direto não está disponível neste aparelho. O PDF foi baixado para você enviar.');
+      if (result.downloaded) alert('O compartilhamento direto não está disponível neste aparelho. O arquivo foi baixado para você enviar.');
     } catch (error) {
       console.error(error);
       alert('Não foi possível compartilhar o relatório.');
@@ -398,21 +460,42 @@ const ReportModal = ({ definition, sales, products, customers, financialData, st
             ),
             h('div', { className: 'reports62-filter-grid reports73-filter-grid' },
               h('label', null, h('span', null, 'Data inicial'), h('input', {
-                type: 'date', value: startDate, onChange: event => { setStartDate(event.target.value); setPeriod('custom'); }
+                type: 'date', value: startDate, onChange: event => changeStartDate(event.target.value)
               })),
               h('label', null, h('span', null, 'Data final'), h('input', {
-                type: 'date', value: endDate, onChange: event => { setEndDate(event.target.value); setPeriod('custom'); }
+                type: 'date', value: endDate, onChange: event => changeEndDate(event.target.value)
               })),
-              definition.id === 'sales' && h('label', null, h('span', null, 'Forma de pagamento'), h('select', {
+              capabilities.product && h('label', null, h('span', null, 'Produto'), h('select', {
+                value: productFilter, onChange: event => setProductFilter(event.target.value)
+              }, h('option', { value: 'all' }, 'Todos os produtos'), [...products]
+                .sort((left, right) => String(left.name || '').localeCompare(String(right.name || ''), 'pt-BR'))
+                .map(product => h('option', { key: product.id, value: product.id }, product.name || 'Produto')))),
+              capabilities.customer && h('label', null, h('span', null, 'Cliente'), h('select', {
+                value: customerFilter, onChange: event => setCustomerFilter(event.target.value)
+              }, h('option', { value: 'all' }, 'Todos os clientes'), [...customers]
+                .sort((left, right) => String(left.name || '').localeCompare(String(right.name || ''), 'pt-BR'))
+                .map(customer => h('option', { key: customer.id, value: customer.id }, customer.name || 'Cliente')))),
+              capabilities.payment && h('label', null, h('span', null, 'Forma de pagamento'), h('select', {
                 value: paymentFilter, onChange: event => setPaymentFilter(event.target.value)
               }, PAYMENT_FILTERS.map(([id, label]) => h('option', { key: id, value: id }, label)))),
+              capabilities.status && h('label', null, h('span', null, 'Situação'), h('select', {
+                value: statusFilter, onChange: event => setStatusFilter(event.target.value)
+              }, h('option', { value: 'all' }, 'Todas as situações'), ...(capabilities.productStatus
+                ? [['available', 'Estoque adequado'], ['low', 'Estoque mínimo'], ['out', 'Sem estoque']]
+                : [['open', 'Em aberto'], ['active', 'Ativas'], ['completed', 'Concluídas'], ['canceled', 'Canceladas']]
+              ).map(([id, label]) => h('option', { key: id, value: id }, label)))),
+              capabilities.category && h('label', null, h('span', null, 'Categoria'), h('select', {
+                value: categoryFilter, onChange: event => setCategoryFilter(event.target.value)
+              }, h('option', { value: 'all' }, 'Todas as categorias'), ...categories.map(category =>
+                h('option', { key: category, value: category }, category)
+              ))),
               definition.id === 'credit' && h('label', { className: 'reports73-credit-position-filter' },
                 h('span', null, 'Leitura da carteira'), h('select', {
                   value: creditPositionMode, onChange: event => setCreditPositionMode(event.target.value)
                 },
                 h('option', { value: 'as-of' }, 'Situação na data final do período'),
                 h('option', { value: 'current' }, 'Situação atual da carteira'))),
-              supportsChannel && h('label', null, h('span', null, 'Canal da venda'), h('select', {
+              capabilities.channel && h('label', null, h('span', null, 'Canal da venda'), h('select', {
                 value: saleChannel, onChange: event => setSaleChannel(event.target.value)
               }, h('option', { value: 'all' }, 'Todos os canais'), SALE_CHANNELS.map(([id, label]) =>
                 h('option', { key: id, value: id }, label)
@@ -436,7 +519,7 @@ const ReportModal = ({ definition, sales, products, customers, financialData, st
             h('div', { className: 'reports62-metrics-grid' }, report.metrics.map(item => h(MetricCard, { key: item.label, item }))),
             report.comparison && report.id !== 'period-comparison' && h(ComparisonPanel, { comparison: report.comparison }),
             h(BarChart, { chart: report.chart }),
-            h(ReportTable, { report }),
+            h(ReportTable, { report, storeName }),
             report.notes?.length > 0 && h('section', { className: 'reports62-notes' },
               h('strong', null, 'Observações do relatório'),
               report.notes.map((note, index) => h('p', { key: index }, note))
@@ -447,12 +530,20 @@ const ReportModal = ({ definition, sales, products, customers, financialData, st
           h('div', { className: 'reports62-footer-period' }, invalidPeriod ? 'Período inválido' : reportPeriodLabel(startDate, endDate)),
           h('div', { className: 'reports62-footer-actions' },
             h('button', { type: 'button', className: 'reports62-secondary-btn', onClick: onClose }, 'Fechar'),
-            h('button', { type: 'button', className: 'reports74-excel-btn', disabled: invalidPeriod || !!exportLoading, onClick: handleExcel },
-              exportLoading === 'excel' ? 'Gerando...' : 'Excel'),
+            h('select', {
+              className: 'reports79-export-format',
+              value: exportFormat,
+              onChange: event => setExportFormat(event.target.value),
+              'aria-label': 'Formato de exportação'
+            },
+            h('option', { value: 'pdf-executive' }, 'PDF executivo'),
+            h('option', { value: 'pdf-detailed' }, 'PDF detalhado'),
+            h('option', { value: 'excel' }, 'Excel (.xlsx)'),
+            h('option', { value: 'csv' }, 'CSV (.csv)')),
             h('button', { type: 'button', className: 'reports74-share-btn', disabled: invalidPeriod || !!exportLoading, onClick: handleShare },
               exportLoading === 'share' ? 'Abrindo...' : 'Compartilhar'),
-            h('button', { type: 'button', className: 'reports62-pdf-btn', disabled: invalidPeriod || !!exportLoading, onClick: handlePdf },
-              exportLoading === 'pdf' ? 'Gerando...' : 'PDF')
+            h('button', { type: 'button', className: 'reports62-pdf-btn', disabled: invalidPeriod || !!exportLoading, onClick: handleExport },
+              exportLoading === 'export' ? 'Gerando...' : 'Exportar')
           )
         )
       )
@@ -474,7 +565,11 @@ const ReportCard = ({ definition, onSelect }) => h('button', {
   h('div', { className: 'reports62-card-arrow' }, '›')
 );
 
-export const AbaRelatorios = ({ userId, sales = [], products = [], customers = [], userProfile = {} }) => {
+export const AbaRelatorios = ({
+  userId, sales = [], products = [], customers = [], userProfile = {},
+  analysisPeriod = 'month', analysisStartDate = getCurrentMonthStart(), analysisEndDate = getCurrentMonthEnd(),
+  onAnalysisPeriodChange, onAnalysisStartDateChange, onAnalysisEndDateChange
+}) => {
   const [selectedReport, setSelectedReport] = useState(null);
   const [financialData, setFinancialData] = useState(EMPTY_FINANCIAL);
   const [financialWarning, setFinancialWarning] = useState('');
@@ -493,7 +588,13 @@ export const AbaRelatorios = ({ userId, sales = [], products = [], customers = [
   }, [userId]);
 
   const selectedDefinition = REPORT_DEFINITIONS.find(item => item.id === selectedReport) || null;
-  const operationalReports = REPORT_DEFINITIONS.filter(item => item.group !== 'strategic');
+  const executive = useMemo(() => buildExecutiveInsights({
+    sales, products, customers, financialData, userProfile,
+    startDate: analysisStartDate, endDate: analysisEndDate, today: getBrazilDateString()
+  }), [sales, products, customers, financialData, userProfile, analysisStartDate, analysisEndDate]);
+  const revenueTrend = executive.comparison?.metrics.find(item => item.label === 'Faturamento líquido');
+  const resultTrend = executive.comparison?.metrics.find(item => item.label === 'Resultado líquido');
+  const reportDirectory = new Map(REPORT_DEFINITIONS.map(definition => [definition.id, definition]));
 
   return h(React.Fragment, null,
     h('div', { className: 'reports62-page reports73-page' },
@@ -505,23 +606,46 @@ export const AbaRelatorios = ({ userId, sales = [], products = [], customers = [
         h('div', { className: 'reports62-count' }, h('strong', null, REPORT_DEFINITIONS.length), h('span', null, 'relatórios'))
       ),
       financialWarning && h('div', { className: 'reports62-warning' }, financialWarning),
-      h('section', { className: 'reports73-group' },
-        h('div', { className: 'reports73-group-heading' },
-          h('div', null, h('span', null, 'Decisões do negócio'), h('h2', null, 'Análises estratégicas')),
-          h('strong', null, `${STRATEGIC_REPORTS.length} análises`)
+      h(DateRangeFilter, {
+        period: analysisPeriod,
+        startDate: analysisStartDate,
+        endDate: analysisEndDate,
+        onPeriodChange: value => onAnalysisPeriodChange?.(value),
+        onStartChange: value => { onAnalysisPeriodChange?.('custom'); onAnalysisStartDateChange?.(value); },
+        onEndChange: value => { onAnalysisPeriodChange?.('custom'); onAnalysisEndDateChange?.(value); }
+      }),
+      h('section', { className: 'reports79-executive-overview' },
+        h('div', { className: 'reports79-overview-heading' },
+          h('div', null, h('span', null, 'Antes do detalhamento'), h('h2', null, 'Visão executiva')),
+          h('strong', null, reportPeriodLabel(analysisStartDate, executive.effectiveEndDate))
         ),
-        h('div', { className: 'reports62-grid reports73-strategic-grid' },
-          STRATEGIC_REPORTS.map(definition => h(ReportCard, { key: definition.id, definition, onSelect: setSelectedReport }))
-        )
+        h('div', { className: 'reports79-overview-grid' }, [
+          { label: 'Faturamento líquido', value: formatCurrency(executive.revenue), trend: revenueTrend },
+          { label: 'Resultado líquido', value: formatCurrency(executive.netResult), trend: resultTrend },
+          { label: 'Vendas realizadas', value: String(executive.salesCount), detail: `Ticket ${formatCurrency(executive.ticket)}` },
+          { label: 'Clientes compradores', value: String(executive.buyers), detail: `${executive.newCustomers} novos · ${executive.recurringCustomers} recorrentes` },
+          { label: 'Produtos para repor', value: String(executive.stockAlerts), detail: `${executive.stockoutProducts} sem estoque` },
+          { label: 'Ações de recompra', value: String(executive.repurchaseOpportunities), detail: `${executive.pendingCollections} cobranças próximas` }
+        ].map(item => h('article', { key: item.label, className: 'reports79-overview-card' },
+          h('span', null, item.label),
+          h('strong', null, item.value),
+          item.trend
+            ? h('small', { className: `is-${item.trend.tone}` }, `${item.trend.deltaDisplay} vs. período anterior`)
+            : h('small', null, item.detail)
+        )))
       ),
-      h('section', { className: 'reports73-group' },
-        h('div', { className: 'reports73-group-heading is-operational' },
-          h('div', null, h('span', null, 'Acompanhamento do dia a dia'), h('h2', null, 'Relatórios operacionais'))
-        ),
-        h('div', { className: 'reports62-grid' },
-          operationalReports.map(definition => h(ReportCard, { key: definition.id, definition, onSelect: setSelectedReport }))
+      ...REPORT_GROUPS.map(group => {
+        const definitions = group.reportIds.map(id => reportDirectory.get(id)).filter(Boolean);
+        return h('section', { key: group.id, className: 'reports73-group reports79-topic-group' },
+          h('div', { className: 'reports73-group-heading' },
+            h('div', null, h('span', null, group.description), h('h2', null, group.title)),
+            h('strong', null, `${definitions.length} ${definitions.length === 1 ? 'relatório' : 'relatórios'}`)
+          ),
+          h('div', { className: 'reports62-grid' },
+            definitions.map(definition => h(ReportCard, { key: definition.id, definition, onSelect: setSelectedReport }))
+          )
         )
-      )
+      })
     ),
     selectedDefinition && h(ReportModal, {
       definition: selectedDefinition,
@@ -530,6 +654,12 @@ export const AbaRelatorios = ({ userId, sales = [], products = [], customers = [
       customers,
       financialData,
       storeName: userProfile?.storeName || userProfile?.name || 'Registro de Vendas',
+      analysisPeriod,
+      analysisStartDate,
+      analysisEndDate,
+      onAnalysisPeriodChange,
+      onAnalysisStartDateChange,
+      onAnalysisEndDateChange,
       onClose: () => setSelectedReport(null)
     })
   );

@@ -5,7 +5,7 @@ import {
   RefreshCw, Search, ShoppingBag, Target, TrendingUp, Users, X
 } from 'https://esm.sh/lucide-react@0.292.0';
 import { doc, onSnapshot, serverTimestamp, updateDoc } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js';
-import { db, APP_ID } from './firebase-config.js?v=78';
+import { db, APP_ID } from './firebase-config.js?v=79';
 import { formatCurrency, formatDate, getBrazilDateString } from './utils.js';
 import {
   buildCollectionMessage,
@@ -14,8 +14,9 @@ import {
   buildRepurchaseSuggestions,
   buildWhatsappUrl,
   calculateMonthlyGoals,
+  commercialMonthBounds,
   normalizeCommercialGoals
-} from './commercial-engine-v74.js';
+} from './commercial-engine-v74.js?v=79';
 
 const h = React.createElement;
 const EMPTY_GOAL = { revenue: 0, salesCount: 0, recurringCustomers: 0 };
@@ -193,14 +194,17 @@ const EmptyActions = ({ kind, hasSearch }) => h('div', { className: 'commercial7
       : 'As sugestões aparecem 14 dias antes do ciclo de recompra configurado no produto.')
 );
 
-export const AbaComercial = ({ userId, sales = [], products = [], customers = [], userProfile = {} }) => {
+export const AbaComercial = ({
+  userId, sales = [], products = [], customers = [], userProfile = {},
+  analysisEndDate, onAnalysisPeriodChange, onAnalysisStartDateChange, onAnalysisEndDateChange
+}) => {
   const today = getBrazilDateString();
   const [profile, setProfile] = useState(userProfile || {});
   const [goals, setGoals] = useState(() => {
     const remote = normalizeCommercialGoals(userProfile?.commercialGoals);
     return Object.keys(remote).length ? remote : readLocalGoals(userId);
   });
-  const [month, setMonth] = useState(today.slice(0, 7));
+  const [month, setMonth] = useState((analysisEndDate || today).slice(0, 7));
   const [goalEditorOpen, setGoalEditorOpen] = useState(false);
   const [goalSaving, setGoalSaving] = useState(false);
   const [goalError, setGoalError] = useState('');
@@ -208,6 +212,19 @@ export const AbaComercial = ({ userId, sales = [], products = [], customers = []
   const [statusFilter, setStatusFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [notice, setNotice] = useState('');
+
+  useEffect(() => {
+    if (analysisEndDate) setMonth(analysisEndDate.slice(0, 7));
+  }, [analysisEndDate]);
+
+  const chooseGoalMonth = value => {
+    setMonth(value);
+    const bounds = commercialMonthBounds(value);
+    if (!bounds) return;
+    onAnalysisPeriodChange?.('custom');
+    onAnalysisStartDateChange?.(bounds.startDate);
+    onAnalysisEndDateChange?.(bounds.endDate);
+  };
 
   useEffect(() => {
     if (!userId) return undefined;
@@ -322,7 +339,7 @@ export const AbaComercial = ({ userId, sales = [], products = [], customers = []
             h('p', null, 'Resultados atualizados pelas vendas e cancelamentos registrados no sistema.')
           ),
           h('div', { className: 'commercial74-goal-tools' },
-            h('input', { type: 'month', value: month, onChange: event => setMonth(event.target.value), 'aria-label': 'Mês das metas' }),
+            h('input', { type: 'month', value: month, onChange: event => chooseGoalMonth(event.target.value), 'aria-label': 'Mês das metas' }),
             h('button', { type: 'button', onClick: () => { setGoalError(''); setGoalEditorOpen(true); } }, h(Edit3, { size: 16 }), 'Editar metas')
           )
         ),

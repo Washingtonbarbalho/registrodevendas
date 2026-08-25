@@ -211,10 +211,18 @@ export const NewSaleScreen = ({ mode: initialMode, onClose, customers, products,
 
         const totalLineCost = currentCost * qty;
         const totalLinePrice = unitPrice * qty;
+        const regularUnitPrice = Number(prod.salePrice) || 0;
+        const promotionalUnitPrice = Math.round((unitPrice + unitDiscount + Number.EPSILON) * 100) / 100;
+        const promotionIsActive = !!(prod.isPromo && prod.promoStart && prod.promoEnd
+            && Math.round((Number(prod.promoPrice) || 0) * 100) === Math.round(promotionalUnitPrice * 100));
+        const promotionUnitDiscount = promotionIsActive
+            ? Math.round((Math.max(0, regularUnitPrice - promotionalUnitPrice) + Number.EPSILON) * 100) / 100
+            : 0;
         
         const newItem = { 
             tempId: Date.now(), productId: prod.id, productName: prod.name, productCode: prod.code, 
             quantity: qty, cost: totalLineCost, price: totalLinePrice, unitPrice: unitPrice, 
+            regularUnitPrice, promotionalUnitPrice, promotionUnitDiscount, promotionApplied: promotionUnitDiscount > 0,
             unitCost: currentCost, unitDiscount: unitDiscount 
         };
         

@@ -261,12 +261,20 @@ const saleProfitReport = context => {
 const productsReport = context => {
   const accrual = getSalesAccrualSummary(context.sales, context.startDate, context.endDate);
   const groups = new Map();
+  const restrictProducts = context.productFilter && context.productFilter !== 'all'
+    || context.categoryFilter && context.categoryFilter !== 'all'
+    || context.statusFilter && context.statusFilter !== 'all';
+  const allowedIds = new Set((context.products || []).map(product => String(product.id || '')));
+  const allowedNames = new Set((context.products || []).map(product => String(product.name || '').trim().toLowerCase()));
 
   const applyItems = (items, totalRevenue, totalCost, direction) => {
     if (!Array.isArray(items) || items.length === 0) return;
     const revenues = allocateMoney(totalRevenue, items.map(item => itemRevenue(item)));
     const costs = allocateMoney(totalCost, items.map(item => itemCost(item) || itemRevenue(item)));
     items.forEach((item, index) => {
+      if (restrictProducts
+        && !allowedIds.has(String(item.productId || ''))
+        && !allowedNames.has(String(item.productName || item.name || '').trim().toLowerCase())) return;
       const key = item.productId || item.productName || item.name || 'sem-id';
       const row = groups.get(key) || { name: item.productName || item.name || 'Produto', quantity: 0, revenueCents: 0, costCents: 0 };
       row.quantity += quantity(item.quantity) * direction;

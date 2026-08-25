@@ -27,6 +27,12 @@ export const applySetupPatches = source => {
                         userId: user.uid,
                         sales,
                         products,
+                        analysisPeriod: dashPeriod,
+                        analysisStartDate: dashStartDate,
+                        analysisEndDate: dashEndDate,
+                        onAnalysisPeriodChange: setDashPeriod,
+                        onAnalysisStartDateChange: setDashStartDate,
+                        onAnalysisEndDateChange: setDashEndDate,
                         onOpenSale: sale => setSelectedSaleDetail(sale),
                         onOpenProduct: product => setProductDetailsData({ open: true, data: product }),
                         onReceiveInstallment: (sale, index) => handleClickPay(sale, index)

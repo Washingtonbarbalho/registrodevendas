@@ -3,8 +3,8 @@ import {
   ArrowDownUp, Banknote, CalendarDays, CheckCircle2, ChevronRight, CreditCard,
   Plus, Receipt, RotateCcw, Search, SlidersHorizontal, WalletCards, X, XCircle
 } from 'https://esm.sh/lucide-react@0.292.0';
-import { Pagination } from './components.js?v=78';
-import { formatCurrency, formatDate, getCurrentMonthEnd, getCurrentMonthStart } from './utils.js?v=78';
+import { Pagination } from './components.js?v=79';
+import { formatCurrency, formatDate, getCurrentMonthEnd, getCurrentMonthStart } from './utils.js?v=79';
 import {
   buildSalesView,
   getNextOpenDueDate,
@@ -14,8 +14,8 @@ import {
   getSalePendingAmount,
   SALES_VIEW_DEFAULTS,
   summarizeSalesView
-} from './sales-operations-v71.js?v=78';
-import { getDirectSaleNet } from './financial-core-v70.js?v=78';
+} from './sales-operations-v71.js?v=79';
+import { getDirectSaleNet } from './financial-core-v70.js?v=79';
 
 const ITEMS_PER_PAGE = 12;
 
@@ -119,16 +119,43 @@ const SaleRow = ({ sale, onOpen }) => {
   );
 };
 
-export const AbaVendas = ({ sales, setNewSaleMode, setSelectedSaleDetail }) => {
+export const AbaVendas = ({
+  sales, setNewSaleMode, setSelectedSaleDetail,
+  analysisPeriod = 'month', analysisStartDate, analysisEndDate,
+  onAnalysisPeriodChange, onAnalysisStartDateChange, onAnalysisEndDateChange
+}) => {
   const [query, setQuery] = useState(SALES_VIEW_DEFAULTS.query);
   const [type, setType] = useState(SALES_VIEW_DEFAULTS.type);
   const [status, setStatus] = useState(SALES_VIEW_DEFAULTS.status);
-  const [period, setPeriod] = useState(SALES_VIEW_DEFAULTS.period);
+  const [period, setPeriod] = useState(analysisPeriod === 'month' ? SALES_VIEW_DEFAULTS.period : 'custom');
   const [sort, setSort] = useState(SALES_VIEW_DEFAULTS.sort);
-  const [startDate, setStartDate] = useState(getCurrentMonthStart());
-  const [endDate, setEndDate] = useState(getCurrentMonthEnd());
+  const [startDate, setStartDate] = useState(analysisStartDate || getCurrentMonthStart());
+  const [endDate, setEndDate] = useState(analysisEndDate || getCurrentMonthEnd());
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [page, setPage] = useState(1);
+
+  useEffect(() => {
+    if (!analysisStartDate || !analysisEndDate) return;
+    setStartDate(analysisStartDate);
+    setEndDate(analysisEndDate);
+    setPeriod(analysisPeriod === 'month' ? SALES_VIEW_DEFAULTS.period : 'custom');
+  }, [analysisPeriod, analysisStartDate, analysisEndDate]);
+
+  const choosePeriod = value => {
+    setPeriod(value);
+    if (value === 'current') onAnalysisPeriodChange?.('month');
+    if (value === 'custom') onAnalysisPeriodChange?.('custom');
+  };
+  const changeStartDate = value => {
+    setStartDate(value);
+    onAnalysisPeriodChange?.('custom');
+    onAnalysisStartDateChange?.(value);
+  };
+  const changeEndDate = value => {
+    setEndDate(value);
+    onAnalysisPeriodChange?.('custom');
+    onAnalysisEndDateChange?.(value);
+  };
 
   const tabsSummary = useMemo(() => summarizeSalesView(buildSalesView({
     sales,
@@ -182,6 +209,7 @@ export const AbaVendas = ({ sales, setNewSaleMode, setSelectedSaleDetail }) => {
     setSort(SALES_VIEW_DEFAULTS.sort);
     setStartDate(getCurrentMonthStart());
     setEndDate(getCurrentMonthEnd());
+    onAnalysisPeriodChange?.('month');
   };
 
   return React.createElement('section', { className: 'page-stack sales-unified-page animate-fade-in' },
@@ -223,7 +251,7 @@ export const AbaVendas = ({ sales, setNewSaleMode, setSelectedSaleDetail }) => {
       filtersOpen && React.createElement('div', { className: 'sales-advanced-filters animate-fade-in' },
         React.createElement('label', { className: 'sales-filter-field' },
           React.createElement('span', null, 'Período'),
-          React.createElement('select', { value: period, onChange: event => setPeriod(event.target.value) },
+          React.createElement('select', { value: period, onChange: event => choosePeriod(event.target.value) },
             React.createElement('option', { value: 'current' }, 'Mês atual + pendências'),
             React.createElement('option', { value: 'all' }, 'Todo o histórico'),
             React.createElement('option', { value: 'custom' }, 'Período personalizado')
@@ -244,11 +272,11 @@ export const AbaVendas = ({ sales, setNewSaleMode, setSelectedSaleDetail }) => {
         period === 'custom' && React.createElement(React.Fragment, null,
           React.createElement('label', { className: 'sales-filter-field' },
             React.createElement('span', null, 'Data inicial'),
-            React.createElement('div', { className: 'sales-select-with-icon' }, React.createElement(CalendarDays, { size: 14 }), React.createElement('input', { type: 'date', value: startDate, onChange: event => setStartDate(event.target.value) }))
+            React.createElement('div', { className: 'sales-select-with-icon' }, React.createElement(CalendarDays, { size: 14 }), React.createElement('input', { type: 'date', value: startDate, onChange: event => changeStartDate(event.target.value) }))
           ),
           React.createElement('label', { className: 'sales-filter-field' },
             React.createElement('span', null, 'Data final'),
-            React.createElement('div', { className: 'sales-select-with-icon' }, React.createElement(CalendarDays, { size: 14 }), React.createElement('input', { type: 'date', value: endDate, onChange: event => setEndDate(event.target.value) }))
+            React.createElement('div', { className: 'sales-select-with-icon' }, React.createElement(CalendarDays, { size: 14 }), React.createElement('input', { type: 'date', value: endDate, onChange: event => changeEndDate(event.target.value) }))
           )
         )
       ),

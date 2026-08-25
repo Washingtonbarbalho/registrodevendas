@@ -8,7 +8,7 @@ if (typeof vm.SourceTextModule !== 'function') {
 }
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const RELEASE_VERSION = '78';
+const RELEASE_VERSION = '79';
 const blobStore = new Map();
 const capturedBlobs = [];
 let blobSequence = 0;

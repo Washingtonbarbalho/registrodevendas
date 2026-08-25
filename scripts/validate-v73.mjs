@@ -37,10 +37,10 @@ const metricValue = (report, label) => {
   return found.value;
 };
 
-assert.equal(REPORT_DEFINITIONS.length, 15, 'Os dez relatórios existentes devem coexistir com cinco análises estratégicas.');
-assert.equal(new Set(REPORT_DEFINITIONS.map(item => item.id)).size, 15, 'Não pode haver relatórios duplicados.');
+assert.equal(REPORT_DEFINITIONS.length, 16, 'Os dez relatórios existentes devem coexistir com seis análises estratégicas.');
+assert.equal(new Set(REPORT_DEFINITIONS.map(item => item.id)).size, 16, 'Não pode haver relatórios duplicados.');
 assert.deepEqual(STRATEGIC_REPORTS.map(item => item.id), [
-  'period-comparison', 'net-result', 'sales-channels', 'stock-replenishment', 'repeat-customers'
+  'period-comparison', 'net-result', 'sales-channels', 'stock-replenishment', 'repeat-customers', 'stock-abc'
 ]);
 assert.equal(countPeriodDays('2026-08-01', '2026-08-10'), 10);
 assert.equal(countPeriodDays('2026-08-10', '2026-08-01'), 0);
@@ -265,7 +265,7 @@ for (const marker of ['minimumStock', 'replenishmentLeadTimeDays', 'repurchaseCy
   assert.ok(productsSource.includes(marker), `Configuração do produto ausente: ${marker}`);
 }
 const uiSource = read('aba-relatorios-v73.js');
-for (const marker of ['Análises estratégicas', 'Relatórios operacionais', 'Comparar com o período anterior equivalente', 'Comparação com o período anterior', 'createReportExcelFile', 'Compartilhar']) {
+for (const marker of ['Visão executiva', 'REPORT_GROUPS', 'Comparar com o período anterior equivalente', 'Comparação com o período anterior', 'createReportExcelFile', 'Compartilhar']) {
   assert.ok(uiSource.includes(marker), `Recurso da tela de relatórios ausente: ${marker}`);
 }
 const navigation = read('app-patch-operations-v71.js');
@@ -275,8 +275,8 @@ const bootstrap = read('bootstrap-v71.js');
 assert.ok(bootstrap.includes("['Relatórios', './aba-relatorios-v73.js?v=74'"));
 assert.ok(bootstrap.includes("import('./reports-engine-v73.js?v=74')"));
 const index = read('index.html');
-assert.ok(index.includes('bootstrap-v75.js?v=78'));
-assert.ok(index.includes('styles-runtime-v75.css?v=78'));
+assert.ok(index.includes('bootstrap-v75.js?v=79'));
+assert.ok(index.includes('styles-runtime-v75.css?v=79'));
 
 for (const validator of ['scripts/validate-v69.mjs', 'scripts/validate-v71.mjs']) {
   const inherited = spawnSync(process.execPath, [validator], {

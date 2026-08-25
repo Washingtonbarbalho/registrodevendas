@@ -1,43 +1,44 @@
-// Runtime estático v78 — gerado por scripts/build-runtime-v75.mjs.
+// Runtime estático v79 — gerado por scripts/build-runtime-v75.mjs.
 import React, { useState, useEffect, useMemo } from 'https://esm.sh/react@18.2.0';
 import { createRoot } from 'https://esm.sh/react-dom@18.2.0/client';
 import { Users, User, LogOut, Lock, LayoutDashboard, Receipt, WalletCards, Package, Contact, Store, ShieldCheck, BadgePercent, Banknote, Plus } from 'https://esm.sh/lucide-react@0.292.0';
 
 // Firebase
-import { app, db, auth, APP_ID } from './firebase-config.js?v=78';
+import { app, db, auth, APP_ID } from './firebase-config.js?v=79';
 import { collection, onSnapshot, query, doc, getDoc, updateDoc, deleteDoc, addDoc, serverTimestamp, setDoc, runTransaction, writeBatch } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js";
 
 // Utils
-import { getCurrentMonthStart, getCurrentMonthEnd, getBrazilDateString, addDays, formatCurrency, formatDate } from './utils.js?v=78';
-import { aggregateSaleItems, buildSaleInventoryPlan } from './inventory-reliability-v69.js?v=78';
-import { applyInstallmentPayment, buildFinancialLedger, fromCents, getHistoryCashAmount, getInstallmentFaceAmount, getRealizedSalesProfit, getSalesAccrualSummary, isTermSale, normalizeSaleMoney, reverseInstallmentPayment, sumMoney, summarizeFinancialLedger, toCents } from './financial-core-v70.js?v=78';
+import { getCurrentMonthStart, getCurrentMonthEnd, getBrazilDateString, addDays, formatCurrency, formatDate } from './utils.js?v=79';
+import { aggregateSaleItems, buildSaleInventoryPlan } from './inventory-reliability-v69.js?v=79';
+import { applyInstallmentPayment, buildFinancialLedger, fromCents, getHistoryCashAmount, getInstallmentFaceAmount, getRealizedSalesProfit, getSalesAccrualSummary, isTermSale, normalizeSaleMoney, reverseInstallmentPayment, sumMoney, summarizeFinancialLedger, toCents } from './financial-core-v70.js?v=79';
 
 // Modais
 import { 
     UserProfileModal, CustomerFormModal, ProductDetailsModal, EditInstallmentModal, 
     SaleDetailsModal, PixCodeModal, InstallmentListModal, PaymentConfirmationModal, 
     ConfirmModal, WhatsAppChooserModal, ProductModal
-} from './modals-runtime-v75.js?v=78';
-import { StockMovementModal } from './stock-movement-modal-v68.js?v=78';
+} from './modals-runtime-v75.js?v=79';
+import { StockMovementModal } from './stock-movement-modal-v68.js?v=79';
 
 // Telas Secundárias
-import { AdminUsersPanel } from './auth-admin.js?v=78';
-import { AuthScreen } from './auth-screen-v71.js?v=78';
-import { NewSaleScreen } from './nova-venda-runtime-v75.js?v=78';
+import { AdminUsersPanel } from './auth-admin.js?v=79';
+import { AuthScreen } from './auth-screen-v71.js?v=79';
+import { NewSaleScreen } from './nova-venda-runtime-v75.js?v=79';
 
 // Abas do Dashboard
-import { AbaVisaoGeral } from './aba-visao-geral-fixed.js?v=78';
-import { AbaVendas } from './aba-vendas-v71.js?v=78';
-import { AbaProdutos } from './aba-produtos-v67.js?v=78';
-import { AbaClientes } from './aba-clientes-runtime-v75.js?v=78';
-import { AbaTaxas } from './aba-taxas.js?v=78';
-import { AbaFinanceiro } from './aba-financeiro-v68.js?v=78';
-import { BatchStockModal } from './batch-stock-modal-v68.js?v=78';
-import { AbaRelatorios } from './aba-relatorios-v73.js?v=78';
-import { AbaComercial } from './aba-comercial-v74.js?v=78';
-import { normalizePaymentSettings } from './payment-settings.js?v=78';
-import { shareSalePdf } from './sale-pdf-v65.js?v=78';
+import { AbaVisaoGeral } from './aba-visao-geral-fixed.js?v=79';
+import { AbaVendas } from './aba-vendas-v71.js?v=79';
+import { AbaProdutos } from './aba-produtos-v67.js?v=79';
+import { AbaClientes } from './aba-clientes-runtime-v75.js?v=79';
+import { AbaTaxas } from './aba-taxas.js?v=79';
+import { AbaFinanceiro } from './aba-financeiro-v68.js?v=79';
+import { BatchStockModal } from './batch-stock-modal-v68.js?v=79';
+import { AbaRelatorios } from './aba-relatorios-v73.js?v=79';
+import { AbaComercial } from './aba-comercial-v74.js?v=79';
+import { normalizePaymentSettings } from './payment-settings.js?v=79';
+import { shareSalePdf } from './sale-pdf-v65.js?v=79';
+import { readSharedAnalysisPeriod, resolveAnalysisPeriod, writeSharedAnalysisPeriod } from './analysis-period-v79.js?v=79';
 
 const Dashboard = ({ user, userProfile, onLogout }) => {
     const [view, setView] = useState('dashboard');
@@ -70,9 +71,9 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
     
     const [newSaleMode, setNewSaleMode] = useState(null);
 
-    const [dashPeriod, setDashPeriod] = useState('month'); 
-    const [dashStartDate, setDashStartDate] = useState(getCurrentMonthStart());
-    const [dashEndDate, setDashEndDate] = useState(getCurrentMonthEnd());
+    const [dashPeriod, setDashPeriod] = useState(() => readSharedAnalysisPeriod(user.uid).period);
+    const [dashStartDate, setDashStartDate] = useState(() => readSharedAnalysisPeriod(user.uid).startDate);
+    const [dashEndDate, setDashEndDate] = useState(() => readSharedAnalysisPeriod(user.uid).endDate);
 
     const ITEMS_PER_PAGE = 10;
     const [productsPage, setProductsPage] = useState(1);
@@ -123,7 +124,15 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         return () => { unsubC(); unsubP(); unsubS(); unsubSettings(); };
     }, [user.uid]);
 
-    useEffect(() => { if (dashPeriod === 'month') { setDashStartDate(getCurrentMonthStart()); setDashEndDate(getCurrentMonthEnd()); } }, [dashPeriod]);
+    useEffect(() => {
+        if (dashPeriod === 'custom') return;
+        const selected = resolveAnalysisPeriod(dashPeriod, getBrazilDateString());
+        setDashStartDate(selected.startDate);
+        setDashEndDate(selected.endDate);
+    }, [dashPeriod]);
+    useEffect(() => {
+        writeSharedAnalysisPeriod(user.uid, { period: dashPeriod, startDate: dashStartDate, endDate: dashEndDate });
+    }, [user.uid, dashPeriod, dashStartDate, dashEndDate]);
     useEffect(() => setProductsPage(1), [productSearch]);
     useEffect(() => setCustomersPage(1), [customerSearch]);
 
@@ -1014,12 +1023,20 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
                         React.createElement('span', { className: "text-sm font-bold" }, "Carregando seus dados...")
                     )
                     : view === 'dashboard' ? React.createElement(AbaVisaoGeral, {
-                        dashPeriod, dashStartDate, dashEndDate, setDashPeriod, setDashStartDate, setDashEndDate, dashboardTotals, setInstallmentListModal
+                        dashPeriod, dashStartDate, dashEndDate, setDashPeriod, setDashStartDate, setDashEndDate,
+                        dashboardTotals, setInstallmentListModal, sales, products, customers, userProfile,
+                        onNavigate: setView, onNewSale: () => setNewSaleMode('unified')
                     })
                     : view === 'sales' ? React.createElement(AbaVendas, {
                         sales,
                         setNewSaleMode,
-                        setSelectedSaleDetail
+                        setSelectedSaleDetail,
+                        analysisPeriod: dashPeriod,
+                        analysisStartDate: dashStartDate,
+                        analysisEndDate: dashEndDate,
+                        onAnalysisPeriodChange: setDashPeriod,
+                        onAnalysisStartDateChange: setDashStartDate,
+                        onAnalysisEndDateChange: setDashEndDate
                     })
                     : view === 'products' ? React.createElement(AbaProdutos, {
                         productSearch, setProductSearch, paginatedProducts, sortedProducts, productsPage, setProductsPage, setProductDetailsData, setProductModalData, onBatchMovement: () => setBatchStockOpen(true), ITEMS_PER_PAGE
@@ -1032,19 +1049,35 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
                         sales,
                         products,
                         customers,
-                        userProfile
+                        userProfile,
+                        analysisEndDate: dashEndDate,
+                        onAnalysisPeriodChange: setDashPeriod,
+                        onAnalysisStartDateChange: setDashStartDate,
+                        onAnalysisEndDateChange: setDashEndDate
                     })
                     : view === 'reports' ? React.createElement(AbaRelatorios, {
                         userId: user.uid,
                         sales,
                         products,
                         customers,
-                        userProfile
+                        userProfile,
+                        analysisPeriod: dashPeriod,
+                        analysisStartDate: dashStartDate,
+                        analysisEndDate: dashEndDate,
+                        onAnalysisPeriodChange: setDashPeriod,
+                        onAnalysisStartDateChange: setDashStartDate,
+                        onAnalysisEndDateChange: setDashEndDate
                     })
                     : view === 'finance' ? React.createElement(AbaFinanceiro, {
                         userId: user.uid,
                         sales,
                         products,
+                        analysisPeriod: dashPeriod,
+                        analysisStartDate: dashStartDate,
+                        analysisEndDate: dashEndDate,
+                        onAnalysisPeriodChange: setDashPeriod,
+                        onAnalysisStartDateChange: setDashStartDate,
+                        onAnalysisEndDateChange: setDashEndDate,
                         onOpenSale: sale => setSelectedSaleDetail(sale),
                         onOpenProduct: product => setProductDetailsData({ open: true, data: product }),
                         onReceiveInstallment: (sale, index) => handleClickPay(sale, index)
