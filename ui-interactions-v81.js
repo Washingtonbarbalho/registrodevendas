@@ -130,6 +130,7 @@ const TAP_MOVE_TOLERANCE_PX = 8;
 const SCROLL_CLICK_BLOCK_MS = 400;
 let activeTouchGesture = null;
 let blockedTouchClick = null;
+let activeSelectTouch = null;
 
 export const exceededTapTolerance = (start, current, tolerance = TAP_MOVE_TOLERANCE_PX) => {
   const deltaX = Math.abs(Number(current?.x || 0) - Number(start?.x || 0));
@@ -189,6 +190,57 @@ const consumeBlockedTouchClick = event => {
   if (!related) return false;
   blockedTouchClick = null;
   return true;
+};
+
+const touchPoint = touch => ({
+  x: Number(touch?.clientX || 0),
+  y: Number(touch?.clientY || 0)
+});
+
+const findGestureTouch = (touches, identifier) => Array.from(touches || [])
+  .find(touch => touch.identifier === identifier) || null;
+
+const beginSelectTouch = event => {
+  if ((event.touches?.length || 0) !== 1) return;
+  const select = selectFromEvent(event);
+  if (!select || select.disabled || select.multiple || select.dataset.nativeSelect === 'true') return;
+  const touch = event.touches[0];
+  activeSelectTouch = {
+    identifier: touch.identifier,
+    select,
+    start: touchPoint(touch),
+    scrollX: Number(window.scrollX || 0),
+    scrollY: Number(window.scrollY || 0),
+    moved: false
+  };
+};
+
+const moveSelectTouch = event => {
+  if (!activeSelectTouch) return;
+  const touch = findGestureTouch(event.touches, activeSelectTouch.identifier);
+  if (!touch) return;
+  activeSelectTouch.moved ||= exceededTapTolerance(activeSelectTouch.start, touchPoint(touch))
+    || Math.abs(Number(window.scrollX || 0) - activeSelectTouch.scrollX) >= 2
+    || Math.abs(Number(window.scrollY || 0) - activeSelectTouch.scrollY) >= 2;
+};
+
+const finishSelectTouch = (event, canceled = false) => {
+  if (!activeSelectTouch) return;
+  const gesture = activeSelectTouch;
+  const touch = findGestureTouch(event.changedTouches, gesture.identifier);
+  const moved = canceled
+    || gesture.moved
+    || (touch && exceededTapTolerance(gesture.start, touchPoint(touch)))
+    || Math.abs(Number(window.scrollX || 0) - gesture.scrollX) >= 2
+    || Math.abs(Number(window.scrollY || 0) - gesture.scrollY) >= 2;
+  activeSelectTouch = null;
+  if (moved || !touch) return;
+
+  // Impede o seletor nativo somente no fim de um toque válido. O início
+  // permanece passivo para que seja possível rolar a página sobre o campo.
+  event.preventDefault();
+  event.stopPropagation();
+  activateSelect(gesture.select, event);
 };
 
 const makeElement = (tag, className = '', text = '') => {
@@ -603,17 +655,18 @@ const selectFromEvent = event => {
   return target instanceof Element ? target.closest('select') : null;
 };
 
-const interceptSelectActivation = event => {
-  const select = selectFromEvent(event);
+const activateSelect = (select, event) => {
   if (!select || select.disabled || select.multiple || select.dataset.nativeSelect === 'true') return;
-  event.preventDefault();
-  event.stopPropagation();
+  event?.preventDefault?.();
+  event?.stopPropagation?.();
   const now = Date.now();
   if (lastSelect === select && now - lastSelectOpenedAt < 500) return;
   lastSelect = select;
   lastSelectOpenedAt = now;
   void showAppSelect(select);
 };
+
+const interceptSelectActivation = event => activateSelect(selectFromEvent(event), event);
 
 const interceptSelectMousePointer = event => {
   if (event.pointerType && event.pointerType !== 'mouse') return;
@@ -665,6 +718,10 @@ export const installUiInteractions = () => {
   document.addEventListener('pointermove', moveTouchGesture, true);
   document.addEventListener('pointerup', event => finishTouchGesture(event), true);
   document.addEventListener('pointercancel', event => finishTouchGesture(event, true), true);
+  document.addEventListener('touchstart', beginSelectTouch, { capture: true, passive: true });
+  document.addEventListener('touchmove', moveSelectTouch, { capture: true, passive: true });
+  document.addEventListener('touchend', event => finishSelectTouch(event), { capture: true, passive: false });
+  document.addEventListener('touchcancel', event => finishSelectTouch(event, true), { capture: true, passive: true });
   document.addEventListener('pointerdown', interceptSelectMousePointer, true);
   document.addEventListener('click', interceptApplicationClick, true);
   document.addEventListener('keydown', interceptSelectKeyboard, true);

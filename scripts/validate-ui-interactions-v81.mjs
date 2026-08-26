@@ -217,6 +217,10 @@ for (const marker of [
   "document.addEventListener('pointerdown', beginTouchGesture, true)",
   "document.addEventListener('pointermove', moveTouchGesture, true)",
   "document.addEventListener('pointercancel', event => finishTouchGesture(event, true), true)",
+  "document.addEventListener('touchstart', beginSelectTouch, { capture: true, passive: true })",
+  "document.addEventListener('touchmove', moveSelectTouch, { capture: true, passive: true })",
+  "document.addEventListener('touchend', event => finishSelectTouch(event), { capture: true, passive: false })",
+  'activateSelect(gesture.select, event)',
   "document.addEventListener('pointerdown', interceptSelectMousePointer, true)",
   "document.addEventListener('click', interceptApplicationClick, true)",
   'consumeBlockedTouchClick',
@@ -238,8 +242,11 @@ for (const marker of [
   "button.setAttribute('role', 'gridcell')",
   "ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7"
 ]) assert.ok(interactionSource.includes(marker), `Camada interativa incompleta: ${marker}`);
-assert.ok(!interactionSource.includes("document.addEventListener('touchstart'"),
+assert.ok(!interactionSource.includes("touchstart', interceptSelect"),
   'Listas personalizadas não podem abrir no início do toque, antes de distinguir uma rolagem.');
+assert.ok(interactionSource.indexOf('event.preventDefault();\n  event.stopPropagation();\n  activateSelect(gesture.select, event)')
+  > interactionSource.indexOf('const finishSelectTouch ='),
+  'O seletor nativo precisa ser bloqueado no fim do toque antes de abrir o modal próprio.');
 
 const bootstrap = read('bootstrap-v75.js');
 const version = bootstrap.match(/const VERSION = '([^']+)'/)?.[1];
