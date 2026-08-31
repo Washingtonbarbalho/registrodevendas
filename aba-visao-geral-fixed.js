@@ -3,9 +3,9 @@ import {
     TrendingUp, Wallet, AlertTriangle, ChevronRight, BellRing, Target,
     LineChart, CircleDollarSign, CalendarClock, Plus, MessageCircle, Package, BarChart3
 } from 'https://esm.sh/lucide-react@0.292.0';
-import { formatCurrency, getBrazilDateString } from './utils.js?v=89';
-import { DateRangeFilter } from './components.js?v=89';
-import { buildExecutiveInsights } from './executive-insights-v79.js?v=89';
+import { formatCurrency, getBrazilDateString } from './utils.js?v=90';
+import { DateRangeFilter } from './components.js?v=90';
+import { buildExecutiveInsights } from './executive-insights-v79.js?v=90';
 
 const MetricCard = ({ label, value, note, icon, color, background, glow, onClick }) => React.createElement('div', {
     onClick,

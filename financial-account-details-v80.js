@@ -222,6 +222,23 @@ export const filterFinancialAccounts = (accounts = [], {
     });
 };
 
+export const summarizeOpenFinancialAccounts = (accounts = [], {
+  startDate = '',
+  endDate = ''
+} = {}) => {
+  const periodAccounts = filterFinancialAccounts(accounts, {
+    scope: 'period',
+    startDate,
+    endDate,
+    status: 'open'
+  });
+
+  return {
+    count: periodAccounts.length,
+    total: sumMoney(periodAccounts, account => account.value)
+  };
+};
+
 export const buildFinancialAccountDetails = (account, { products = [], today = '' } = {}) => {
   if (!account || typeof account !== 'object') return null;
 

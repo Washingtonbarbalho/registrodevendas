@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { buildFinancialAccountDetails, filterFinancialAccounts } from '../financial-account-details-v80.js';
+import {
+  buildFinancialAccountDetails,
+  filterFinancialAccounts,
+  summarizeOpenFinancialAccounts
+} from '../financial-account-details-v80.js';
 import { applyInstallmentPayment, getPurchaseGroups } from '../financial-core-v70.js';
 
 const today = '2026-08-25';
@@ -236,6 +240,14 @@ const portfolio = [
 const august = { startDate: '2026-08-01', endDate: '2026-08-31' };
 assert.deepEqual(filterFinancialAccounts(portfolio, august).map(account => account.id), ['current'],
   'A visualização comum deve continuar respeitando o período selecionado.');
+assert.deepEqual(summarizeOpenFinancialAccounts([
+  { dueDate: '2026-08-05', value: 80.10, paid: false },
+  { dueDate: '2026-08-25', value: 20.20, paid: false },
+  { dueDate: '2026-08-18', value: 50, paid: true },
+  { dueDate: '2026-08-22', value: 70, paid: false, canceled: true },
+  { dueDate: '2026-09-05', value: 90, paid: false }
+], august), { count: 2, total: 100.30 },
+  'O cartão deve somar somente contas em aberto com vencimento dentro do período selecionado.');
 assert.deepEqual(filterFinancialAccounts(portfolio, { ...august, scope: 'all' }).map(account => account.id),
   ['current', 'future', 'distant'],
   'Os cartões precisam abrir todas as contas pendentes, inclusive parcelas de meses futuros.');
@@ -274,6 +286,9 @@ for (const marker of [
   'installmentOriginalTotal',
   'buildPaymentInstallments(form.value, count, form.date)',
   'Saldo total em caixa',
+  'summarizeOpenFinancialAccounts(receivables, { startDate, endDate })',
+  'summarizeOpenFinancialAccounts(payables, { startDate, endDate })',
+  'em aberto no período',
   "summarizeFinancialLedger(\n    sharedLedger,\n    '',\n    getBrazilDateString()",
   "scope: 'all'",
   "scope: 'period'",

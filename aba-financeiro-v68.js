@@ -4,14 +4,14 @@ import {
   ArrowDown, ArrowUp, Banknote, CreditCard, Edit3, Eye,
   Package, Plus, Receipt, Search, Trash2, Wallet, X
 } from 'https://esm.sh/lucide-react@0.292.0';
-import { db, APP_ID } from './firebase-config.js?v=89';
+import { db, APP_ID } from './firebase-config.js?v=90';
 import { doc, onSnapshot, runTransaction, serverTimestamp, setDoc } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js';
-import { DateRangePicker, MoneyInput } from './components.js?v=89';
+import { DateRangePicker, MoneyInput } from './components.js?v=90';
 import { formatCurrency, formatDate, getBrazilDateString, getCurrentMonthEnd, getCurrentMonthStart, parseMoney } from './utils.js';
 import { buildPaymentInstallments, clampInstallments, normalizePaymentInstallments } from './purchase-payment-v68.js';
 import { buildFinancialLedger, getInstallmentFaceAmount, getPurchaseGroups, money, sumMoney, summarizeFinancialLedger, toCents } from './financial-core-v70.js';
-import { buildFinancialAccountDetails, filterFinancialAccounts } from './financial-account-details-v80.js';
-import { showAppConfirm } from './ui-interactions-v81.js?v=89';
+import { buildFinancialAccountDetails, filterFinancialAccounts, summarizeOpenFinancialAccounts } from './financial-account-details-v80.js?v=90';
+import { showAppConfirm } from './ui-interactions-v81.js?v=90';
 
 const h = React.createElement;
 const EMPTY_DATA = { entries: [], accounts: [] };
@@ -602,14 +602,18 @@ export const AbaFinanceiro = ({
   const totals = useMemo(() => {
     const income = sumMoney(movements.filter(item => item.type === 'income'), item => item.amount);
     const expense = sumMoney(movements.filter(item => item.type === 'expense'), item => item.amount);
+    const receivablePeriod = summarizeOpenFinancialAccounts(receivables, { startDate, endDate });
+    const payablePeriod = summarizeOpenFinancialAccounts(payables, { startDate, endDate });
     return {
       income: money(income),
       expense: money(expense),
       cashBalance: cashSummary.balance,
-      openReceivable: sumMoney(receivables.filter(item => !item.paid && !item.canceled), item => item.value),
-      openPayable: sumMoney(payables.filter(item => !item.paid && !item.canceled), item => item.value)
+      openReceivable: receivablePeriod.total,
+      openReceivableCount: receivablePeriod.count,
+      openPayable: payablePeriod.total,
+      openPayableCount: payablePeriod.count
     };
-  }, [movements, receivables, payables, cashSummary]);
+  }, [movements, receivables, payables, cashSummary, startDate, endDate]);
 
   const saveManual = async form => {
     setError('');
@@ -761,14 +765,13 @@ export const AbaFinanceiro = ({
     else await saveData({ ...data, accounts: data.accounts.filter(item => item.id !== id) });
   };
 
-  const openCount = list => list.filter(item => !item.paid && !item.canceled).length;
   const openCompletePortfolio = direction => setPortfolioDirection(direction);
   const cards = [
     { label: 'Saldo total em caixa', value: totals.cashBalance, icon: Wallet, cls: totals.cashBalance >= 0 ? 'is-green' : 'is-red', meta: 'Histórico realizado até hoje' },
     { label: 'Entradas', value: totals.income, icon: ArrowUp, cls: 'is-green' },
     { label: 'Saídas', value: totals.expense, icon: ArrowDown, cls: 'is-red' },
-    { label: 'A receber', value: totals.openReceivable, icon: Receipt, cls: 'is-blue', meta: `${openCount(receivables)} em aberto`, direction: 'receivable' },
-    { label: 'A pagar', value: totals.openPayable, icon: CreditCard, cls: 'is-amber', meta: `${openCount(payables)} em aberto`, direction: 'payable' }
+    { label: 'A receber', value: totals.openReceivable, icon: Receipt, cls: 'is-blue', meta: `${totals.openReceivableCount} em aberto no período`, direction: 'receivable' },
+    { label: 'A pagar', value: totals.openPayable, icon: CreditCard, cls: 'is-amber', meta: `${totals.openPayableCount} em aberto no período`, direction: 'payable' }
   ];
 
   const openManualEdit = item => setModalState({ kind: item.direction ? item.direction : 'movement', initial: item });
