@@ -4,14 +4,14 @@ import {
   ArrowDown, ArrowUp, Banknote, CreditCard, Edit3, Eye,
   Package, Plus, Receipt, Search, Trash2, Wallet, X
 } from 'https://esm.sh/lucide-react@0.292.0';
-import { db, APP_ID } from './firebase-config.js?v=90';
+import { db, APP_ID } from './firebase-config.js?v=91';
 import { doc, onSnapshot, runTransaction, serverTimestamp, setDoc } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js';
-import { DateRangePicker, MoneyInput } from './components.js?v=90';
+import { DateRangePicker, MoneyInput } from './components.js?v=91';
 import { formatCurrency, formatDate, getBrazilDateString, getCurrentMonthEnd, getCurrentMonthStart, parseMoney } from './utils.js';
 import { buildPaymentInstallments, clampInstallments, normalizePaymentInstallments } from './purchase-payment-v68.js';
 import { buildFinancialLedger, getInstallmentFaceAmount, getPurchaseGroups, money, sumMoney, summarizeFinancialLedger, toCents } from './financial-core-v70.js';
-import { buildFinancialAccountDetails, filterFinancialAccounts, summarizeOpenFinancialAccounts } from './financial-account-details-v80.js?v=90';
-import { showAppConfirm } from './ui-interactions-v81.js?v=90';
+import { buildFinancialAccountDetails, filterFinancialAccounts, summarizeOpenFinancialAccounts } from './financial-account-details-v80.js?v=91';
+import { showAppConfirm } from './ui-interactions-v81.js?v=91';
 
 const h = React.createElement;
 const EMPTY_DATA = { entries: [], accounts: [] };
@@ -423,7 +423,7 @@ const AccountRow = ({ item, tab, toggleStockPayable, toggleManualAccount, openMa
   );
 };
 
-const AccountPortfolioModal = ({ direction, accounts, onClose, rowActions }) => {
+const AccountPortfolioModal = ({ direction, accounts, startDate, endDate, onClose, rowActions }) => {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('open');
   useBodyLock(!!direction);
@@ -441,6 +441,10 @@ const AccountPortfolioModal = ({ direction, accounts, onClose, rowActions }) => 
   }), [accounts, status, search]);
 
   const openAccounts = useMemo(() => accounts.filter(item => !item.paid && !item.canceled), [accounts]);
+  const periodSummary = useMemo(() => summarizeOpenFinancialAccounts(accounts, {
+    startDate,
+    endDate
+  }), [accounts, startDate, endDate]);
   if (!direction) return null;
 
   const receivable = direction === 'receivable';
@@ -464,11 +468,18 @@ const AccountPortfolioModal = ({ direction, accounts, onClose, rowActions }) => 
         h('h2', { id: 'finance83-portfolio-title' }, `Todas as contas ${label}`),
         h('p', null, 'Todos os vencimentos, inclusive parcelas dos próximos meses.')),
       h('button', { type: 'button', onClick: onClose, className: 'finance46-close', 'aria-label': 'Fechar carteira financeira' }, h(X, { size: 20 }))),
-    h('div', { className: `finance83-portfolio-summary ${receivable ? 'is-receivable' : 'is-payable'}` },
-      h('div', null,
-        h('span', null, `Total ${label} em aberto`),
-        h('strong', null, formatCurrency(sumMoney(openAccounts, item => item.value)))),
-      h('span', { className: 'finance83-portfolio-count' }, `${openAccounts.length} ${openAccounts.length === 1 ? 'conta pendente' : 'contas pendentes'}`)),
+    h('div', { className: 'finance90-portfolio-summaries' },
+      h('div', { className: `finance83-portfolio-summary ${receivable ? 'is-receivable' : 'is-payable'}` },
+        h('div', null,
+          h('span', null, `Total ${label} em aberto`),
+          h('strong', null, formatCurrency(sumMoney(openAccounts, item => item.value)))),
+        h('span', { className: 'finance83-portfolio-count' }, `${openAccounts.length} ${openAccounts.length === 1 ? 'conta pendente' : 'contas pendentes'}`)),
+      h('div', { className: `finance83-portfolio-summary finance90-period-summary ${receivable ? 'is-receivable' : 'is-payable'}` },
+        h('div', null,
+          h('span', null, `Total ${label} no período`),
+          h('strong', null, formatCurrency(periodSummary.total)),
+          h('small', null, `${formatDate(startDate)} a ${formatDate(endDate)}`)),
+        h('span', { className: 'finance83-portfolio-count' }, `${periodSummary.count} ${periodSummary.count === 1 ? 'conta no período' : 'contas no período'}`))),
     h('div', { className: 'finance83-portfolio-tools' },
       h('div', { className: 'finance44-search finance83-portfolio-search' },
         h(Search, { size: 17 }),
@@ -602,18 +613,18 @@ export const AbaFinanceiro = ({
   const totals = useMemo(() => {
     const income = sumMoney(movements.filter(item => item.type === 'income'), item => item.amount);
     const expense = sumMoney(movements.filter(item => item.type === 'expense'), item => item.amount);
-    const receivablePeriod = summarizeOpenFinancialAccounts(receivables, { startDate, endDate });
-    const payablePeriod = summarizeOpenFinancialAccounts(payables, { startDate, endDate });
+    const openReceivables = receivables.filter(item => !item.paid && !item.canceled);
+    const openPayables = payables.filter(item => !item.paid && !item.canceled);
     return {
       income: money(income),
       expense: money(expense),
       cashBalance: cashSummary.balance,
-      openReceivable: receivablePeriod.total,
-      openReceivableCount: receivablePeriod.count,
-      openPayable: payablePeriod.total,
-      openPayableCount: payablePeriod.count
+      openReceivable: sumMoney(openReceivables, item => item.value),
+      openReceivableCount: openReceivables.length,
+      openPayable: sumMoney(openPayables, item => item.value),
+      openPayableCount: openPayables.length
     };
-  }, [movements, receivables, payables, cashSummary, startDate, endDate]);
+  }, [movements, receivables, payables, cashSummary]);
 
   const saveManual = async form => {
     setError('');
@@ -770,8 +781,8 @@ export const AbaFinanceiro = ({
     { label: 'Saldo total em caixa', value: totals.cashBalance, icon: Wallet, cls: totals.cashBalance >= 0 ? 'is-green' : 'is-red', meta: 'Histórico realizado até hoje' },
     { label: 'Entradas', value: totals.income, icon: ArrowUp, cls: 'is-green' },
     { label: 'Saídas', value: totals.expense, icon: ArrowDown, cls: 'is-red' },
-    { label: 'A receber', value: totals.openReceivable, icon: Receipt, cls: 'is-blue', meta: `${totals.openReceivableCount} em aberto no período`, direction: 'receivable' },
-    { label: 'A pagar', value: totals.openPayable, icon: CreditCard, cls: 'is-amber', meta: `${totals.openPayableCount} em aberto no período`, direction: 'payable' }
+    { label: 'A receber', value: totals.openReceivable, icon: Receipt, cls: 'is-blue', meta: `${totals.openReceivableCount} em aberto`, direction: 'receivable' },
+    { label: 'A pagar', value: totals.openPayable, icon: CreditCard, cls: 'is-amber', meta: `${totals.openPayableCount} em aberto`, direction: 'payable' }
   ];
 
   const openManualEdit = item => setModalState({ kind: item.direction ? item.direction : 'movement', initial: item });
@@ -836,6 +847,8 @@ export const AbaFinanceiro = ({
     h(AccountPortfolioModal, {
       direction: portfolioDirection,
       accounts: portfolioDirection === 'receivable' ? receivables : payables,
+      startDate,
+      endDate,
       onClose: () => setPortfolioDirection(null),
       rowActions: {
         toggleStockPayable,

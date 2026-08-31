@@ -247,7 +247,7 @@ assert.deepEqual(summarizeOpenFinancialAccounts([
   { dueDate: '2026-08-22', value: 70, paid: false, canceled: true },
   { dueDate: '2026-09-05', value: 90, paid: false }
 ], august), { count: 2, total: 100.30 },
-  'O cartão deve somar somente contas em aberto com vencimento dentro do período selecionado.');
+  'O resumo do modal deve somar somente contas em aberto com vencimento dentro do período selecionado.');
 assert.deepEqual(filterFinancialAccounts(portfolio, { ...august, scope: 'all' }).map(account => account.id),
   ['current', 'future', 'distant'],
   'Os cartões precisam abrir todas as contas pendentes, inclusive parcelas de meses futuros.');
@@ -286,9 +286,13 @@ for (const marker of [
   'installmentOriginalTotal',
   'buildPaymentInstallments(form.value, count, form.date)',
   'Saldo total em caixa',
-  'summarizeOpenFinancialAccounts(receivables, { startDate, endDate })',
-  'summarizeOpenFinancialAccounts(payables, { startDate, endDate })',
-  'em aberto no período',
+  'summarizeOpenFinancialAccounts(accounts, {',
+  'finance90-portfolio-summaries',
+  'finance90-period-summary',
+  'Total ${label} no período',
+  'contas no período',
+  'openReceivables = receivables.filter',
+  'openPayables = payables.filter',
   "summarizeFinancialLedger(\n    sharedLedger,\n    '',\n    getBrazilDateString()",
   "scope: 'all'",
   "scope: 'period'",
@@ -307,6 +311,8 @@ assert.ok(!source.includes('finance82-portfolio-notice'),
   'O aviso de carteira completa na própria página não pode retornar.');
 assert.ok(!source.includes("label: 'Saldo do período'"),
   'O primeiro cartão financeiro deve mostrar o caixa histórico realizado.');
+assert.ok(!source.includes('em aberto no período`, direction:'),
+  'Os cartões superiores devem continuar mostrando o total geral em aberto.');
 assert.ok(!source.includes("kind: tab === 'receivable'"),
   'O botão de lançamento não pode mudar de função conforme a seção financeira.');
 assert.ok(source.indexOf('Tipo de lançamento *') < source.indexOf('Descrição *'),
