@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import {
   buildFinancialAccountDetails,
   filterFinancialAccounts,
-  summarizeOpenFinancialAccounts
+  summarizeFinancialAccounts
 } from '../financial-account-details-v80.js';
 import { applyInstallmentPayment, getPurchaseGroups } from '../financial-core-v70.js';
 
@@ -240,14 +240,14 @@ const portfolio = [
 const august = { startDate: '2026-08-01', endDate: '2026-08-31' };
 assert.deepEqual(filterFinancialAccounts(portfolio, august).map(account => account.id), ['current'],
   'A visualização comum deve continuar respeitando o período selecionado.');
-assert.deepEqual(summarizeOpenFinancialAccounts([
+assert.deepEqual(summarizeFinancialAccounts(filterFinancialAccounts([
   { dueDate: '2026-08-05', value: 80.10, paid: false },
   { dueDate: '2026-08-25', value: 20.20, paid: false },
   { dueDate: '2026-08-18', value: 50, paid: true },
   { dueDate: '2026-08-22', value: 70, paid: false, canceled: true },
   { dueDate: '2026-09-05', value: 90, paid: false }
-], august), { count: 2, total: 100.30 },
-  'O resumo do modal deve somar somente contas em aberto com vencimento dentro do período selecionado.');
+], { ...august, status: 'all' })), { count: 3, total: 150.30 },
+  'O card acima da lista deve somar os registros válidos que correspondem ao período e aos filtros aplicados.');
 assert.deepEqual(filterFinancialAccounts(portfolio, { ...august, scope: 'all' }).map(account => account.id),
   ['current', 'future', 'distant'],
   'Os cartões precisam abrir todas as contas pendentes, inclusive parcelas de meses futuros.');
@@ -286,10 +286,11 @@ for (const marker of [
   'installmentOriginalTotal',
   'buildPaymentInstallments(form.value, count, form.date)',
   'Saldo total em caixa',
-  'summarizeOpenFinancialAccounts(accounts, {',
-  'finance90-portfolio-summaries',
-  'finance90-period-summary',
-  'Total ${label} no período',
+  'summarizeFinancialAccounts(filteredAccounts)',
+  'finance92-period-list-summary',
+  'finance92-period-list-count',
+  'Total a receber no período',
+  'Total a pagar no período',
   'contas no período',
   'openReceivables = receivables.filter',
   'openPayables = payables.filter',
@@ -313,6 +314,8 @@ assert.ok(!source.includes("label: 'Saldo do período'"),
   'O primeiro cartão financeiro deve mostrar o caixa histórico realizado.');
 assert.ok(!source.includes('em aberto no período`, direction:'),
   'Os cartões superiores devem continuar mostrando o total geral em aberto.');
+assert.ok(!source.includes('finance90-period-summary') && !source.includes('periodSummary'),
+  'O total do período não pode permanecer dentro do modal da carteira completa.');
 assert.ok(!source.includes("kind: tab === 'receivable'"),
   'O botão de lançamento não pode mudar de função conforme a seção financeira.');
 assert.ok(source.indexOf('Tipo de lançamento *') < source.indexOf('Descrição *'),

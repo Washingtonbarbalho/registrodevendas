@@ -1,4 +1,4 @@
-/* Estilos consolidados v91 — folha de estilo principal do sistema. */
+/* Estilos consolidados v92 — folha de estilo principal do sistema. */
 :root {
     --app-bg: #f6f7fb;
     --surface: #ffffff;
@@ -6575,29 +6575,21 @@ body > div[id="root"] > div[class*="bg-slate-900"][class*="z-[100]"] {
   max-height: min(840px, calc(100dvh - 32px));
 }
 .finance80-account-overlay { z-index: 170; }
-.finance90-portfolio-summaries {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  margin: 15px 15px 0;
-}
 .finance83-portfolio-summary {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin: 0;
+  margin: 15px 15px 0;
   padding: 14px 16px;
   border: 1px solid #dbeafe;
   border-radius: 15px;
   background: #eff6ff;
 }
 .finance83-portfolio-summary.is-payable { border-color: #fde68a; background: #fffbeb; }
-.finance83-portfolio-summary.finance90-period-summary { border-style: dashed; background: #fff; }
 .finance83-portfolio-summary > div { display: grid; min-width: 0; gap: 5px; }
 .finance83-portfolio-summary > div > span { color: #475569; font-size: 10px; font-weight: 750; }
 .finance83-portfolio-summary > div > strong { color: #0f172a; font-size: 20px; font-weight: 850; }
-.finance83-portfolio-summary > div > small { color: #64748b; font-size: 9px; font-weight: 700; }
 .finance83-portfolio-count {
   padding: 7px 9px;
   border-radius: 999px;
@@ -6622,8 +6614,46 @@ body > div[id="root"] > div[class*="bg-slate-900"][class*="z-[100]"] {
 .finance83-portfolio-list { margin: 0; }
 .finance83-portfolio-footer { justify-content: flex-end; }
 
-@media (max-width: 720px) {
-  .finance90-portfolio-summaries { grid-template-columns: minmax(0, 1fr); }
+.finance92-period-list-summary {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid #bfdbfe;
+  border-radius: 16px;
+  background: #eff6ff;
+}
+.finance92-period-list-summary.is-payable { border-color: #fde68a; background: #fffbeb; }
+.finance92-period-list-icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 13px;
+  color: #1d4ed8;
+  background: #fff;
+}
+.finance92-period-list-summary.is-payable .finance92-period-list-icon { color: #b45309; }
+.finance92-period-list-copy { display: grid; min-width: 0; gap: 3px; }
+.finance92-period-list-copy > span { color: #475569; font-size: 10px; font-weight: 800; }
+.finance92-period-list-copy > strong { color: #0f172a; font-size: 21px; font-weight: 850; }
+.finance92-period-list-copy > small { color: #64748b; font-size: 9px; font-weight: 700; }
+.finance92-period-list-count {
+  padding: 7px 9px;
+  border-radius: 999px;
+  color: #1d4ed8;
+  background: #fff;
+  font-size: 10px;
+  font-weight: 850;
+  white-space: nowrap;
+}
+.finance92-period-list-summary.is-payable .finance92-period-list-count { color: #b45309; }
+
+@media (max-width: 520px) {
+  .finance92-period-list-summary { grid-template-columns: 40px minmax(0, 1fr); padding: 13px; }
+  .finance92-period-list-icon { width: 40px; height: 40px; }
+  .finance92-period-list-count { grid-column: 1 / -1; justify-self: stretch; text-align: center; }
 }
 
 .app82-calendar-panel { width: min(484px, 100%); }

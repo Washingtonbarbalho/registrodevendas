@@ -301,6 +301,7 @@ for (const marker of [
   '.period82-trigger', '.app82-calendar-panel', '.app82-calendar-grid',
   '.app82-calendar-day.is-start', '.finance82-summary-action',
   '.finance83-portfolio-modal', '.finance83-portfolio-scroll', '.finance85-installment-preview',
+  '.finance92-period-list-summary',
   '.finance88-launch-card', '.finance88-launch-placeholder',
   '.mobile83-more-sheet', '.mobile83-more-nav-button'
 ]) assert.ok(styles.includes(marker), `Estilo interativo ausente: ${marker}`);

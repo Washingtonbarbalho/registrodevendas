@@ -1,4 +1,4 @@
-REGISTRO DE VENDAS — VERSÃO 91
+REGISTRO DE VENDAS — VERSÃO 92
 
 ARQUITETURA ATIVA
 - app-runtime-v75.js é o código principal oficial, já consolidado e editado diretamente.
@@ -31,7 +31,7 @@ POSIÇÃO HISTÓRICA DO CREDIÁRIO
 DETALHES DO FINANCEIRO
 - O primeiro cartão mostra o saldo total em caixa: todas as entradas realizadas menos todas as saídas realizadas até hoje, sem depender do período filtrado.
 - Os cartões A receber e A pagar continuam mostrando o valor e a quantidade total em aberto, sem depender do período filtrado.
-- Ao abrir um desses cartões, o modal mostra separadamente o total geral e o total em aberto com vencimento dentro do período selecionado.
+- Nas seções Contas a receber e Contas a pagar, um card acima da lista mostra o total correspondente ao período, à situação e à busca aplicados.
 - O botão Novo lançamento é único em todas as seções e começa pela escolha entre entrada financeira, saída financeira, conta a receber ou conta a pagar.
 - Depois da escolha, o formulário apresenta automaticamente os campos, o vencimento e o parcelamento adequados e abre a seção correspondente após salvar.
 - Contas manuais a receber e a pagar podem ser lançadas à vista ou em até 24 parcelas mensais.

@@ -222,20 +222,12 @@ export const filterFinancialAccounts = (accounts = [], {
     });
 };
 
-export const summarizeOpenFinancialAccounts = (accounts = [], {
-  startDate = '',
-  endDate = ''
-} = {}) => {
-  const periodAccounts = filterFinancialAccounts(accounts, {
-    scope: 'period',
-    startDate,
-    endDate,
-    status: 'open'
-  });
+export const summarizeFinancialAccounts = (accounts = []) => {
+  const consideredAccounts = accounts.filter(account => !account.canceled);
 
   return {
-    count: periodAccounts.length,
-    total: sumMoney(periodAccounts, account => account.value)
+    count: consideredAccounts.length,
+    total: sumMoney(consideredAccounts, account => account.value)
   };
 };
 

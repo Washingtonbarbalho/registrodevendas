@@ -164,6 +164,7 @@ for (const marker of [
   '.finance82-summary-action',
   '.finance83-portfolio-modal',
   '.finance83-portfolio-scroll',
+  '.finance92-period-list-summary',
   '.finance85-installment-preview',
   '.finance88-launch-card',
   '.finance88-launch-placeholder',
