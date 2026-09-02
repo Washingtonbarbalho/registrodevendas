@@ -1,4 +1,4 @@
-REGISTRO DE VENDAS — VERSÃO 92
+REGISTRO DE VENDAS — VERSÃO 93
 
 ARQUITETURA ATIVA
 - app-runtime-v75.js é o código principal oficial, já consolidado e editado diretamente.
@@ -66,9 +66,9 @@ NAVEGAÇÃO NO CELULAR
 - Mais abre um painel flutuante apenas com Comercial, Relatórios e Taxas e juros.
 - A navegação lateral do computador continua disponível sem alterações.
 
-PAINEL EXECUTIVO E PERÍODO COMPARTILHADO
-- A visão inicial apresenta faturamento, resultado líquido, quantidade de vendas, ticket médio e comparação com o período anterior.
-- Metas, tendências e ações rápidas de venda, cobrança, reposição e relatórios ficam disponíveis no painel.
+PAINEL INICIAL E PERÍODO COMPARTILHADO
+- A visão inicial mantém contas a receber, entradas em caixa, atrasos, vencimentos e indicadores de lucro.
+- Os blocos Acompanhamento do negócio e Ações rápidas foram removidos do dashboard; as funcionalidades da área Comercial e dos Relatórios permanecem disponíveis.
 - Início, Vendas, Financeiro, Comercial e Relatórios compartilham a seleção do período de análise.
 - A última escolha de datas é lembrada por usuário; somente a preferência do filtro fica no navegador, sem armazenar dados comerciais.
 - Os atalhos incluem sete dias, mês atual, últimos 30 dias e período personalizado.

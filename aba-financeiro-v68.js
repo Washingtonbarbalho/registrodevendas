@@ -4,14 +4,14 @@ import {
   ArrowDown, ArrowUp, Banknote, CreditCard, Edit3, Eye,
   Package, Plus, Receipt, Search, Trash2, Wallet, X
 } from 'https://esm.sh/lucide-react@0.292.0';
-import { db, APP_ID } from './firebase-config.js?v=92';
+import { db, APP_ID } from './firebase-config.js?v=93';
 import { doc, onSnapshot, runTransaction, serverTimestamp, setDoc } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js';
-import { DateRangePicker, MoneyInput } from './components.js?v=92';
+import { DateRangePicker, MoneyInput } from './components.js?v=93';
 import { formatCurrency, formatDate, getBrazilDateString, getCurrentMonthEnd, getCurrentMonthStart, parseMoney } from './utils.js';
 import { buildPaymentInstallments, clampInstallments, normalizePaymentInstallments } from './purchase-payment-v68.js';
 import { buildFinancialLedger, getInstallmentFaceAmount, getPurchaseGroups, money, sumMoney, summarizeFinancialLedger, toCents } from './financial-core-v70.js';
-import { buildFinancialAccountDetails, filterFinancialAccounts, summarizeFinancialAccounts } from './financial-account-details-v80.js?v=92';
-import { showAppConfirm } from './ui-interactions-v81.js?v=92';
+import { buildFinancialAccountDetails, filterFinancialAccounts, summarizeFinancialAccounts } from './financial-account-details-v80.js?v=93';
+import { showAppConfirm } from './ui-interactions-v81.js?v=93';
 
 const h = React.createElement;
 const EMPTY_DATA = { entries: [], accounts: [] };

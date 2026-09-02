@@ -263,9 +263,17 @@ for (const marker of [
   'Visão executiva', 'REPORT_GROUPS', 'Leitura da carteira', 'PDF executivo', 'PDF detalhado',
   'Excel (.xlsx)', 'CSV (.csv)', 'Compartilhar', 'Produto', 'Cliente', 'Situação', 'Categoria', 'Canal da venda'
 ]) assert.ok(read('aba-relatorios-v73.js').includes(marker), `Recurso ausente na página de relatórios: ${marker}`);
-for (const marker of ['Resumo executivo', 'Meta de faturamento', 'Ações rápidas', 'Cobrar clientes', 'Repor estoque']) {
-  assert.ok(read('aba-visao-geral-fixed.js').includes(marker), `Recurso ausente no painel inicial: ${marker}`);
+const dashboardSource = read('aba-visao-geral-fixed.js');
+for (const marker of ['Acompanhamento do negócio', 'Resumo executivo', 'Meta de faturamento', 'Ações rápidas', 'dashboard79-', 'buildExecutiveInsights']) {
+  assert.ok(!dashboardSource.includes(marker), `Seção removida ainda presente no painel inicial: ${marker}`);
 }
+for (const marker of ['DateRangeFilter', 'A receber', 'Entrou em caixa', 'Em atraso', 'Vencem hoje', 'Próximos 7 dias', 'Lucro estimado', 'Lucro real no caixa', 'setInstallmentListModal']) {
+  assert.ok(dashboardSource.includes(marker), `Indicador preservado ausente no painel inicial: ${marker}`);
+}
+assert.ok(read('aba-comercial-v74.js').includes('Meta de faturamento'),
+  'A remoção no dashboard não pode remover as metas da área Comercial.');
+assert.ok(read('aba-relatorios-v73.js').includes('buildExecutiveInsights'),
+  'Os relatórios devem manter sua visão executiva.');
 assert.ok(read('modals-core-runtime-v75.js').includes('Categoria (Opcional)'));
 assert.ok(read('nova-venda-runtime-v75.js').includes('promotionUnitDiscount'));
 assert.ok(read('aba-financeiro-v68.js').includes('onAnalysisStartDateChange'));

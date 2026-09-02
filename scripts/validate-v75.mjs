@@ -155,7 +155,6 @@ for (const marker of [
   `Estilos consolidados v${version}`,
   '.sale-payment-select-field',
   '.reports73-credit-position-note',
-  '.dashboard79-executive',
   '.reports79-executive-overview',
   '.finance80-details-button',
   '.finance80-account-modal',
