@@ -1,10 +1,10 @@
 // Gerado por scripts/consolidate-legacy-runtime-v75.mjs — modais-base consolidados.
 import React, { useState, useEffect, useMemo } from 'https://esm.sh/react@18.2.0';
 import { PackageMinus, AlertTriangle, MessageCircle, Copy, QrCode, X, User, Wallet, Clock, Users, CheckCircle, Edit2, Package, Tag, Info, ShieldAlert, History, XCircle, Receipt, BadgePercent, Calendar, PieChart, Trash2, ArrowUpCircle, ArrowDownCircle } from 'https://esm.sh/lucide-react@0.292.0';
-import { formatCurrency, parseMoney, maskMoney, maskPhone, applyPixMask, generatePixPayload, maskCpfCnpj, maskCep, formatDate, getBrazilDateString } from './utils.js?v=93';
-import { MoneyInput } from './components.js?v=93';
+import { formatCurrency, parseMoney, maskMoney, maskPhone, applyPixMask, generatePixPayload, maskCpfCnpj, maskCep, formatDate, getBrazilDateString } from './utils.js?v=94';
+import { MoneyInput } from './components.js?v=94';
 import QRCode from 'https://esm.sh/qrcode@1.5.4';
-import { getHistoryCashAmount } from './financial-core-v70.js?v=93';
+import { getHistoryCashAmount } from './financial-core-v70.js?v=94';
 
 const formatDateTime = (dateStr) => {
     if (!dateStr) return '--/--/---- --:--';
@@ -45,24 +45,33 @@ export const ConfirmModal = ({ isOpen, onClose, onConfirm, title, message, isCan
     );
 };
 
-export const WhatsAppChooserModal = ({ isOpen, onClose, phone, message, onPdf }) => {
+export const WhatsAppChooserModal = ({ isOpen, onClose, phone, message, onPdf, title = 'Enviar Mensagem', description = 'Escolha a ação desejada para a mensagem.' }) => {
     if (!isOpen) return null;
-    const handleOpen = (type) => {
+    const cleanPhone = phone?.replace(/\D/g, '') || '';
+    const whatsappPhone = cleanPhone.startsWith('55') ? cleanPhone : `55${cleanPhone}`;
+    const handleOpen = async (type) => {
         const encodedMsg = encodeURIComponent(message);
-        const cleanPhone = phone?.replace(/\D/g, '') || '';
         if (type === 'whatsapp') {
-            window.open(`https://api.whatsapp.com/send?phone=55${cleanPhone}&text=${encodedMsg}`, '_blank');
+            if (!cleanPhone) return;
+            window.open(`https://api.whatsapp.com/send?phone=${whatsappPhone}&text=${encodedMsg}`, '_blank', 'noopener,noreferrer');
         } else if (type === 'copy') {
-            navigator.clipboard.writeText(message);
+            try {
+                await navigator.clipboard.writeText(message);
+                alert("Mensagem copiada!");
+            } catch (error) {
+                console.error('Não foi possível copiar a mensagem:', error);
+                alert("Não foi possível copiar automaticamente. Tente novamente.");
+                return;
+            }
         }
         onClose();
     };
     return React.createElement('div', { className: "app-modal-overlay fixed inset-0 flex items-center justify-center p-4 z-[90] backdrop-blur-sm" },
         React.createElement('div', { className: "app-modal-panel bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl animate-fade-in text-center" },
-            React.createElement('h3', { className: "text-lg font-bold text-slate-800 mb-1" }, "Enviar Mensagem"),
-            React.createElement('p', { className: "text-sm text-slate-500 mb-6" }, "Escolha a ação desejada para a mensagem."),
+            React.createElement('h3', { className: "text-lg font-bold text-slate-800 mb-1" }, title),
+            React.createElement('p', { className: "text-sm text-slate-500 mb-6" }, description),
             React.createElement('div', { className: "space-y-3" },
-                React.createElement('button', { onClick: () => handleOpen('whatsapp'), className: "w-full p-4 bg-green-500 text-white font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-green-600 shadow-sm" }, React.createElement(MessageCircle, { size: 20 }), "Abrir no WhatsApp"),
+                cleanPhone && React.createElement('button', { onClick: () => handleOpen('whatsapp'), className: "w-full p-4 bg-green-500 text-white font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-green-600 shadow-sm" }, React.createElement(MessageCircle, { size: 20 }), "Compartilhar no WhatsApp"),
                 React.createElement('button', { onClick: () => handleOpen('copy'), className: "w-full p-4 bg-slate-100 text-slate-600 font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-slate-200" }, React.createElement(Copy, { size: 20 }), "Copiar Mensagem"),
                 onPdf && React.createElement('button', { onClick: onPdf, className: "w-full p-4 bg-slate-900 text-white font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-slate-800 shadow-sm" }, React.createElement('span', { className: "text-[10px] font-black border border-white/40 rounded px-1.5 py-0.5" }, "PDF"), "Compartilhar PDF")
             ),
@@ -71,7 +80,7 @@ export const WhatsAppChooserModal = ({ isOpen, onClose, phone, message, onPdf })
     );
 };
 
-export const PixCodeModal = ({ isOpen, onClose, userProfile, amount, txid }) => {
+export const PixCodeModal = ({ isOpen, onClose, userProfile, amount, txid, onRegisterPayment }) => {
     const [qrDataUrl, setQrDataUrl] = useState('');
     const [qrError, setQrError] = useState('');
     const payload = useMemo(() => {
@@ -119,7 +128,8 @@ export const PixCodeModal = ({ isOpen, onClose, userProfile, amount, txid }) => 
                 ),
                 React.createElement('p', { className: "mt-3 text-[10px] text-emerald-700" }, "O QR Code é gerado neste aparelho; a chave PIX não é enviada a um serviço de imagens.")
             ),
-            React.createElement('button', { onClick: onClose, className: "w-full mt-4 p-3 bg-slate-900 text-white font-bold rounded-xl" }, "Fechar")
+            onRegisterPayment && React.createElement('button', { onClick: onRegisterPayment, className: "w-full mt-4 p-3 bg-emerald-600 text-white font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-emerald-700 shadow-sm" }, React.createElement(CheckCircle, { size: 18 }), "Registrar pagamento"),
+            React.createElement('button', { onClick: onClose, className: `w-full ${onRegisterPayment ? 'mt-2 bg-slate-100 text-slate-600' : 'mt-4 bg-slate-900 text-white'} p-3 font-bold rounded-xl` }, "Fechar")
         )
     );
 };
@@ -227,7 +237,7 @@ export const PaymentConfirmationModal = ({ isOpen, onClose, onConfirm, installme
     );
 };
 
-export const InstallmentListModal = ({ isOpen, onClose, title, items, onPay, onOpenWA }) => {
+export const InstallmentListModal = ({ isOpen, onClose, title, items, onPay, onOpenWA, onPix, hasPixSetup }) => {
     if (!isOpen) return null;
     const groupedItems = items.reduce((acc, item) => {
         if (!acc[item.customerName]) acc[item.customerName] = [];
@@ -266,6 +276,7 @@ export const InstallmentListModal = ({ isOpen, onClose, title, items, onPay, onO
                                     React.createElement('p', { className: "installment-record-value font-bold text-slate-800" }, formatCurrency(item.amount)),
                                     React.createElement('div', { className: "installment-record-actions flex gap-2" },
                                         item.customerPhone && React.createElement('button', { onClick: () => onOpenWA('cobranca', item.sale, item, null), className: "p-2 bg-green-500 text-white rounded-lg shadow-sm hover:bg-green-600 transition-colors", title: "Enviar cobrança" }, React.createElement(MessageCircle, { size: 16 })),
+                                        React.createElement('button', { onClick: () => onPix(item), className: `installment94-pix-action p-2 text-white rounded-lg shadow-sm transition-colors ${hasPixSetup ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-slate-400 hover:bg-slate-500'}`, title: hasPixSetup ? "Gerar PIX desta parcela" : "Configure a chave PIX no perfil" }, React.createElement(QrCode, { size: 16 }), React.createElement('span', null, "PIX")),
                                         React.createElement('button', { onClick: () => onPay(item), className: "p-2 bg-slate-800 text-white rounded-lg shadow-sm hover:bg-slate-700 transition-colors", title: "Registrar pagamento" }, React.createElement(CheckCircle, { size: 16 }))
                                     )
                                 )

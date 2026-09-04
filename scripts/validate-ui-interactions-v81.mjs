@@ -262,8 +262,8 @@ assert.equal((productionSource.match(/\b(?:window\.)?(?:confirm|prompt)\s*\(/g) 
   'Nenhuma confirmação ou prompt nativo pode permanecer no sistema.');
 assert.equal((productionSource.match(/(?:createElement|\bh)\(['"]select['"]/g) || []).length, 30,
   'Todas as 30 listas suspensas auditadas precisam continuar cobertas pela camada visual.');
-assert.equal((productionSource.match(/\b(?:window\.)?alert\s*\(/g) || []).length, 60,
-  'Os 60 avisos auditados precisam permanecer cobertos pelo interceptador profissional.');
+assert.equal((productionSource.match(/\b(?:window\.)?alert\s*\(/g) || []).length, 65,
+  'Os 65 avisos auditados precisam permanecer cobertos pelo interceptador profissional.');
 assert.ok(!/(?:createElement|\bh)\(['"]select['"][\s\S]{0,220}?multiple\s*:/.test(productionSource),
   'Seletores múltiplos exigiriam uma interação específica.');
 
@@ -306,4 +306,4 @@ for (const marker of [
   '.mobile83-more-sheet', '.mobile83-more-nav-button'
 ]) assert.ok(styles.includes(marker), `Estilo interativo ausente: ${marker}`);
 
-console.log(`Interface v${version} validada: lançamento financeiro unificado, calendário único, 60 avisos e 30 seletores.`);
+console.log(`Interface v${version} validada: lançamento financeiro unificado, calendário único, 65 avisos e 30 seletores.`);

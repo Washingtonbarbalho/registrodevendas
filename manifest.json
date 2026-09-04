@@ -11,7 +11,7 @@
   "scope": "./",
   "icons": [
     {
-      "src": "app-icon.svg?v=93",
+      "src": "app-icon.svg?v=94",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"

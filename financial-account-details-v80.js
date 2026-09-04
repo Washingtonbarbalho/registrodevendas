@@ -103,6 +103,97 @@ const findPurchaseGroup = (account, products) => {
   return getPurchaseGroups(products).find(group => group.key === key) || null;
 };
 
+export const buildPurchaseTransactionDetails = (entry, { products = [] } = {}) => {
+  if (!entry || typeof entry !== 'object') return null;
+  const group = findPurchaseGroup(entry, products);
+  if (!group) return null;
+
+  const movement = group.first?.movement || {};
+  const cancellations = (group.items || []).flatMap(item => (item.events || []).map(event => ({
+    id: event.id || `${item.product.id}-${event.createdAt || event.date}`,
+    productName: item.product.name || 'Produto',
+    quantity: Math.max(0, Number(event.quantity) || 0),
+    amount: money(event.amount),
+    accountReductionAmount: money(event.accountReductionAmount),
+    cashRefundAmount: money(event.cashRefundAmount),
+    date: cleanFinancialDate(event.date || event.createdAt),
+    dateTime: event.createdAt || '',
+    reason: event.reason || 'Devolução ao fornecedor'
+  }))).sort((left, right) => String(left.dateTime || left.date)
+    .localeCompare(String(right.dateTime || right.date)));
+
+  const productsInPurchase = (group.items || []).map(item => ({
+    id: item.product.id || '',
+    name: item.product.name || 'Produto',
+    quantity: item.originalQuantity,
+    activeQuantity: Math.max(0, item.originalQuantity - item.canceledQuantity),
+    canceledQuantity: item.canceledQuantity,
+    unitValue: money(item.unitCost),
+    originalTotal: money(item.originalAmount),
+    canceledTotal: sumMoney(item.events || [], event => event.amount)
+  }));
+
+  const installments = (group.plan || []).map((installment, index) => ({
+    number: installment.number || index + 1,
+    dueDate: cleanFinancialDate(installment.dueDate),
+    amount: money(installment.amount),
+    paid: !!installment.paid,
+    paidAt: cleanFinancialDate(installment.paidAt),
+    paidAtDateTime: installment.paidAtDateTime || ''
+  }));
+
+  const cashRefundTotal = sumMoney(cancellations, item => item.cashRefundAmount);
+  const paidTotal = group.deferred ? money(group.paidAmount) : money(group.originalAmount);
+  const openTotal = group.deferred ? money(group.openTotal) : 0;
+  const status = group.fullyCanceled
+    ? { label: cashRefundTotal > 0 ? 'Estornada' : 'Cancelada', cls: 'is-canceled' }
+    : group.deferred && toCents(openTotal) > 0
+      ? { label: toCents(paidTotal) > 0 ? 'Parcialmente paga' : 'Em aberto', cls: toCents(paidTotal) > 0 ? 'is-partial' : 'is-open' }
+      : { label: 'Paga', cls: 'is-paid' };
+
+  const notes = [...new Set((group.items || [])
+    .map(item => String(item.movement?.notes || item.movement?.note || item.movement?.observation || '').trim())
+    .filter(Boolean))].join(' · ');
+  const highlightedInstallment = entry.installment
+    ? installments.find(item => item.number === entry.installment.number) || null
+    : null;
+
+  return {
+    id: entry.id || group.key,
+    title: group.batchId ? 'Detalhes da compra em lote' : 'Detalhes da compra de mercadoria',
+    sourceLabel: entry.source === 'stock-refund' ? 'Estorno de compra' : 'Compra de mercadoria',
+    batchId: group.batchId || '',
+    itemCount: group.itemCount || productsInPurchase.length,
+    purchaseDate: cleanFinancialDate(group.purchaseDate || movement.date),
+    purchaseDateTime: group.purchaseDateTime || movement.date || '',
+    paymentMethod: paymentNames[group.paymentMethod || movement.paymentMethod] || 'Não informado',
+    supplier: movement.supplierName || movement.supplier || movement.vendor || 'Não informado',
+    originalTotal: money(group.originalAmount),
+    adjustedTotal: money(group.adjustedLiability),
+    paidTotal,
+    openTotal,
+    canceledTotal: money(group.accountReductionAmount),
+    cashRefundTotal,
+    entryAmount: money(entry.amount),
+    entryDate: cleanFinancialDate(entry.date),
+    entryDateTime: entry.dateTime || '',
+    entryLabel: entry.source === 'stock-refund'
+      ? 'Estorno exibido no extrato'
+      : highlightedInstallment
+        ? `Pagamento da parcela ${highlightedInstallment.number}/${installments.length}`
+        : 'Pagamento exibido no extrato',
+    deferred: !!group.deferred,
+    fullyCanceled: !!group.fullyCanceled,
+    partiallyCanceled: !!group.partiallyCanceled,
+    status,
+    notes,
+    products: productsInPurchase,
+    installments,
+    cancellations,
+    highlightedInstallment
+  };
+};
+
 const buildPurchaseDetails = (account, products) => {
   const group = findPurchaseGroup(account, products);
   const movement = group?.first?.movement || {};

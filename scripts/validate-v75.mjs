@@ -26,6 +26,8 @@ const criticalFiles = [
   'app-runtime-v75.js',
   'firebase-config.js',
   'financial-account-details-v80.js',
+  'database-activity-v94.js',
+  'firestore-runtime-v94.js',
   'ui-interactions-v81.js',
   'analysis-period-v79.js',
   'executive-insights-v79.js',
@@ -50,6 +52,7 @@ const criticalFiles = [
   'scripts/validate-executive-v79.mjs',
   'scripts/validate-financial-details-v80.mjs',
   'scripts/validate-ui-interactions-v81.mjs',
+  'scripts/validate-v94.mjs',
   'scripts/validate-v75.mjs'
 ];
 criticalFiles.forEach(checkSyntax);
@@ -252,7 +255,8 @@ for (const [label, validator] of [
   ['posição histórica do crediário', 'scripts/validate-credit-position-v78.mjs'],
   ['evolução executiva', 'scripts/validate-executive-v79.mjs'],
   ['detalhes das contas a pagar e a receber', 'scripts/validate-financial-details-v80.mjs'],
-  ['interações profissionais', 'scripts/validate-ui-interactions-v81.mjs']
+  ['interações profissionais', 'scripts/validate-ui-interactions-v81.mjs'],
+  ['melhorias financeiras e sincronização', 'scripts/validate-v94.mjs']
 ]) {
   const result = spawnSync(process.execPath, [validator], { cwd: root, encoding: 'utf8' });
   if (result.status !== 0) throw new Error(`Falha em ${label}:\n${result.stderr || result.stdout}`);

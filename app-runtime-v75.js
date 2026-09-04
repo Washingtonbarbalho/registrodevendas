@@ -1,44 +1,44 @@
-// Aplicação consolidada v93 — código-fonte principal do sistema.
+// Aplicação consolidada v94 — código-fonte principal do sistema.
 import React, { useState, useEffect, useMemo } from 'https://esm.sh/react@18.2.0';
 import { createRoot } from 'https://esm.sh/react-dom@18.2.0/client';
 import { Users, User, LogOut, Lock, LayoutDashboard, Receipt, WalletCards, Package, Contact, Store, ShieldCheck, BadgePercent, Banknote, MoreHorizontal, Plus } from 'https://esm.sh/lucide-react@0.292.0';
 
 // Firebase
-import { app, db, auth, APP_ID } from './firebase-config.js?v=93';
-import { collection, onSnapshot, query, doc, getDoc, updateDoc, deleteDoc, addDoc, serverTimestamp, setDoc, runTransaction, writeBatch } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
+import { app, db, auth, APP_ID } from './firebase-config.js?v=94';
+import { collection, onSnapshot, query, doc, getDoc, updateDoc, deleteDoc, addDoc, serverTimestamp, setDoc, runTransaction, writeBatch } from './firestore-runtime-v94.js?v=94';
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js";
 
 // Utils
-import { getCurrentMonthStart, getCurrentMonthEnd, getBrazilDateString, addDays, formatCurrency, formatDate } from './utils.js?v=93';
-import { aggregateSaleItems, buildSaleInventoryPlan } from './inventory-reliability-v69.js?v=93';
-import { applyInstallmentPayment, buildFinancialLedger, fromCents, getHistoryCashAmount, getInstallmentFaceAmount, getRealizedSalesProfit, getSalesAccrualSummary, isTermSale, normalizeSaleMoney, reverseInstallmentPayment, sumMoney, summarizeFinancialLedger, toCents } from './financial-core-v70.js?v=93';
+import { getCurrentMonthStart, getCurrentMonthEnd, getBrazilDateString, addDays, formatCurrency, formatDate } from './utils.js?v=94';
+import { aggregateSaleItems, buildSaleInventoryPlan } from './inventory-reliability-v69.js?v=94';
+import { applyInstallmentPayment, buildFinancialLedger, fromCents, getHistoryCashAmount, getInstallmentFaceAmount, getRealizedSalesProfit, getSalesAccrualSummary, isTermSale, normalizeSaleMoney, reverseInstallmentPayment, sumMoney, summarizeFinancialLedger, toCents } from './financial-core-v70.js?v=94';
 
 // Modais
 import { 
     UserProfileModal, CustomerFormModal, ProductDetailsModal, EditInstallmentModal, 
     SaleDetailsModal, PixCodeModal, InstallmentListModal, PaymentConfirmationModal, 
     ConfirmModal, WhatsAppChooserModal, ProductModal
-} from './modals-runtime-v75.js?v=93';
-import { StockMovementModal } from './stock-movement-modal-v68.js?v=93';
+} from './modals-runtime-v75.js?v=94';
+import { StockMovementModal } from './stock-movement-modal-v68.js?v=94';
 
 // Telas Secundárias
-import { AdminUsersPanel } from './auth-admin.js?v=93';
-import { AuthScreen } from './auth-screen-v71.js?v=93';
-import { NewSaleScreen } from './nova-venda-runtime-v75.js?v=93';
+import { AdminUsersPanel } from './auth-admin.js?v=94';
+import { AuthScreen } from './auth-screen-v71.js?v=94';
+import { NewSaleScreen } from './nova-venda-runtime-v75.js?v=94';
 
 // Abas do Dashboard
-import { AbaVisaoGeral } from './aba-visao-geral-fixed.js?v=93';
-import { AbaVendas } from './aba-vendas-v71.js?v=93';
-import { AbaProdutos } from './aba-produtos-v67.js?v=93';
-import { AbaClientes } from './aba-clientes-runtime-v75.js?v=93';
-import { AbaTaxas } from './aba-taxas.js?v=93';
-import { AbaFinanceiro } from './aba-financeiro-v68.js?v=93';
-import { BatchStockModal } from './batch-stock-modal-v68.js?v=93';
-import { AbaRelatorios } from './aba-relatorios-v73.js?v=93';
-import { AbaComercial } from './aba-comercial-v74.js?v=93';
-import { normalizePaymentSettings } from './payment-settings.js?v=93';
-import { shareSalePdf } from './sale-pdf-v65.js?v=93';
-import { readSharedAnalysisPeriod, resolveAnalysisPeriod, writeSharedAnalysisPeriod } from './analysis-period-v79.js?v=93';
+import { AbaVisaoGeral } from './aba-visao-geral-fixed.js?v=94';
+import { AbaVendas } from './aba-vendas-v71.js?v=94';
+import { AbaProdutos } from './aba-produtos-v67.js?v=94';
+import { AbaClientes } from './aba-clientes-runtime-v75.js?v=94';
+import { AbaTaxas } from './aba-taxas.js?v=94';
+import { AbaFinanceiro } from './aba-financeiro-v68.js?v=94';
+import { BatchStockModal } from './batch-stock-modal-v68.js?v=94';
+import { AbaRelatorios } from './aba-relatorios-v73.js?v=94';
+import { AbaComercial } from './aba-comercial-v74.js?v=94';
+import { normalizePaymentSettings } from './payment-settings.js?v=94';
+import { shareSalePdf } from './sale-pdf-v65.js?v=94';
+import { readSharedAnalysisPeriod, resolveAnalysisPeriod, writeSharedAnalysisPeriod } from './analysis-period-v79.js?v=94';
 
 const Dashboard = ({ user, userProfile, onLogout }) => {
     const [view, setView] = useState('dashboard');
@@ -98,11 +98,11 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
     
     const [editInstallmentModal, setEditInstallmentModal] = useState({ open: false, saleId: null, installmentIndex: null, data: null });
     const [installmentListModal, setInstallmentListModal] = useState({ open: false, type: null, data: [] });
-    const [paymentModal, setPaymentModal] = useState({ open: false, saleId: null, index: null, item: null, isLast: false });
+    const [paymentModal, setPaymentModal] = useState({ open: false, saleId: null, index: null, item: null, isLast: false, source: null });
     const [deletePaymentModal, setDeletePaymentModal] = useState({ open: false, saleId: null, instIndex: null, histIndex: null, historyItem: null });
     
-    const [waChooserModal, setWaChooserModal] = useState({ open: false, phone: '', message: '', pdfData: null });
-    const [pixModalData, setPixModalData] = useState({ open: false, amount: 0, txid: '' });
+    const [waChooserModal, setWaChooserModal] = useState({ open: false, phone: '', message: '', pdfData: null, title: '', description: '' });
+    const [pixModalData, setPixModalData] = useState({ open: false, amount: 0, txid: '', saleId: null, installmentIndex: null, source: null });
 
     useEffect(() => {
         const customersRef = collection(db, 'artifacts', APP_ID, 'users', user.uid, 'customers');
@@ -601,21 +601,23 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         return normalized;
     };
 
-    const handleClickPay = (sale, index) => {
-        const item = sale.installments[index];
+    const handleClickPay = (sale, index, source = 'sale') => {
+        const item = sale?.installments?.[index];
+        if (!item) return alert('Esta parcela não está mais disponível.');
         if (item.paid) return; 
         const isLast = index === sale.installments.length - 1;
-        setPaymentModal({ open: true, saleId: sale.id, index, item, isLast });
+        if (source === 'dashboard') setInstallmentListModal({ open: false, type: null, data: [] });
+        setPaymentModal({ open: true, saleId: sale.id, index, item, isLast, source });
     };
 
     const handleConfirmPayment = async (amountPaid, datePaid) => {
-        const { saleId, index } = paymentModal;
+        const { saleId, index, source } = paymentModal;
         if (!saleId) return;
         const saleRef = doc(db, 'artifacts', APP_ID, 'users', user.uid, 'sales', saleId);
         const timestamp = new Date().toISOString();
 
         try {
-            await runTransaction(db, async transaction => {
+            const completed = await runTransaction(db, async transaction => {
                 const snapshot = await transaction.get(saleRef);
                 if (!snapshot.exists()) throw new Error('A venda não foi encontrada.');
                 const latestSale = snapshot.data();
@@ -627,9 +629,22 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
                     status: payment.allPaid ? 'completed' : 'active',
                     financialUpdatedAt: serverTimestamp()
                 });
+                return {
+                    sale: {
+                        ...latestSale,
+                        id: saleId,
+                        installments: payment.installments,
+                        status: payment.allPaid ? 'completed' : 'active'
+                    },
+                    payment
+                };
             });
 
-            setPaymentModal({ open: false, saleId: null, index: null, item: null, isLast: false });
+            setPaymentModal({ open: false, saleId: null, index: null, item: null, isLast: false, source: null });
+            if (source === 'dashboard' && completed?.sale && completed?.payment) {
+                const paidInstallment = completed.sale.installments?.[index];
+                handleOpenWA('recibo', completed.sale, paidInstallment, completed.payment.historyItem);
+            }
         } catch (error) {
             console.error('Pagamento não registrado:', error);
             alert(error?.message || 'Não foi possível registrar o pagamento. Nenhuma parcela foi alterada.');
@@ -670,7 +685,7 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
 
     const handlePayFromList = async (item) => {
         const sale = sales.find(s => s.id === item.saleId);
-        if (sale) handleClickPay(sale, item.installmentIndex);
+        if (sale) handleClickPay(sale, item.installmentIndex, 'dashboard');
     };
 
     const saveEditedInstallment = async (newData) => {
@@ -722,10 +737,37 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         }
     };
 
-    const handleShowPixCode = (sale, installment) => {
+    const handleShowPixCode = (sale, installment, context = {}) => {
         if (!userProfile?.pixKey) return alert("Configure sua chave PIX no seu Perfil primeiro para gerar esse código!");
         const contractId = sale.id ? `VP-${sale.id.slice(-5).toUpperCase()}` : '00000';
-        setPixModalData({ open: true, amount: installment.amount, txid: contractId.replace("-", "") });
+        const installmentSuffix = installment?.number ? `P${installment.number}` : '';
+        setPixModalData({
+            open: true,
+            amount: installment.amount,
+            txid: `${contractId.replace("-", "")}${installmentSuffix}`.replace(/[^A-Z0-9]/gi, '').slice(0, 25),
+            saleId: context.saleId || sale.id || null,
+            installmentIndex: Number.isInteger(context.installmentIndex) ? context.installmentIndex : null,
+            source: context.source || null
+        });
+    };
+
+    const handlePixFromList = item => {
+        const sale = sales.find(current => current.id === item.saleId) || item.sale;
+        const installment = sale?.installments?.[item.installmentIndex];
+        if (!sale || !installment || installment.paid) return alert('Esta parcela não está mais disponível.');
+        handleShowPixCode(sale, installment, {
+            source: 'dashboard',
+            saleId: sale.id,
+            installmentIndex: item.installmentIndex
+        });
+    };
+
+    const handleRegisterPixPayment = () => {
+        const sale = sales.find(current => current.id === pixModalData.saleId);
+        const index = pixModalData.installmentIndex;
+        if (!sale || !Number.isInteger(index)) return alert('Não foi possível localizar a parcela deste PIX.');
+        setPixModalData({ open: false, amount: 0, txid: '', saleId: null, installmentIndex: null, source: null });
+        handleClickPay(sale, index, 'dashboard');
     };
 
     const handleGenerateSalePdf = async (pdfData) => {
@@ -749,7 +791,7 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         if (!sale) return;
         const currentCustomer = customers.find(c => c.id === sale.customerId);
         const phoneToUse = currentCustomer?.phone || sale.customerPhone;
-        if (!phoneToUse) return alert("Este cliente não possui um telefone de WhatsApp cadastrado!");
+        if (!phoneToUse && type !== 'recibo') return alert("Este cliente não possui um telefone de WhatsApp cadastrado!");
 
         const store = userProfile?.storeName || "Nossa Loja";
         const contractId = sale.id ? `VP-${sale.id.slice(-5).toUpperCase()}` : '00000'; 
@@ -856,7 +898,16 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
             msg += `\n━━━━━━━━━━━━━━━━━━━\n`;
             msg += `Muito obrigado!`;
         }
-        setWaChooserModal({ open: true, phone: phoneToUse, message: msg, pdfData: { type, sale, installment: installment || null, historyItem: historyItem || null } });
+        setWaChooserModal({
+            open: true,
+            phone: phoneToUse || '',
+            message: msg,
+            pdfData: { type, sale, installment: installment || null, historyItem: historyItem || null },
+            title: type === 'recibo' ? 'Comprovante de pagamento' : 'Enviar mensagem',
+            description: type === 'recibo'
+                ? (phoneToUse ? 'Copie o comprovante ou compartilhe diretamente no WhatsApp.' : 'Copie a mensagem do comprovante. Cadastre o WhatsApp do cliente para compartilhar diretamente.')
+                : 'Escolha a ação desejada para a mensagem.'
+        });
     };
 
     if (showAdminPanel) return React.createElement(AdminUsersPanel, { onClose: () => setShowAdminPanel(false) });
@@ -1129,13 +1180,13 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
             onGeneratePdf: () => handleGenerateSalePdf({ sale: activeSaleDetails, type: activeSaleDetails?.saleType === 'direct' ? 'comprovante' : (activeSaleDetails?.status === 'completed' ? 'quitacao' : 'registro') })
         }),
 
-        React.createElement(PixCodeModal, { isOpen: pixModalData.open, onClose: () => setPixModalData({ open: false, amount: 0, txid: '' }), userProfile: userProfile, amount: pixModalData.amount, txid: pixModalData.txid }),
-        React.createElement(InstallmentListModal, { isOpen: installmentListModal.open, onClose: () => setInstallmentListModal({ open: false, type: null, data: [] }), title: installmentListModal.type === 'overdue' ? 'Parcelas em atraso' : installmentListModal.type === 'today' ? 'Parcelas vencendo hoje' : 'Parcelas a vencer nos próximos 7 dias', items: installmentListModal.data, onPay: handlePayFromList, onOpenWA: handleOpenWA }),
-        React.createElement(PaymentConfirmationModal, { isOpen: paymentModal.open, onClose: () => setPaymentModal({ open: false, saleId: null, index: null, item: null, isLast: false }), onConfirm: handleConfirmPayment, installment: paymentModal.item, isLast: paymentModal.isLast }),
+        React.createElement(PixCodeModal, { isOpen: pixModalData.open, onClose: () => setPixModalData({ open: false, amount: 0, txid: '', saleId: null, installmentIndex: null, source: null }), userProfile: userProfile, amount: pixModalData.amount, txid: pixModalData.txid, onRegisterPayment: pixModalData.source === 'dashboard' ? handleRegisterPixPayment : null }),
+        React.createElement(InstallmentListModal, { isOpen: installmentListModal.open, onClose: () => setInstallmentListModal({ open: false, type: null, data: [] }), title: installmentListModal.type === 'overdue' ? 'Parcelas em atraso' : installmentListModal.type === 'today' ? 'Parcelas vencendo hoje' : 'Parcelas a vencer nos próximos 7 dias', items: installmentListModal.data, onPay: handlePayFromList, onOpenWA: handleOpenWA, onPix: handlePixFromList, hasPixSetup: !!userProfile?.pixKey }),
+        React.createElement(PaymentConfirmationModal, { isOpen: paymentModal.open, onClose: () => setPaymentModal({ open: false, saleId: null, index: null, item: null, isLast: false, source: null }), onConfirm: handleConfirmPayment, installment: paymentModal.item, isLast: paymentModal.isLast }),
         React.createElement(ConfirmModal, { isOpen: deletePaymentModal.open, title: "Estornar pagamento?", message: "O valor será devolvido para a parcela e ela ficará em aberto novamente.", onClose: () => setDeletePaymentModal({ open: false, saleId: null, instIndex: null, histIndex: null, historyItem: null }), onConfirm: handleDeletePayment }),
         React.createElement(ConfirmModal, { isOpen: cancelModal.open, title: "Cancelar venda?", message: "Esta ação irá devolver os produtos ao estoque e invalidar os pagamentos.", isCancel: true, reasonValue: cancelModal.reason, onReasonChange: value => setCancelModal(previous => ({...previous, reason: value})), onClose: () => setCancelModal({ open: false, saleId: null, reason: '' }), onConfirm: confirmCancelSale }),
         React.createElement(ConfirmModal, { isOpen: deleteModal.open, title: "Tem certeza?", message: "O registro será apagado permanentemente.", onClose: () => { setDeleteModal({ open: false, id: null, type: null }); setSelectedSaleDetail(null); }, onConfirm: confirmDelete }),
-        React.createElement(WhatsAppChooserModal, { isOpen: waChooserModal.open, phone: waChooserModal.phone, message: waChooserModal.message, onPdf: waChooserModal.pdfData ? () => handleGenerateSalePdf(waChooserModal.pdfData) : null, onClose: () => setWaChooserModal({ open: false, phone: '', message: '', pdfData: null }) })
+        React.createElement(WhatsAppChooserModal, { isOpen: waChooserModal.open, phone: waChooserModal.phone, message: waChooserModal.message, title: waChooserModal.title, description: waChooserModal.description, onPdf: waChooserModal.pdfData ? () => handleGenerateSalePdf(waChooserModal.pdfData) : null, onClose: () => setWaChooserModal({ open: false, phone: '', message: '', pdfData: null, title: '', description: '' }) })
     );
 };
 

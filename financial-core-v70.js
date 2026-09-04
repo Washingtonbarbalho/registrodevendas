@@ -384,7 +384,7 @@ export const buildFinancialLedger = ({ sales = [], products = [], financialData 
         type: 'income', date: event.date, dateTime: event.createdAt || '', amount: event.cashRefundAmount,
         description: `Estorno de compra · ${item.product.name}`,
         detail: event.reason || 'Devolução ao fornecedor', source: 'stock-refund',
-        product: item.product, purchaseGroup: group, cancellation: event
+        product: item.product, batchId: group.batchId, purchaseGroup: group, cancellation: event
       });
     }));
   });

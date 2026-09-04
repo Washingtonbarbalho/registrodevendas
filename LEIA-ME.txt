@@ -1,4 +1,4 @@
-REGISTRO DE VENDAS — VERSÃO 93
+REGISTRO DE VENDAS — VERSÃO 94
 
 ARQUITETURA ATIVA
 - app-runtime-v75.js é o código principal oficial, já consolidado e editado diretamente.
@@ -45,6 +45,7 @@ DETALHES DO FINANCEIRO
 - O modal mostra origem, cliente ou fornecedor, vencimento, situação, parcela, valor original, valor pago e saldo em aberto.
 - Contas de crediário exibem WhatsApp, produtos da venda e histórico dos pagamentos, inclusive excedentes distribuídos.
 - Compras parceladas exibem produtos, totais da compra, parcelas pagas, saldo, fornecedor e cancelamentos.
+- Nas movimentações do extrato, compras de mercadoria em lote possuem o botão Ver detalhes, com todos os produtos, quantidades, custos, pagamento, parcelas e devoluções da transação.
 - Contas manuais mantêm categoria, observações e acesso rápido à edição.
 
 INTERAÇÕES VISUAIS
@@ -69,9 +70,16 @@ NAVEGAÇÃO NO CELULAR
 PAINEL INICIAL E PERÍODO COMPARTILHADO
 - A visão inicial mantém contas a receber, entradas em caixa, atrasos, vencimentos e indicadores de lucro.
 - Os blocos Acompanhamento do negócio e Ações rápidas foram removidos do dashboard; as funcionalidades da área Comercial e dos Relatórios permanecem disponíveis.
+- As listas abertas pelos cards Em atraso, Vencem hoje e Próximos 7 dias permitem gerar o PIX de cada parcela e registrar o recebimento pelo mesmo fluxo financeiro seguro.
+- Depois de registrar o pagamento por essas listas, o sistema oferece a mensagem do comprovante para copiar ou compartilhar diretamente no WhatsApp do cliente.
 - Início, Vendas, Financeiro, Comercial e Relatórios compartilham a seleção do período de análise.
 - A última escolha de datas é lembrada por usuário; somente a preferência do filtro fica no navegador, sem armazenar dados comerciais.
 - Os atalhos incluem sete dias, mês atual, últimos 30 dias e período personalizado.
+
+SINCRONIZAÇÃO COM O BANCO DE DADOS
+- Leituras iniciais, gravações, exclusões, transações e operações em lote exibem um carregamento global enquanto o Firebase processa e atualiza a interface.
+- O carregamento bloqueia novos cliques durante a operação para evitar comandos duplicados, inclusive pagamentos repetidos.
+- Operações simultâneas só liberam a tela depois que todas terminam e a interface tem tempo de refletir os dados recebidos.
 
 RELATÓRIOS ORGANIZADOS POR ASSUNTO
 - Uma visão executiva apresenta os principais resultados antes da abertura dos detalhamentos.

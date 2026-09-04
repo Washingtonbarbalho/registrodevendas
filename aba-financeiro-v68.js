@@ -4,14 +4,14 @@ import {
   ArrowDown, ArrowUp, Banknote, CreditCard, Edit3, Eye,
   Package, Plus, Receipt, Search, Trash2, Wallet, X
 } from 'https://esm.sh/lucide-react@0.292.0';
-import { db, APP_ID } from './firebase-config.js?v=93';
-import { doc, onSnapshot, runTransaction, serverTimestamp, setDoc } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js';
-import { DateRangePicker, MoneyInput } from './components.js?v=93';
+import { db, APP_ID } from './firebase-config.js?v=94';
+import { doc, onSnapshot, runTransaction, serverTimestamp, setDoc } from './firestore-runtime-v94.js?v=94';
+import { DateRangePicker, MoneyInput } from './components.js?v=94';
 import { formatCurrency, formatDate, getBrazilDateString, getCurrentMonthEnd, getCurrentMonthStart, parseMoney } from './utils.js';
 import { buildPaymentInstallments, clampInstallments, normalizePaymentInstallments } from './purchase-payment-v68.js';
 import { buildFinancialLedger, getInstallmentFaceAmount, getPurchaseGroups, money, sumMoney, summarizeFinancialLedger, toCents } from './financial-core-v70.js';
-import { buildFinancialAccountDetails, filterFinancialAccounts, summarizeFinancialAccounts } from './financial-account-details-v80.js?v=93';
-import { showAppConfirm } from './ui-interactions-v81.js?v=93';
+import { buildFinancialAccountDetails, buildPurchaseTransactionDetails, filterFinancialAccounts, summarizeFinancialAccounts } from './financial-account-details-v80.js?v=94';
+import { showAppConfirm } from './ui-interactions-v81.js?v=94';
 
 const h = React.createElement;
 const EMPTY_DATA = { entries: [], accounts: [] };
@@ -365,7 +365,102 @@ const AccountDetailsModal = ({ item, products, onClose, onOpenSale, onOpenProduc
   ), document.body);
 };
 
-const MovementRow = ({ item, openManualEdit, deleteManual, onOpenSale, onOpenProduct }) => {
+const PurchaseTransactionDetailsModal = ({ item, products, onClose }) => {
+  useBodyLock(!!item);
+  const details = useMemo(() => item
+    ? buildPurchaseTransactionDetails(item, { products })
+    : null, [item, products]);
+  if (!details) return null;
+
+  const field = (label, value, key = label) => value !== '' && value !== null && value !== undefined
+    ? h('div', { key, className: 'finance80-detail-field' },
+      h('span', null, label),
+      h('strong', null, value))
+    : null;
+
+  const productRows = details.products.map((product, index) => h('article', {
+    key: product.id || `${product.name}-${index}`,
+    className: 'finance80-detail-list-item finance94-purchase-product'
+  },
+    h('div', null,
+      h('strong', null, product.name),
+      h('span', null, `${product.quantity} un. × ${formatCurrency(product.unitValue)}${product.canceledQuantity ? ` · ${product.canceledQuantity} cancelada(s) · ${product.activeQuantity} ativa(s)` : ''}`)),
+    h('strong', null, formatCurrency(product.originalTotal))));
+
+  const installmentRows = details.installments.map(installment => {
+    const installmentStatus = installment.paid
+      ? `Paga${installment.paidAt ? ` em ${formatDateTime(installment.paidAt, installment.paidAtDateTime)}` : ''}`
+      : toCents(installment.amount) <= 0
+        ? 'Cancelada'
+        : `Vence em ${formatDate(installment.dueDate)}`;
+    return h('article', {
+      key: installment.number,
+      className: `finance80-detail-list-item finance94-purchase-installment${details.highlightedInstallment?.number === installment.number ? ' is-highlighted' : ''}`
+    },
+      h('div', null,
+        h('strong', null, `Parcela ${installment.number}/${details.installments.length}`),
+        h('span', null, installmentStatus)),
+      h('strong', null, formatCurrency(installment.amount)));
+  });
+
+  const cancellationRows = details.cancellations.map((event, index) => h('article', {
+    key: event.id || `${event.productName}-${index}`,
+    className: 'finance80-detail-list-item'
+  },
+    h('div', null,
+      h('strong', null, `${event.productName} · ${event.quantity} un.`),
+      h('span', null, `${event.date ? formatDateTime(event.date, event.dateTime) : 'Data não informada'} · ${event.reason}`)),
+    h('strong', { className: 'finance80-history-canceled' }, formatCurrency(event.amount))));
+
+  return createPortal(h('div', { className: 'finance46-overlay finance80-account-overlay', role: 'dialog', 'aria-modal': 'true' },
+    h('div', { className: 'finance46-modal finance80-account-modal finance94-purchase-modal' },
+      h('header', { className: 'finance46-modal-hero' },
+        h('div', { className: 'finance46-modal-icon' }, h(Package, { size: 22 })),
+        h('div', { className: 'finance46-modal-heading' },
+          h('span', null, details.sourceLabel),
+          h('h2', null, details.title),
+          h('p', null, 'Consulte todos os produtos, valores, pagamentos e cancelamentos desta transação.')),
+        h('button', { type: 'button', onClick: onClose, className: 'finance46-close', 'aria-label': 'Fechar detalhes da compra' }, h(X, { size: 20 }))),
+      h('div', { className: 'finance46-modal-scroll finance80-account-scroll' },
+        h('section', { className: 'finance46-card finance80-account-summary' },
+          h('div', { className: 'finance80-account-title' },
+            h('strong', null, details.batchId ? `Lote com ${details.itemCount} produtos` : 'Compra de mercadoria'),
+            h('span', { className: `finance44-status ${details.status.cls}` }, details.status.label)),
+          h('div', { className: 'finance80-balance-grid finance94-purchase-balance' },
+            field('Valor original', formatCurrency(details.originalTotal)),
+            field('Valor ajustado', formatCurrency(details.adjustedTotal)),
+            field('Total pago', formatCurrency(details.paidTotal)),
+            field('Saldo em aberto', formatCurrency(details.openTotal))),
+          (details.canceledTotal > 0 || details.cashRefundTotal > 0) && h('div', { className: 'finance80-purchase-summary' },
+            details.canceledTotal > 0 && field('Redução das contas', formatCurrency(details.canceledTotal)),
+            details.cashRefundTotal > 0 && field('Valor estornado', formatCurrency(details.cashRefundTotal)))),
+        h('section', { className: 'finance46-card' },
+          h('div', { className: 'finance46-section-label' }, 'Dados da transação'),
+          h('div', { className: 'finance80-detail-grid' },
+            field('Identificador do lote', details.batchId || 'Compra individual'),
+            field('Data da compra', details.purchaseDate ? formatDateTime(details.purchaseDate, details.purchaseDateTime) : 'Não informada'),
+            field('Forma de pagamento', details.paymentMethod),
+            field('Fornecedor / favorecido', details.supplier),
+            field('Produtos no lote', String(details.itemCount)),
+            field(details.entryLabel, formatCurrency(details.entryAmount)),
+            field('Data deste lançamento', details.entryDate ? formatDateTime(details.entryDate, details.entryDateTime) : 'Não informada')),
+          details.notes && h('div', { className: 'finance80-detail-notes' }, h('span', null, 'Observações'), h('p', null, details.notes))),
+        h('section', { className: 'finance46-card' },
+          h('div', { className: 'finance46-section-label' }, 'Produtos da compra'),
+          h('div', { className: 'finance80-detail-list' }, productRows)),
+        details.installments.length > 0 && h('section', { className: 'finance46-card' },
+          h('div', { className: 'finance46-section-label' }, 'Parcelas da compra'),
+          h('div', { className: 'finance80-detail-list' }, installmentRows)),
+        details.cancellations.length > 0 && h('section', { className: 'finance46-card' },
+          h('div', { className: 'finance46-section-label' }, 'Cancelamentos e devoluções'),
+          h('div', { className: 'finance80-detail-list' }, cancellationRows))),
+      h('footer', { className: 'finance46-modal-footer' },
+        h('button', { type: 'button', onClick: onClose, className: 'finance46-button is-primary' }, 'Fechar'))
+    )
+  ), document.body);
+};
+
+const MovementRow = ({ item, openManualEdit, deleteManual, onOpenSale, onOpenProduct, onOpenPurchaseDetails }) => {
   let action = null;
   if (item.source === 'manual') {
     action = h(React.Fragment, null,
@@ -374,6 +469,8 @@ const MovementRow = ({ item, openManualEdit, deleteManual, onOpenSale, onOpenPro
     );
   } else if ((item.source === 'sale' || item.source === 'sale-refund') && item.sale) {
     action = h('button', { className: 'finance44-action', onClick: () => onOpenSale?.(item.sale) }, h(Eye, { size: 14 }), 'Ver venda');
+  } else if ((item.source === 'stock' || item.source === 'stock-refund') && item.batchId && item.purchaseGroup) {
+    action = h('button', { className: 'finance44-action finance80-details-button', onClick: () => onOpenPurchaseDetails?.(item), 'aria-label': `Ver detalhes de ${item.description}` }, h(Eye, { size: 14 }), 'Ver detalhes');
   } else if ((item.source === 'stock' || item.source === 'stock-refund') && item.product && !item.batchId) {
     action = h('button', { className: 'finance44-action', onClick: () => onOpenProduct?.(item.product) }, h(Package, { size: 14 }), 'Ver produto');
   } else {
@@ -510,6 +607,7 @@ export const AbaFinanceiro = ({
   const [portfolioDirection, setPortfolioDirection] = useState(null);
   const [modalState, setModalState] = useState(null);
   const [detailsAccount, setDetailsAccount] = useState(null);
+  const [detailsPurchase, setDetailsPurchase] = useState(null);
 
   const profileRef = useMemo(() => doc(db, 'artifacts', APP_ID, 'users', userId, 'profile', 'info'), [userId]);
   useEffect(() => onSnapshot(profileRef,
@@ -807,7 +905,7 @@ export const AbaFinanceiro = ({
     if (loading) return h('div', { className: 'surface finance44-empty' }, 'Carregando financeiro...');
     if (tab === 'movements') {
       if (movements.length === 0) return h('div', { className: 'finance44-list' }, h('div', { className: 'finance44-empty' }, 'Nenhuma movimentação neste período.'));
-      return h('div', { className: 'finance44-list' }, movements.map(item => h(MovementRow, { key: item.id, item, openManualEdit, deleteManual, onOpenSale, onOpenProduct })));
+      return h('div', { className: 'finance44-list' }, movements.map(item => h(MovementRow, { key: item.id, item, openManualEdit, deleteManual, onOpenSale, onOpenProduct, onOpenPurchaseDetails: setDetailsPurchase })));
     }
     if (filteredAccounts.length === 0) return h('div', { className: 'finance44-list' }, h('div', { className: 'finance44-empty' }, 'Nenhuma conta encontrada neste período.'));
     return h('div', { className: 'finance44-list' }, filteredAccounts.map(item => h(AccountRow, { key: item.id, item, tab, toggleStockPayable, toggleManualAccount, openManualEdit, deleteManual, onReceiveInstallment, onOpenSale, onOpenProduct, onOpenDetails: setDetailsAccount })));
@@ -877,6 +975,11 @@ export const AbaFinanceiro = ({
       onOpenSale: sale => { setPortfolioDirection(null); onOpenSale?.(sale); },
       onOpenProduct: product => { setPortfolioDirection(null); onOpenProduct?.(product); },
       onEdit: item => { setPortfolioDirection(null); openManualEdit(item); }
+    }),
+    h(PurchaseTransactionDetailsModal, {
+      item: detailsPurchase,
+      products,
+      onClose: () => setDetailsPurchase(null)
     })
   );
 };

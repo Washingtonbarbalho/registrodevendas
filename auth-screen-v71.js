@@ -2,13 +2,13 @@ import React, { useState } from 'https://esm.sh/react@18.2.0';
 import {
   AlertTriangle, ArrowLeft, CheckCircle2, Eye, EyeOff, Lock, Mail, Store, UserCog
 } from 'https://esm.sh/lucide-react@0.292.0';
-import { doc, serverTimestamp, writeBatch } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js';
+import { doc, serverTimestamp, writeBatch } from './firestore-runtime-v94.js?v=94';
 import {
   createUserWithEmailAndPassword,
   sendPasswordResetEmail,
   signInWithEmailAndPassword
 } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js';
-import { APP_ID, auth, db } from './firebase-config.js?v=93';
+import { APP_ID, auth, db } from './firebase-config.js?v=94';
 import { maskPhone } from './utils.js?v=74';
 
 const EMAIL_STORAGE_KEY = 'registro-vendas:login-email:v1';
