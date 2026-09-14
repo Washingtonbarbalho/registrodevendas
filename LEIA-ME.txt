@@ -1,4 +1,4 @@
-REGISTRO DE VENDAS — VERSÃO 94
+REGISTRO DE VENDAS — VERSÃO 95
 
 ARQUITETURA ATIVA
 - app-runtime-v75.js é o código principal oficial, já consolidado e editado diretamente.
@@ -20,6 +20,9 @@ VENDAS UNIFICADAS
 - PIX, dinheiro, débito, crédito e crediário são escolhidos em uma lista suspensa na seção de pagamento.
 - Vendas diretas mantêm cliente opcional, taxas da maquininha e parcelamento no cartão.
 - O crediário mantém cliente obrigatório, análise de crédito, regras de entrada e parcelas exatas.
+- Ao abrir a quantidade de parcelas no cartão ou no crediário, cada opção mostra o valor da parcela e o total da compra.
+- As opções consideram a entrada informada, os juros configurados no crediário e o repasse da taxa do cartão ao cliente quando aplicável.
+- No PDF de detalhamento da venda a prazo, o cabeçalho da tabela de parcelas usa fundo escuro e texto branco para manter os nomes das colunas legíveis.
 - npm test simula a gravação das cinco formas de pagamento e preserva as verificações anteriores.
 
 POSIÇÃO HISTÓRICA DO CREDIÁRIO

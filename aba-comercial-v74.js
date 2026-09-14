@@ -4,8 +4,8 @@ import {
   CalendarDays, Check, Clipboard, Crosshair, DollarSign, Edit3, MessageCircle,
   RefreshCw, Search, ShoppingBag, Target, TrendingUp, Users, X
 } from 'https://esm.sh/lucide-react@0.292.0';
-import { doc, onSnapshot, serverTimestamp, updateDoc } from './firestore-runtime-v94.js?v=94';
-import { db, APP_ID } from './firebase-config.js?v=94';
+import { doc, onSnapshot, serverTimestamp, updateDoc } from './firestore-runtime-v94.js?v=95';
+import { db, APP_ID } from './firebase-config.js?v=95';
 import { formatCurrency, formatDate, getBrazilDateString } from './utils.js';
 import {
   buildCollectionMessage,
@@ -16,7 +16,7 @@ import {
   calculateMonthlyGoals,
   commercialMonthBounds,
   normalizeCommercialGoals
-} from './commercial-engine-v74.js?v=94';
+} from './commercial-engine-v74.js?v=95';
 
 const h = React.createElement;
 const EMPTY_GOAL = { revenue: 0, salesCount: 0, recurringCustomers: 0 };

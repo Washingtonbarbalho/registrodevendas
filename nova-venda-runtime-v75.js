@@ -1,13 +1,26 @@
 // Gerado por scripts/consolidate-legacy-runtime-v75.mjs — nova venda consolidada.
 import React, { useState, useEffect } from 'https://esm.sh/react@18.2.0';
 import { ChevronLeft, User, UserPlus, X, Search, CheckCircle, ShoppingBag, Tag, PlusCircle, Trash2, CreditCard, Calendar, QrCode, Banknote, Copy, BadgePercent, RefreshCw, ThumbsUp, ShieldAlert } from 'https://esm.sh/lucide-react@0.292.0';
-import { db, APP_ID } from './firebase-config.js?v=94';
-import { collection, addDoc, serverTimestamp } from './firestore-runtime-v94.js?v=94';
-import { formatCurrency, parseMoney, maskPhone, getBrazilDateString, addDays, generatePixPayload, analyzeCustomerCredit } from './utils.js?v=94';
-import { MoneyInput } from './components.js?v=94';
-import { getCardRate, getCarnetRate, normalizePaymentSettings, evaluateTermEntryRules } from './payment-settings.js?v=94';
-import { splitMoney } from './financial-core-v70.js?v=94';
+import { db, APP_ID } from './firebase-config.js?v=95';
+import { collection, addDoc, serverTimestamp } from './firestore-runtime-v94.js?v=95';
+import { formatCurrency, parseMoney, maskPhone, getBrazilDateString, addDays, generatePixPayload, analyzeCustomerCredit } from './utils.js?v=95';
+import { MoneyInput } from './components.js?v=95';
+import { getCardRate, getCarnetRate, normalizePaymentSettings, evaluateTermEntryRules } from './payment-settings.js?v=95';
+import { splitMoney } from './financial-core-v70.js?v=95';
 import QRCode from 'https://esm.sh/qrcode@1.5.4';
+
+const INSTALLMENT_OPTIONS = Array.from({ length: 12 }, (_, index) => index + 1);
+
+const formatInstallmentOptionLabel = ({ count, financedAmount, totalAmount, entryAmount = 0 }) => {
+    const safeCount = Math.min(12, Math.max(1, parseInt(count, 10) || 1));
+    const installmentAmount = splitMoney(Math.max(0, Number(financedAmount) || 0), safeCount)[0] || 0;
+    const safeEntryAmount = Math.max(0, Number(entryAmount) || 0);
+    const entryLabel = safeEntryAmount > 0
+        ? ` + entrada ${formatCurrency(safeEntryAmount)}`
+        : '';
+
+    return `${safeCount}x de ${formatCurrency(installmentAmount)}${entryLabel} = ${formatCurrency(Math.max(0, Number(totalAmount) || 0))}`;
+};
 
 const LocalPixQrCode = ({ payload }) => {
     const [dataUrl, setDataUrl] = useState('');
@@ -182,6 +195,44 @@ export const NewSaleScreen = ({ mode: initialMode, onClose, customers, products,
     const summaryInstallmentValue = summaryInstallmentsCount > 0
         ? (splitMoney(summaryFinancedValue, summaryInstallmentsCount)[0] || 0)
         : 0;
+    const selectedCardInstallmentsCount = Math.min(12, Math.max(1, parseInt(cardInstallments, 10) || 1));
+    const getCarnetInstallmentOptionLabel = count => {
+        const configuredOptionRate = getCarnetRate(normalizedPaymentSettings, frequency, count);
+        const optionRate = count === selectedInstallmentsCount && carnetInterestWaived
+            ? 0
+            : configuredOptionRate;
+        const optionFinancedAmount = totalRemaining * (1 + optionRate / 100);
+
+        return formatInstallmentOptionLabel({
+            count,
+            financedAmount: optionFinancedAmount,
+            totalAmount: entryValue + optionFinancedAmount,
+            entryAmount: entryValue
+        });
+    };
+    const getCardInstallmentOptionLabel = count => {
+        const configuredOptionRate = getCardRate(normalizedPaymentSettings, {
+            mode: cardMode,
+            method: 'credit',
+            brand: cardBrand,
+            installments: count
+        });
+        const optionRate = count === selectedCardInstallmentsCount
+            ? currentFeePercent
+            : configuredOptionRate;
+        const optionFeeFraction = Math.min(0.999999, Math.max(0, optionRate / 100));
+        const optionBaseAmount = roundCardMoney(totalRemaining);
+        const optionCardAmount = feeType === 'com_juros' && optionFeeFraction > 0
+            ? roundCardMoney(optionBaseAmount / (1 - optionFeeFraction))
+            : optionBaseAmount;
+
+        return formatInstallmentOptionLabel({
+            count,
+            financedAmount: optionCardAmount,
+            totalAmount: roundCardMoney(entryValue + optionCardAmount),
+            entryAmount: entryValue
+        });
+    };
     const selectedEntryRuleCustomer = customers.find(customer => customer.id === customerId) || null;
     const totalEntryRuleCost = cart.reduce((total, item) => total + (Number(item.cost) || 0), 0);
     const currentEntryRuleEvaluation = saleType === 'prazo' && selectedEntryRuleCustomer
@@ -732,7 +783,7 @@ export const NewSaleScreen = ({ mode: initialMode, onClose, customers, products,
                         totalRemaining > 0 && React.createElement(React.Fragment, null,
                             React.createElement('div', null, React.createElement('label', { className: "block text-xs font-bold text-slate-500 uppercase mb-1" }, "Frequência das Parcelas"), React.createElement('select', { className: "w-full p-3 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-yellow-500", value: frequency, onChange: e => { setFrequency(e.target.value); setWaiveCarnetInterest(false); } }, React.createElement('option', { value: "weekly" }, "Semanal"), React.createElement('option', { value: "biweekly" }, "Quinzenal"), React.createElement('option', { value: "monthly" }, "Mensal"))),
                             React.createElement('div', { className: "grid grid-cols-2 gap-4" },
-                                React.createElement('div', null, React.createElement('label', { className: "block text-xs font-bold text-slate-500 uppercase mb-1" }, "Qtd Parcelas"), React.createElement('select', { className: "w-full p-3 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-yellow-500", value: installmentsCount, onChange: e => { setInstallmentsCount(e.target.value); setWaiveCarnetInterest(false); } }, Array.from({length: 12}, (_, i) => i + 1).map(n => React.createElement('option', { key: n, value: n }, `${n}x`)))),
+                                React.createElement('div', null, React.createElement('label', { className: "block text-xs font-bold text-slate-500 uppercase mb-1" }, "Qtd Parcelas"), React.createElement('select', { 'data-installment-kind': "carnet", 'aria-label': "Parcelas do crediário com valor e total", className: "w-full p-3 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-yellow-500", value: installmentsCount, onChange: e => { setInstallmentsCount(e.target.value); setWaiveCarnetInterest(false); } }, INSTALLMENT_OPTIONS.map(n => React.createElement('option', { key: n, value: n }, getCarnetInstallmentOptionLabel(n))))),
                                 React.createElement('div', null, React.createElement('label', { className: "block text-xs font-bold text-slate-500 uppercase mb-1" }, "1º Vencimento"), React.createElement('input', { type: "date", className: "w-full p-3 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-yellow-500", value: firstDueDate, onChange: e => setFirstDueDate(e.target.value) }))
                             ),
                             React.createElement('div', { className: `legacy-payment-calculation carnet-interest-summary p-3 rounded-xl border space-y-2 ${carnetInterestPercent > 0 ? 'bg-amber-50 border-amber-200' : 'bg-slate-50 border-slate-100'}` },
@@ -772,7 +823,23 @@ export const NewSaleScreen = ({ mode: initialMode, onClose, customers, products,
 
                         (directMethod === 'credit' || directMethod === 'debit') && React.createElement('div', { className: "space-y-4 pt-4 border-t border-slate-100" },
                             React.createElement('div', null, React.createElement('label', { className: "block text-xs font-bold text-slate-500 uppercase mb-1" }, "Entrada (Dinheiro/Pix) - Opcional"), React.createElement(MoneyInput, { value: entryAmount, onChange: setEntryAmount, className: "w-full p-3 pl-8 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" })),
-                            directMethod === 'credit' && React.createElement('div', null, React.createElement('label', { className: "block text-xs font-bold text-slate-500 uppercase mb-1" }, "Parcelas no Cartão"), React.createElement('select', { className: "w-full p-3 border border-slate-200 rounded-lg outline-none", value: cardInstallments, onChange: e => setCardInstallments(e.target.value) }, React.createElement('option', { value: "1" }, "1x (À Vista)"), Array.from({length: 11}, (_, i) => i + 2).map(n => React.createElement('option', { key: n, value: n }, `${n}x`)))),
+                            directMethod === 'credit' && React.createElement('div', null, React.createElement('label', { className: "block text-xs font-bold text-slate-500 uppercase mb-1" }, "Parcelas no Cartão"), React.createElement('select', {
+                                'data-installment-kind': "card",
+                                'aria-label': "Parcelas do cartão com valor e total",
+                                className: "w-full p-3 border border-slate-200 rounded-lg outline-none",
+                                value: cardInstallments,
+                                onChange: e => {
+                                    const nextInstallments = e.target.value;
+                                    const nextRate = getCardRate(normalizedPaymentSettings, {
+                                        mode: cardMode,
+                                        method: 'credit',
+                                        brand: cardBrand,
+                                        installments: nextInstallments
+                                    });
+                                    setCardInstallments(nextInstallments);
+                                    setFeePercent(nextRate.toFixed(2).replace('.', ','));
+                                }
+                            }, INSTALLMENT_OPTIONS.map(n => React.createElement('option', { key: n, value: n }, getCardInstallmentOptionLabel(n))))),
                             
                             React.createElement('div', { className: "bg-orange-50 p-4 rounded-xl border border-orange-100 space-y-3" },
                                 React.createElement('p', { className: "text-xs font-bold text-orange-700 uppercase flex items-center gap-1" }, React.createElement(BadgePercent, { size: 14 }), `Taxas · ${normalizedPaymentSettings.card.machineName}`),

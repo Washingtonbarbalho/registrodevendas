@@ -41,6 +41,8 @@ const nodeText = value => {
   return nodeText(value.props?.children || []);
 };
 
+const displayText = value => nodeText(value).replace(/\s+/g, ' ').trim();
+
 const splitMoney = (value, count) => {
   const total = Math.round(Number(value || 0) * 100);
   const base = Math.floor(total / count);
@@ -48,7 +50,7 @@ const splitMoney = (value, count) => {
   return Array.from({ length: count }, (_, index) => (base + Number(index < remainder)) / 100);
 };
 
-const createHarness = ({ promotional = false } = {}) => {
+const createHarness = ({ promotional = false, cardRate = 0, carnetRate = 0, paymentSettings = {} } = {}) => {
   const states = [];
   let cursor = 0;
   let tree;
@@ -115,8 +117,10 @@ const createHarness = ({ promotional = false } = {}) => {
       calculatedLimit: 2000, currentDebt: 0, reason: 'Crédito aprovado.'
     }),
     MoneyInput: 'MoneyInput',
-    getCardRate: () => 0,
-    getCarnetRate: () => 0,
+    getCardRate: (_settings, plan) => typeof cardRate === 'function' ? cardRate(plan) : cardRate,
+    getCarnetRate: (_settings, frequency, count) => typeof carnetRate === 'function'
+      ? carnetRate({ frequency, count })
+      : carnetRate,
     normalizePaymentSettings: () => ({ card: { machineName: 'Maquininha teste' } }),
     evaluateTermEntryRules: () => ({
       ruleApplies: false, approved: true, requiredEntry: 0, shortage: 0, reasons: []
@@ -138,7 +142,7 @@ const createHarness = ({ promotional = false } = {}) => {
     onSaveSale: async sale => { saved.push(sale); },
     userProfile: {},
     user: { uid: 'user-1' },
-    paymentSettings: {}
+    paymentSettings
   };
 
   const render = () => {
@@ -221,6 +225,52 @@ for (const [label, expectedMethod] of directMethods) {
   assert.equal(sale.saved[0].anonymousSale, true, 'Vendas diretas devem continuar permitindo cliente opcional.');
   assert.equal(sale.closed, 1);
 }
+
+const cardPlanSale = createHarness({
+  cardRate: plan => Number(plan.installments) === 2 ? 10 : 0
+});
+cardPlanSale.addProduct();
+cardPlanSale.chooseMethod('Crédito');
+cardPlanSale.find(node => node.type === 'MoneyInput' && !node.props.placeholder
+  && String(node.props.className || '').includes('focus:ring-emerald-500'), 'Entrada do cartão')
+  .props.onChange('10,00');
+cardPlanSale.render();
+const cardFeeTypeSelect = cardPlanSale.find(node => node.type === 'select'
+  && node.props.children.some(option => nodeText(option).includes('Cliente Paga')), 'Repasse da taxa do cartão');
+cardFeeTypeSelect.props.onChange({ target: { value: 'com_juros' } });
+cardPlanSale.render();
+const cardInstallmentSelect = cardPlanSale.find(node => node.type === 'select'
+  && node.props['data-installment-kind'] === 'card', 'Parcelas do cartão com valores');
+assert.equal(cardInstallmentSelect.props.children.length, 12);
+assert.equal(displayText(cardInstallmentSelect.props.children[1]),
+  '2x de R$ 50,00 + entrada R$ 10,00 = R$ 110,00',
+  'O cartão deve mostrar valor da parcela, entrada e total com a taxa repassada ao cliente.');
+cardInstallmentSelect.props.onChange({ target: { value: '2' } });
+cardPlanSale.render();
+assert.equal(displayText(cardPlanSale.find(node => node.type === 'select'
+  && node.props['data-installment-kind'] === 'card', 'Parcelas atualizadas do cartão').props.children[1]),
+  '2x de R$ 50,00 + entrada R$ 10,00 = R$ 110,00',
+  'A opção escolhida deve continuar igual ao plano que será salvo.');
+await cardPlanSale.findButton('Finalizar Venda').props.onClick();
+assert.equal(cardPlanSale.saved[0].cardInstallments, 2);
+assert.equal(cardPlanSale.saved[0].totalPrice, 110,
+  'O total exibido no parcelamento do cartão deve corresponder ao valor gravado na venda.');
+
+const carnetPlanSale = createHarness({
+  carnetRate: ({ count }) => Number(count) === 2 ? 10 : 0
+});
+carnetPlanSale.addProduct();
+carnetPlanSale.chooseMethod('Crediário');
+carnetPlanSale.find(node => node.type === 'MoneyInput' && !node.props.placeholder
+  && String(node.props.className || '').includes('focus:ring-yellow-500'), 'Entrada do crediário')
+  .props.onChange('20,00');
+carnetPlanSale.render();
+const carnetInstallmentSelect = carnetPlanSale.find(node => node.type === 'select'
+  && node.props['data-installment-kind'] === 'carnet', 'Parcelas do crediário com valores');
+assert.equal(carnetInstallmentSelect.props.children.length, 12);
+assert.equal(displayText(carnetInstallmentSelect.props.children[1]),
+  '2x de R$ 44,00 + entrada R$ 20,00 = R$ 108,00',
+  'O crediário deve mostrar valor da parcela, entrada e total conforme os juros do plano.');
 
 const promotionalSale = createHarness({ promotional: true });
 promotionalSale.addProduct();

@@ -22,6 +22,12 @@ const saleMoment = sale => {
 };
 const contractId = sale => sale?.id ? `VP-${sale.id.slice(-5).toUpperCase()}` : 'VENDA';
 
+export const SALE_PDF_INSTALLMENT_HEADER_STYLE = Object.freeze({
+  fillColor: Object.freeze([15, 23, 42]),
+  borderColor: Object.freeze([15, 23, 42]),
+  textColor: Object.freeze([255, 255, 255])
+});
+
 export const generateSalePdfBlob = async ({ sale, userProfile = {}, type = 'detalhe', installment = null, historyItem = null }) => {
   if (!sale) throw new Error('Venda não informada.');
   const module = await import('https://esm.sh/jspdf@2.5.1');
@@ -72,8 +78,19 @@ export const generateSalePdfBlob = async ({ sale, userProfile = {}, type = 'deta
     rule(); text(`Valor total: ${formatCurrency(sale.totalPrice || 0)}`, { size:11, bold:true }); if (num(sale.entryAmount) > 0) text(`Entrada: ${formatCurrency(sale.entryAmount)}`);
     if (type === 'cobranca' && installment) { rule(); text('PARCELA EM COBRANÇA', { bold:true, size:10, color:[185,28,28] }); text(`Parcela ${installment.number}/${sale.installmentsCount || sale.installments?.length || 1}`); text(`Vencimento: ${formatDate(cleanDate(installment.dueDate))}`); text(`Valor em aberto: ${formatCurrency(installment.amount || 0)}`, { bold:true }); }
     if (type === 'recibo' && installment) { const paidValue = historyItem ? getHistoryCashAmount(historyItem) : installment.originalAmount || installment.amount; const paidDate = historyItem ? historyItem.date : installment.paidAt; rule(); text('PAGAMENTO REGISTRADO', { bold:true, size:10, color:[4,120,87] }); text(`Parcela ${installment.number}/${sale.installmentsCount || sale.installments?.length || 1}`); text(`Valor pago: ${formatCurrency(paidValue || 0)}`, { bold:true }); text(`Data: ${formatDate(cleanDate(paidDate))}`); }
-    rule(); text('PARCELAS', { bold:true, size:10 });
-    const cols = [18, 38, 38, usable - 94]; let x = margin; pdf.setFillColor(241,245,249); pdf.setDrawColor(203,213,225); ['Nº','Vencimento','Valor','Situação'].forEach((label,i)=>{pdf.rect(x,y,cols[i],8,'FD');pdf.setFont('helvetica','bold');pdf.setFontSize(7);pdf.setTextColor(51,65,85);pdf.text(label,x+1.5,y+5);x+=cols[i];}); y += 8;
+    rule(); text('PARCELAS', { bold:true, size:10 }); ensure(10);
+    const cols = [18, 38, 38, usable - 94]; let x = margin;
+    ['Nº','Vencimento','Valor','Situação'].forEach((label,i) => {
+      pdf.setFillColor(...SALE_PDF_INSTALLMENT_HEADER_STYLE.fillColor);
+      pdf.setDrawColor(...SALE_PDF_INSTALLMENT_HEADER_STYLE.borderColor);
+      pdf.rect(x,y,cols[i],8,'FD');
+      pdf.setFont('helvetica','bold');
+      pdf.setFontSize(7);
+      pdf.setTextColor(...SALE_PDF_INSTALLMENT_HEADER_STYLE.textColor);
+      pdf.text(label,x+1.5,y+5);
+      x += cols[i];
+    });
+    y += 8;
     (sale.installments || []).forEach(inst => { ensure(8); x=margin; const status = inst.paid ? `Pago${inst.paidAt ? ' ' + formatDate(cleanDate(inst.paidAt)) : ''}` : cleanDate(inst.dueDate) < cleanDate(new Date().toISOString()) ? 'Atrasada' : 'Em aberto'; [String(inst.number), formatDate(cleanDate(inst.dueDate)), formatCurrency(inst.originalAmount || inst.amount || 0), status].forEach((value,i)=>{pdf.setFillColor(255,255,255);pdf.setDrawColor(226,232,240);pdf.rect(x,y,cols[i],8,'FD');pdf.setFont('helvetica','normal');pdf.setFontSize(7);pdf.setTextColor(51,65,85);pdf.text(pdf.splitTextToSize(value,cols[i]-3)[0] || '',x+1.5,y+5);x+=cols[i];}); y += 8; });
     if (sale.notes) { y += 5; text(`Observações: ${sale.notes}`, { size:8 }); }
     if (sale.status === 'canceled') { y += 4; text(`VENDA CANCELADA${sale.cancelReason ? ` · ${sale.cancelReason}` : ''}`, { bold:true, color:[185,28,28] }); }

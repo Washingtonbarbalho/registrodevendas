@@ -93,7 +93,7 @@ for (const consumer of [
   'aba-relatorios-v73.js',
   'aba-financeiro-v68.js',
   'aba-comercial-v74.js'
-]) assert.ok(read(consumer).includes("from './firestore-runtime-v94.js?v=94'"),
+]) assert.ok(read(consumer).includes("from './firestore-runtime-v94.js?v=95'"),
   `${consumer} precisa usar a camada de carregamento do banco.`);
 
 const firestoreRuntime = read('firestore-runtime-v94.js');

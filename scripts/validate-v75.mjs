@@ -53,6 +53,7 @@ const criticalFiles = [
   'scripts/validate-financial-details-v80.mjs',
   'scripts/validate-ui-interactions-v81.mjs',
   'scripts/validate-v94.mjs',
+  'scripts/validate-v95.mjs',
   'scripts/validate-v75.mjs'
 ];
 criticalFiles.forEach(checkSyntax);
@@ -256,11 +257,12 @@ for (const [label, validator] of [
   ['evolução executiva', 'scripts/validate-executive-v79.mjs'],
   ['detalhes das contas a pagar e a receber', 'scripts/validate-financial-details-v80.mjs'],
   ['interações profissionais', 'scripts/validate-ui-interactions-v81.mjs'],
-  ['melhorias financeiras e sincronização', 'scripts/validate-v94.mjs']
+  ['melhorias financeiras e sincronização', 'scripts/validate-v94.mjs'],
+  ['parcelamento detalhado e PDF legível', 'scripts/validate-v95.mjs']
 ]) {
   const result = spawnSync(process.execPath, [validator], { cwd: root, encoding: 'utf8' });
   if (result.status !== 0) throw new Error(`Falha em ${label}:\n${result.stderr || result.stdout}`);
   process.stdout.write(result.stdout);
 }
 
-console.log(`Aplicação v${version} validada: calendário único, carteira financeira completa e todos os fluxos anteriores preservados.`);
+console.log(`Aplicação v${version} validada: parcelamento detalhado, PDF legível e todos os fluxos anteriores preservados.`);
