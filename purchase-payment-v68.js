@@ -1,4 +1,4 @@
-import { money, normalizePurchaseInstallments, splitMoney } from './financial-core-v70.js';
+import { fromCents, money, normalizePurchaseInstallments, splitMoney, toCents } from './financial-core-v70.js';
 
 export { money, splitMoney };
 
@@ -34,6 +34,25 @@ export const buildPaymentInstallments = (total, count, firstDueDate) => {
     paidAt: null,
     paidAtDateTime: null
   }));
+};
+
+export const getPurchasePaymentBreakdown = (total, entry = 0) => {
+  const totalCents = Math.max(0, toCents(total));
+  const requestedEntryCents = Math.max(0, toCents(entry));
+  const entryCents = Math.min(totalCents, requestedEntryCents);
+  return {
+    totalAmount: fromCents(totalCents),
+    requestedEntryAmount: fromCents(requestedEntryCents),
+    entryAmount: fromCents(entryCents),
+    financedAmount: fromCents(totalCents - entryCents),
+    entryCoversTotal: totalCents > 0 && requestedEntryCents >= totalCents
+  };
+};
+
+export const buildPurchasePaymentPlan = (total, entry, count, firstDueDate) => {
+  const { financedAmount } = getPurchasePaymentBreakdown(total, entry);
+  if (!firstDueDate || toCents(financedAmount) <= 0) return [];
+  return buildPaymentInstallments(financedAmount, count, firstDueDate);
 };
 
 export const normalizePaymentInstallments = (movement, totalFallback = 0) =>

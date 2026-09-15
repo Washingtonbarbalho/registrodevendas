@@ -1,4 +1,4 @@
-REGISTRO DE VENDAS — VERSÃO 96
+REGISTRO DE VENDAS — VERSÃO 97
 
 ARQUITETURA ATIVA
 - app-runtime-v75.js é o código principal oficial, já consolidado e editado diretamente.
@@ -52,6 +52,13 @@ DETALHES DO FINANCEIRO
 - Compras parceladas exibem produtos, totais da compra, parcelas pagas, saldo, fornecedor e cancelamentos.
 - Nas movimentações do extrato, compras de mercadoria em lote possuem o botão Ver detalhes, com todos os produtos, quantidades, custos, pagamento, parcelas e devoluções da transação.
 - Contas manuais mantêm categoria, observações e acesso rápido à edição.
+
+COMPRAS DE ESTOQUE COM ENTRADA
+- Compras de mercadoria no cartão de crédito ou a prazo aceitam uma entrada opcional, tanto na movimentação individual quanto na movimentação em lote.
+- A tela separa claramente a entrada paga agora, o saldo que será parcelado e o valor total da compra.
+- A entrada é registrada imediatamente como saída de caixa, enquanto somente o saldo restante gera as contas a pagar nas datas escolhidas.
+- O detalhamento financeiro mostra a entrada, o valor parcelado, o total já pago e o saldo em aberto da compra.
+- Em devoluções ao fornecedor, o sistema reduz primeiro as parcelas em aberto e registra como estorno apenas a parte do pagamento que já havia saído do caixa.
 
 INTERAÇÕES VISUAIS
 - Avisos e mensagens usam modais próprios, com identificação visual de sucesso, atenção, informação ou erro.

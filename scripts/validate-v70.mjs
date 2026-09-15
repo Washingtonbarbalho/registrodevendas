@@ -6,6 +6,7 @@ import {
   allocateMoney,
   applyInstallmentPayment,
   buildFinancialLedger,
+  calculatePurchaseReturnFinancialSplit,
   FinancialCalculationError,
   getPurchaseGroups,
   getRealizedSalesProfit,
@@ -18,7 +19,7 @@ import {
   summarizeFinancialLedger,
   toCents
 } from '../financial-core-v70.js';
-import { buildPaymentInstallments } from '../purchase-payment-v68.js';
+import { buildPaymentInstallments, buildPurchasePaymentPlan, getPurchasePaymentBreakdown } from '../purchase-payment-v68.js';
 import { buildReport } from '../reports-engine-v70.js';
 
 const checkSyntax = file => {
@@ -40,6 +41,8 @@ for (const file of [
   'app-runtime-v75.js',
   'nova-venda-runtime-v75.js',
   'purchase-payment-v68.js',
+  'stock-movement-modal-v68.js',
+  'batch-stock-modal-v68.js',
   'aba-financeiro-v68.js',
   'aba-relatorios-v73.js',
   'sale-pdf-v65.js',
@@ -55,6 +58,26 @@ assert.equal(toCents(1.005), 101, 'O arredondamento monetário deve preservar ce
 const supplierPlan = buildPaymentInstallments(100, 3, '2026-07-31');
 assert.deepEqual(supplierPlan.map(item => item.amount), [33.34, 33.33, 33.33]);
 assert.deepEqual(supplierPlan.map(item => item.dueDate), ['2026-07-31', '2026-08-31', '2026-09-30']);
+
+const purchaseBreakdown = getPurchasePaymentBreakdown(100, 20);
+assert.deepEqual(purchaseBreakdown, {
+  totalAmount: 100,
+  requestedEntryAmount: 20,
+  entryAmount: 20,
+  financedAmount: 80,
+  entryCoversTotal: false
+});
+assert.deepEqual(buildPurchasePaymentPlan(100, 20, 3, '2026-07-31').map(item => item.amount), [26.67, 26.67, 26.66],
+  'Somente o saldo depois da entrada deve ser parcelado, preservando os centavos.');
+assert.equal(getPurchasePaymentBreakdown(100, 100).entryCoversTotal, true,
+  'Uma entrada integral deve ser identificada para orientar o uso de pagamento à vista.');
+assert.deepEqual(calculatePurchaseReturnFinancialSplit({
+  purchaseAmount: 100,
+  paidAmount: 60,
+  priorAccountReductions: 0,
+  returnAmount: 50
+}), { openLiability: 40, accountReductionAmount: 40, cashRefundAmount: 10 },
+  'A devolução deve primeiro reduzir o saldo parcelado e estornar apenas o que já saiu do caixa.');
 
 const fullCashPosition = summarizeFinancialLedger([
   { type: 'income', amount: 100, date: '2026-07-10' },
@@ -213,6 +236,67 @@ assert.equal(purchaseGroups[0].paidAmount, 66.67);
 assert.equal(purchaseGroups[0].openTotal, 23.33);
 assert.deepEqual(purchaseGroups[0].plan.map(item => item.amount), [33.34, 33.33, 23.33], 'Devoluções devem reduzir as parcelas finais sem redistribuir as já contratadas.');
 
+const entryPurchasePlan = buildPurchasePaymentPlan(100, 20, 2, '2026-08-10');
+entryPurchasePlan[0] = { ...entryPurchasePlan[0], paid: true, paidAt: '2026-08-08', paidAtDateTime: '2026-08-08T11:00:00.000Z' };
+const entryPurchaseProducts = [{
+  id: 'entry-product',
+  name: 'Compra com entrada',
+  movements: [{
+    id: 'entry-movement',
+    type: 'compra',
+    quantity: 5,
+    unitCost: 20,
+    date: '2026-08-01T09:00:00.000Z',
+    paymentMethod: 'term',
+    paymentEntryAmount: 20,
+    paymentEntryPaidAt: '2026-08-01',
+    paymentEntryPaidAtDateTime: '2026-08-01T09:00:00.000Z',
+    financialInstallments: entryPurchasePlan
+  }]
+}];
+const entryPurchaseGroup = getPurchaseGroups(entryPurchaseProducts)[0];
+assert.equal(entryPurchaseGroup.originalAmount, 100);
+assert.equal(entryPurchaseGroup.paymentEntryAmount, 20);
+assert.equal(entryPurchaseGroup.financedAmount, 80);
+assert.equal(entryPurchaseGroup.installmentPaidAmount, 40);
+assert.equal(entryPurchaseGroup.paidAmount, 60);
+assert.equal(entryPurchaseGroup.openTotal, 40);
+assert.deepEqual(entryPurchaseGroup.plan.map(item => item.amount), [40, 40]);
+const entryPurchaseLedger = buildFinancialLedger({ products: entryPurchaseProducts });
+assert.equal(summarizeFinancialLedger(entryPurchaseLedger, '2026-08-01', '2026-08-01').expense, 20,
+  'A entrada deve sair do caixa imediatamente e uma única vez.');
+assert.equal(summarizeFinancialLedger(entryPurchaseLedger, '2026-08-08', '2026-08-08').expense, 40,
+  'Cada parcela deve sair do caixa somente quando for paga.');
+assert.equal(entryPurchaseLedger.find(item => item.purchasePaymentKind === 'entry')?.amount, 20);
+
+const batchEntryPlan = buildPurchasePaymentPlan(100, 20, 2, '2026-09-10');
+const batchEntryProducts = [
+  { id: 'batch-entry-a', name: 'Item A', quantity: 3, unitCost: 20 },
+  { id: 'batch-entry-b', name: 'Item B', quantity: 2, unitCost: 20 }
+].map((item, index) => ({
+  id: item.id,
+  name: item.name,
+  movements: [{
+    id: `batch-entry-${index + 1}`,
+    batchId: 'batch-with-entry',
+    batchIndex: index,
+    batchTotal: 100,
+    type: 'compra',
+    quantity: item.quantity,
+    unitCost: item.unitCost,
+    date: '2026-09-01T09:00:00.000Z',
+    paymentMethod: 'credit',
+    paymentEntryAmount: 20,
+    paymentEntryPaidAt: '2026-09-01',
+    financialInstallments: batchEntryPlan
+  }]
+}));
+const batchEntryLedger = buildFinancialLedger({ products: batchEntryProducts });
+assert.equal(getPurchaseGroups(batchEntryProducts).length, 1);
+assert.equal(batchEntryLedger.filter(item => item.purchasePaymentKind === 'entry').length, 1,
+  'A entrada de uma compra em lote deve sair do caixa uma única vez, sem duplicar por produto.');
+assert.equal(batchEntryLedger.find(item => item.purchasePaymentKind === 'entry')?.amount, 20);
+
 const financialData = {
   entries: [
     { id: 'manual-in', type: 'income', value: 4.01, date: '2026-07-25', description: 'Entrada manual' },
@@ -301,11 +385,11 @@ const augustPurchases = buildReport({ ...context, reportId: 'purchases', startDa
 assert.equal(metricValue(julyPurchases, 'Compras realizadas'), 1);
 assert.equal(metricValue(julyPurchases, 'Valor bruto comprado'), 100);
 assert.equal(metricValue(julyPurchases, 'Devoluções'), 0);
-assert.equal(metricValue(julyPurchases, 'Parcelas pagas no período'), 33.34);
+assert.equal(metricValue(julyPurchases, 'Pagamentos de compras no período'), 33.34);
 assert.equal(metricValue(augustPurchases, 'Compras realizadas'), 0);
 assert.equal(metricValue(augustPurchases, 'Devoluções'), 10);
 assert.equal(metricValue(augustPurchases, 'Valor líquido das compras'), -10);
-assert.equal(metricValue(augustPurchases, 'Parcelas pagas no período'), 33.33);
+assert.equal(metricValue(augustPurchases, 'Pagamentos de compras no período'), 33.33);
 assert.equal(metricValue(augustPurchases, 'Saldo atual de compras a pagar'), 23.33);
 
 const cashPurchaseProduct = {
@@ -382,6 +466,24 @@ for (const marker of [
   "setAccessDenied('deleted')",
   'Vendas não podem ser excluídas permanentemente'
 ]) assert.ok(source.includes(marker), `Proteção ou integração ausente na aplicação final: ${marker}`);
+for (const marker of [
+  'calculatePurchaseReturnFinancialSplit',
+  'paymentEntryAmount',
+  'paymentFinancedAmount',
+  'paymentEntryPaidAt',
+  'O valor das parcelas não corresponde ao saldo restante da compra'
+]) assert.ok(source.includes(marker), `Integração da entrada da compra ausente: ${marker}`);
+
+for (const modalFile of ['stock-movement-modal-v68.js', 'batch-stock-modal-v68.js']) {
+  const modalSource = fs.readFileSync(new URL(`../${modalFile}`, import.meta.url), 'utf8');
+  for (const marker of [
+    'buildPurchasePaymentPlan',
+    'getPurchasePaymentBreakdown',
+    'Entrada paga à vista (Dinheiro/PIX) · opcional',
+    'Entrada paga agora',
+    'Total da compra'
+  ]) assert.ok(modalSource.includes(marker), `${modalFile} não implementa corretamente a entrada: ${marker}`);
+}
 
 const financeSource = fs.readFileSync(new URL('../aba-financeiro-v68.js', import.meta.url), 'utf8');
 assert.ok(financeSource.includes('buildFinancialLedger({ sales, products, financialData: data, purchaseGroups })'));

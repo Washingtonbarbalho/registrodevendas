@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {
   buildFinancialAccountDetails,
+  buildPurchaseTransactionDetails,
   filterFinancialAccounts,
   summarizeFinancialAccounts
 } from '../financial-account-details-v80.js';
@@ -229,6 +230,56 @@ const paidPurchase = buildFinancialAccountDetails({
 assert.equal(paidPurchase.remainingAmount, 0);
 assert.equal(paidPurchase.paidAmount, 40);
 assert.equal(paidPurchase.historyTotal, 40);
+
+const entryProducts = [{
+  id: 'entry-product',
+  name: 'Produto com entrada',
+  movements: [{
+    id: 'entry-purchase',
+    type: 'compra',
+    quantity: 4,
+    unitCost: 25,
+    date: '2026-08-15T10:00:00.000Z',
+    paymentMethod: 'term',
+    paymentEntryAmount: 20,
+    paymentEntryPaidAt: '2026-08-15',
+    financialInstallments: [
+      { number: 1, amount: 40, dueDate: '2026-09-15', paid: false },
+      { number: 2, amount: 40, dueDate: '2026-10-15', paid: false }
+    ]
+  }]
+}];
+const entryGroup = getPurchaseGroups(entryProducts)[0];
+const entryAccountDetails = buildFinancialAccountDetails({
+  source: 'stock',
+  direction: 'payable',
+  purchaseGroup: entryGroup,
+  installmentIndex: 0,
+  description: 'Compra com entrada · Parcela 1/2',
+  value: 40,
+  paid: false,
+  dueDate: '2026-09-15',
+  status: { label: 'Em aberto', cls: 'is-open' }
+}, { today });
+assert.equal(entryAccountDetails.purchaseOriginalTotal, 100);
+assert.equal(entryAccountDetails.purchaseEntryAmount, 20);
+assert.equal(entryAccountDetails.purchaseFinancedTotal, 80);
+assert.equal(entryAccountDetails.purchasePaidTotal, 20);
+assert.equal(entryAccountDetails.purchaseOpenTotal, 80);
+
+const entryTransactionDetails = buildPurchaseTransactionDetails({
+  id: 'stock-single:entry-product:entry-purchase-entry',
+  source: 'stock',
+  amount: 20,
+  date: '2026-08-15',
+  purchasePaymentKind: 'entry',
+  purchaseGroup: entryGroup
+}, { products: entryProducts });
+assert.equal(entryTransactionDetails.downPaymentAmount, 20);
+assert.equal(entryTransactionDetails.financedAmount, 80);
+assert.equal(entryTransactionDetails.paidTotal, 20);
+assert.equal(entryTransactionDetails.openTotal, 80);
+assert.equal(entryTransactionDetails.entryLabel, 'Entrada paga à vista exibida no extrato');
 
 const portfolio = [
   { id: 'current', description: 'Parcela de agosto', party: 'Ana', dueDate: '2026-08-20', paid: false },

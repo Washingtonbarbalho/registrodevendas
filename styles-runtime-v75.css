@@ -1,4 +1,4 @@
-/* Estilos consolidados v96 — folha de estilo principal do sistema. */
+/* Estilos consolidados v97 — folha de estilo principal do sistema. */
 :root {
     --app-bg: #f6f7fb;
     --surface: #ffffff;
@@ -4694,6 +4694,59 @@ body > div[id="root"] > div[class*="bg-slate-900"][class*="z-[100]"] {
     .stock68-payment-grid {
         grid-template-columns: 1fr;
     }
+}
+
+/* v97 — entrada nas compras parceladas de estoque */
+.batch97-entry-field,
+.batch97-entry-field + .batch67-payment-grid,
+.batch67-payment-grid + .batch67-installment-preview {
+    margin-top: 12px;
+}
+
+.purchase97-payment-summary {
+    display: grid;
+    gap: 8px;
+    margin-top: 12px;
+    padding: 11px 12px;
+    border: 1px solid rgba(148, 163, 184, .24);
+    border-radius: 12px;
+    background: #fff;
+}
+
+.purchase97-payment-summary > div {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.purchase97-payment-summary span {
+    color: #64748b;
+    font-size: 10px;
+    font-weight: 750;
+}
+
+.purchase97-payment-summary strong {
+    color: #0f172a;
+    font-size: 12px;
+    font-weight: 850;
+    white-space: nowrap;
+}
+
+.purchase97-payment-summary .is-total {
+    margin-top: 2px;
+    padding-top: 9px;
+    border-top: 1px solid #e2e8f0;
+}
+
+.purchase97-payment-summary .is-total span,
+.purchase97-payment-summary .is-total strong {
+    color: #78350f;
+}
+
+.purchase97-payment-summary .is-total strong {
+    font-size: 15px;
+    font-weight: 900;
 }
 
 /* v71 — simplificação operacional, vendas unificadas, atalhos mobile e login */

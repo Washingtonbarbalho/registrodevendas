@@ -415,7 +415,7 @@ const purchasesReport = context => {
   const boughtUnits = periodGroups.reduce((total, group) => total + group.items.reduce((count, item) => count + item.originalQuantity, 0), 0);
   const returnedUnits = periodReturns.reduce((total, item) => total + item.event.quantity, 0);
   const ledger = summarizeFinancialLedger(buildFinancialLedger({ products: context.products, purchaseGroups: groups }), context.startDate, context.endDate);
-  const paidInstallments = sumMoney(ledger.rows.filter(item => item.source === 'stock' && item.purchaseGroup?.deferred), item => item.amount);
+  const paidPurchaseAmounts = sumMoney(ledger.rows.filter(item => item.source === 'stock' && item.purchaseGroup?.deferred), item => item.amount);
   const openPurchases = sumMoney(groups.filter(group => group.deferred && !group.fullyCanceled), group => group.openTotal);
   const byPayment = new Map();
   const rows = [];
@@ -478,7 +478,7 @@ const purchasesReport = context => {
       metric('Valor bruto comprado', gross),
       metric('Devoluções', returned, 'currency', returned > 0 ? 'positive' : ''),
       metric('Valor líquido das compras', net),
-      metric('Parcelas pagas no período', paidInstallments),
+      metric('Pagamentos de compras no período', paidPurchaseAmounts),
       metric('Saldo atual de compras a pagar', openPurchases),
       metric('Unidades devolvidas', returnedUnits, 'number')
     ],
@@ -489,7 +489,7 @@ const purchasesReport = context => {
     }))),
     [
       'Compras em lote são contabilizadas uma única vez, mesmo quando possuem vários produtos.',
-      'Cada parcela é reconhecida na sua própria data de pagamento; devoluções são registradas no mês em que ocorreram.'
+      'Entradas são reconhecidas na data da compra, cada parcela na sua própria data de pagamento e devoluções no mês em que ocorreram.'
     ]
   );
 };

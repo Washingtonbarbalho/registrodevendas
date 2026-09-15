@@ -103,6 +103,23 @@ export const normalizePurchaseInstallments = (movement, totalFallback = 0) => {
   }];
 };
 
+export const calculatePurchaseReturnFinancialSplit = ({
+  purchaseAmount = 0,
+  paidAmount = 0,
+  priorAccountReductions = 0,
+  returnAmount = 0
+} = {}) => {
+  const openLiabilityCents = Math.max(0,
+    toCents(purchaseAmount) - toCents(priorAccountReductions) - toCents(paidAmount));
+  const returnCents = Math.max(0, toCents(returnAmount));
+  const accountReductionCents = Math.min(returnCents, openLiabilityCents);
+  return {
+    openLiability: fromCents(openLiabilityCents),
+    accountReductionAmount: fromCents(accountReductionCents),
+    cashRefundAmount: fromCents(returnCents - accountReductionCents)
+  };
+};
+
 const quantity = value => Math.max(0, parseInt(value, 10) || 0);
 
 export const getPurchaseCancellationEvents = movement => {
@@ -180,10 +197,17 @@ const makePurchaseGroup = group => {
   const paymentMethod = first?.movement?.paymentMethod || 'pix';
   const deferred = paymentMethod === 'credit' || paymentMethod === 'term';
   const originalAmount = sumMoney(group.items, item => item.originalAmount);
+  const originalCents = Math.max(0, toCents(originalAmount));
+  const paymentEntryCents = deferred
+    ? Math.min(originalCents, Math.max(0, toCents(first?.movement?.paymentEntryAmount)))
+    : 0;
+  const paymentEntryAmount = fromCents(paymentEntryCents);
+  const financedAmount = fromCents(originalCents - paymentEntryCents);
   const accountReductionAmount = sumMoney(group.items, item => item.accountReductionAmount);
-  const adjustedLiability = fromCents(Math.max(0, toCents(originalAmount) - toCents(accountReductionAmount)));
-  const rawPlan = deferred ? normalizePurchaseInstallments(first?.movement, originalAmount) : [];
-  const paidAmount = sumMoney(rawPlan.filter(item => item.paid), item => item.amount);
+  const adjustedLiability = fromCents(Math.max(0, originalCents - toCents(accountReductionAmount)));
+  const rawPlan = deferred ? normalizePurchaseInstallments(first?.movement, financedAmount) : [];
+  const installmentPaidAmount = sumMoney(rawPlan.filter(item => item.paid), item => item.amount);
+  const paidAmount = fromCents(paymentEntryCents + toCents(installmentPaidAmount));
   const openCents = Math.max(0, toCents(adjustedLiability) - toCents(paidAmount));
   const plan = reconcilePurchasePlan(rawPlan, openCents);
   const fullyCanceled = group.items.length > 0 && group.items.every(item => item.canceledQuantity >= item.originalQuantity);
@@ -193,8 +217,17 @@ const makePurchaseGroup = group => {
     paymentMethod,
     deferred,
     originalAmount,
+    paymentEntryAmount,
+    paymentEntryPaidAt: paymentEntryCents > 0
+      ? cleanFinancialDate(first?.movement?.paymentEntryPaidAt || first?.movement?.date)
+      : '',
+    paymentEntryPaidAtDateTime: paymentEntryCents > 0
+      ? first?.movement?.paymentEntryPaidAtDateTime || first?.movement?.date || ''
+      : '',
+    financedAmount,
     accountReductionAmount,
     adjustedLiability,
+    installmentPaidAmount,
     paidAmount,
     openTotal: fromCents(openCents),
     plan,
@@ -358,6 +391,16 @@ export const buildFinancialLedger = ({ sales = [], products = [], financialData 
   const groups = Array.isArray(purchaseGroups) ? purchaseGroups : getPurchaseGroups(products);
   groups.forEach(group => {
     if (group.deferred) {
+      if (toCents(group.paymentEntryAmount) > 0 && group.paymentEntryPaidAt) {
+        rows.push({
+          id: `stock-${group.key}-entry`, type: 'expense',
+          date: group.paymentEntryPaidAt, dateTime: group.paymentEntryPaidAtDateTime || '', amount: group.paymentEntryAmount,
+          description: group.batchId ? `Entrada da compra de mercadoria em lote · ${group.itemCount} produtos` : `Entrada da compra de mercadoria · ${group.first.product.name}`,
+          detail: `${paymentLabel(group.paymentMethod)} · entrada paga à vista`,
+          source: 'stock', product: group.first.product, batchId: group.batchId,
+          purchaseGroup: group, purchasePaymentKind: 'entry'
+        });
+      }
       group.plan.forEach(item => {
         if (!item.paid || toCents(item.amount) <= 0 || !item.paidAt) return;
         rows.push({

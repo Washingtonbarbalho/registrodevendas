@@ -4,14 +4,14 @@ import {
   ArrowDown, ArrowUp, Banknote, CreditCard, Edit3, Eye,
   Package, Plus, Receipt, Search, Trash2, Wallet, X
 } from 'https://esm.sh/lucide-react@0.292.0';
-import { db, APP_ID } from './firebase-config.js?v=96';
-import { doc, onSnapshot, runTransaction, serverTimestamp, setDoc } from './firestore-runtime-v94.js?v=96';
-import { DateRangePicker, MoneyInput } from './components.js?v=96';
+import { db, APP_ID } from './firebase-config.js?v=97';
+import { doc, onSnapshot, runTransaction, serverTimestamp, setDoc } from './firestore-runtime-v94.js?v=97';
+import { DateRangePicker, MoneyInput } from './components.js?v=97';
 import { formatCurrency, formatDate, getBrazilDateString, getCurrentMonthEnd, getCurrentMonthStart, parseMoney } from './utils.js';
 import { buildPaymentInstallments, clampInstallments, normalizePaymentInstallments } from './purchase-payment-v68.js';
 import { buildFinancialLedger, getInstallmentFaceAmount, getPurchaseGroups, money, sumMoney, summarizeFinancialLedger, toCents } from './financial-core-v70.js';
-import { buildFinancialAccountDetails, buildPurchaseTransactionDetails, filterFinancialAccounts, summarizeFinancialAccounts } from './financial-account-details-v80.js?v=96';
-import { showAppConfirm } from './ui-interactions-v81.js?v=96';
+import { buildFinancialAccountDetails, buildPurchaseTransactionDetails, filterFinancialAccounts, summarizeFinancialAccounts } from './financial-account-details-v80.js?v=97';
+import { showAppConfirm } from './ui-interactions-v81.js?v=97';
 
 const h = React.createElement;
 const EMPTY_DATA = { entries: [], accounts: [] };
@@ -306,6 +306,8 @@ const AccountDetailsModal = ({ item, products, onClose, onOpenSale, onOpenProduc
         field(details.direction === 'receivable' ? 'Recebido em' : 'Pago em',
           details.paidAt ? formatDateTime(details.paidAt, details.paidAtDateTime) : '')),
       details.source === 'stock' && h('div', { className: 'finance80-purchase-summary' },
+        details.purchaseEntryAmount > 0 && field('Entrada paga à vista', formatCurrency(details.purchaseEntryAmount)),
+        details.purchaseEntryAmount > 0 && field('Valor parcelado', formatCurrency(details.purchaseFinancedTotal)),
         field('Total pago na compra', formatCurrency(details.purchasePaidTotal)),
         field('Total em aberto na compra', formatCurrency(details.purchaseOpenTotal)),
         details.purchaseCanceledTotal > 0 && field('Cancelamentos', formatCurrency(details.purchaseCanceledTotal))),
@@ -431,6 +433,9 @@ const PurchaseTransactionDetailsModal = ({ item, products, onClose }) => {
             field('Valor ajustado', formatCurrency(details.adjustedTotal)),
             field('Total pago', formatCurrency(details.paidTotal)),
             field('Saldo em aberto', formatCurrency(details.openTotal))),
+          details.downPaymentAmount > 0 && h('div', { className: 'finance80-purchase-summary' },
+            field('Entrada paga à vista', formatCurrency(details.downPaymentAmount)),
+            field('Valor parcelado', formatCurrency(details.financedAmount))),
           (details.canceledTotal > 0 || details.cashRefundTotal > 0) && h('div', { className: 'finance80-purchase-summary' },
             details.canceledTotal > 0 && field('Redução das contas', formatCurrency(details.canceledTotal)),
             details.cashRefundTotal > 0 && field('Valor estornado', formatCurrency(details.cashRefundTotal)))),
@@ -826,7 +831,7 @@ export const AbaFinanceiro = ({
           const movementIds = new Set(targets.filter(target => target.productId === product.id).map(target => target.movementId));
           const updatedMovements = (product.movements || []).map(movement => {
             if (!movementIds.has(movement.id)) return movement;
-            const existingPlan = normalizePaymentInstallments(movement, latestGroup.originalAmount);
+            const existingPlan = normalizePaymentInstallments(movement, latestGroup.financedAmount);
             return {
               ...movement,
               financialInstallments: updatedPlan.map((planItem, planIndex) => ({ ...existingPlan[planIndex], ...planItem })),

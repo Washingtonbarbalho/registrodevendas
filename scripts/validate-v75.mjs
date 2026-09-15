@@ -265,4 +265,4 @@ for (const [label, validator] of [
   process.stdout.write(result.stdout);
 }
 
-console.log(`Aplicação v${version} validada: parcelas em lista ancorada, total das vendas a prazo em destaque e fluxos anteriores preservados.`);
+console.log(`Aplicação v${version} validada: entrada nas compras parceladas, saída imediata de caixa e saldo correto em contas a pagar.`);

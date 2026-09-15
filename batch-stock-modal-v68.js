@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'https://esm.sh/react@18.2.0';
 import { createPortal } from 'https://esm.sh/react-dom@18.2.0';
 import { CalendarDays, CreditCard, Package, Search, Trash2, X } from 'https://esm.sh/lucide-react@0.292.0';
-import { db, APP_ID } from './firebase-config.js?v=96';
-import { doc, runTransaction } from './firestore-runtime-v94.js?v=96';
+import { db, APP_ID } from './firebase-config.js?v=97';
+import { doc, runTransaction } from './firestore-runtime-v94.js?v=97';
 import { MoneyInput } from './components.js';
 import { formatCurrency, getBrazilDateString, maskMoney, parseMoney } from './utils.js';
-import { buildPaymentInstallments, clampInstallments, money } from './purchase-payment-v68.js';
+import { buildPurchasePaymentPlan, clampInstallments, getPurchasePaymentBreakdown, money } from './purchase-payment-v68.js';
 
 const h = React.createElement;
 const PAYMENT_OPTIONS = [
@@ -29,6 +29,7 @@ export const BatchStockModal = ({ isOpen, onClose, products = [], userId, onSucc
   const [rows, setRows] = useState([]);
   const [notes, setNotes] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('pix');
+  const [paymentEntryAmount, setPaymentEntryAmount] = useState('');
   const [paymentDueDate, setPaymentDueDate] = useState('');
   const [installmentsCount, setInstallmentsCount] = useState('1');
   const [saving, setSaving] = useState(false);
@@ -40,6 +41,7 @@ export const BatchStockModal = ({ isOpen, onClose, products = [], userId, onSucc
     setRows([]);
     setNotes('');
     setPaymentMethod('pix');
+    setPaymentEntryAmount('');
     setPaymentDueDate('');
     setInstallmentsCount('1');
     setSaving(false);
@@ -69,9 +71,12 @@ export const BatchStockModal = ({ isOpen, onClose, products = [], userId, onSucc
     ? money(rows.reduce((sum, row) => sum + (Math.max(0, parseInt(row.quantity, 10) || 0) * Math.max(0, parseMoney(row.unitCost) || 0)), 0))
     : 0, [rows, isPurchase]);
 
+  const paymentEntryValue = isDeferred ? Math.max(0, parseMoney(paymentEntryAmount) || 0) : 0;
+  const paymentBreakdown = useMemo(() => getPurchasePaymentBreakdown(batchTotal, paymentEntryValue), [batchTotal, paymentEntryValue]);
+
   const installmentPlan = useMemo(() => isDeferred && paymentDueDate
-    ? buildPaymentInstallments(batchTotal, installmentsCount, paymentDueDate)
-    : [], [isDeferred, paymentDueDate, installmentsCount, batchTotal]);
+    ? buildPurchasePaymentPlan(batchTotal, paymentEntryValue, installmentsCount, paymentDueDate)
+    : [], [isDeferred, paymentDueDate, installmentsCount, batchTotal, paymentEntryValue]);
 
   const addProduct = product => {
     setRows(current => [...current, {
@@ -92,6 +97,7 @@ export const BatchStockModal = ({ isOpen, onClose, products = [], userId, onSucc
     setType(value);
     if (value !== 'compra') {
       setPaymentMethod('pix');
+      setPaymentEntryAmount('');
       setPaymentDueDate('');
       setInstallmentsCount('1');
     }
@@ -100,6 +106,7 @@ export const BatchStockModal = ({ isOpen, onClose, products = [], userId, onSucc
   const handlePaymentMethodChange = value => {
     setPaymentMethod(value);
     if (!['credit', 'term'].includes(value)) {
+      setPaymentEntryAmount('');
       setPaymentDueDate('');
       setInstallmentsCount('1');
     }
@@ -116,6 +123,7 @@ export const BatchStockModal = ({ isOpen, onClose, products = [], userId, onSucc
       if (isPurchase && !(parseMoney(row.unitCost) > 0)) return alert(`Informe o custo unitário de ${row.name}.`);
     }
 
+    if (isDeferred && paymentBreakdown.entryCoversTotal) return alert('A entrada deve ser menor que o total da compra. Para pagar o valor inteiro agora, escolha Dinheiro, PIX ou Cartão de débito.');
     if (isDeferred && !paymentDueDate) return alert('Informe o vencimento da primeira parcela.');
 
     const count = isDeferred ? clampInstallments(installmentsCount) : 1;
@@ -160,6 +168,10 @@ export const BatchStockModal = ({ isOpen, onClose, products = [], userId, onSucc
             newQty,
             notes: notes.trim(),
             paymentMethod: isPurchase ? paymentMethod : null,
+            paymentEntryAmount: deferred ? paymentBreakdown.entryAmount : 0,
+            paymentFinancedAmount: deferred ? paymentBreakdown.financedAmount : 0,
+            paymentEntryPaidAt: deferred && paymentBreakdown.entryAmount > 0 ? movementDate.split('T')[0] : null,
+            paymentEntryPaidAtDateTime: deferred && paymentBreakdown.entryAmount > 0 ? movementDate : null,
             paymentDueDate: deferred ? paymentDueDate : null,
             paymentFirstDueDate: deferred ? paymentDueDate : null,
             paymentInstallmentsCount: deferred ? count : 1,
@@ -176,7 +188,7 @@ export const BatchStockModal = ({ isOpen, onClose, products = [], userId, onSucc
         return updates.map(item => item.result);
       });
 
-      onSuccess?.({ batchId, type, itemCount: rows.length, total: batchTotal, paymentMethod, installmentsCount: count, items: computed });
+      onSuccess?.({ batchId, type, itemCount: rows.length, total: batchTotal, entryAmount: paymentBreakdown.entryAmount, financedAmount: paymentBreakdown.financedAmount, paymentMethod, installmentsCount: count, items: computed });
       onClose?.();
     } catch (error) {
       console.error('Erro ao salvar movimentação em lote:', error);
@@ -225,6 +237,9 @@ export const BatchStockModal = ({ isOpen, onClose, products = [], userId, onSucc
         isPurchase && h('section', { className: 'batch67-card batch67-payment' },
           h('div', { className: 'batch67-payment-title' }, h(CreditCard, { size: 18 }), h('div', null, h('strong', null, 'Pagamento da compra'), h('span', null, 'O Financeiro consolida o lote e, quando houver parcelamento, cria uma conta por parcela.'))),
           h('label', { className: 'batch67-field' }, h('span', null, 'Forma de pagamento'), h('select', { value: paymentMethod, onChange: e => handlePaymentMethodChange(e.target.value) }, PAYMENT_OPTIONS.map(option => h('option', { key: option.value, value: option.value }, option.label)))),
+          isDeferred && h('label', { className: 'batch67-field batch97-entry-field' },
+            h('span', null, 'Entrada paga à vista (Dinheiro/PIX) · opcional'),
+            h(MoneyInput, { value: paymentEntryAmount, onChange: setPaymentEntryAmount, className: 'batch67-money', placeholder: '0,00' })),
           isDeferred && h('div', { className: 'batch67-payment-grid' },
             h('label', { className: 'batch67-field' }, h('span', null, 'Parcelamento'), h('select', { value: installmentsCount, onChange: e => setInstallmentsCount(String(clampInstallments(e.target.value))) }, Array.from({ length: 24 }, (_, index) => h('option', { key: index + 1, value: String(index + 1) }, `${index + 1}x`)))),
             h('label', { className: 'batch67-field' }, h('span', null, installmentsCount === '1' ? 'Vencimento' : 'Vencimento da 1ª parcela'), h('div', { className: 'batch67-date' }, h(CalendarDays, { size: 17 }), h('input', { type: 'date', min: getBrazilDateString(), value: paymentDueDate, onChange: e => setPaymentDueDate(e.target.value) })))
@@ -232,7 +247,12 @@ export const BatchStockModal = ({ isOpen, onClose, products = [], userId, onSucc
           isDeferred && installmentPlan.length > 0 && h('div', { className: 'batch67-installment-preview' },
             installmentPlan.map(item => h('div', { key: item.number }, h('span', null, `${item.number}/${installmentPlan.length} · ${item.dueDate.split('-').reverse().join('/')}`), h('strong', null, formatCurrency(item.amount))))
           ),
-          h('div', { className: 'batch67-total' }, h('span', null, isDeferred ? `${clampInstallments(installmentsCount)} ${clampInstallments(installmentsCount) === 1 ? 'conta a pagar' : 'contas a pagar'}` : 'Saída financeira'), h('strong', null, formatCurrency(batchTotal)))
+          isDeferred
+            ? h('div', { className: 'purchase97-payment-summary' },
+                h('div', null, h('span', null, 'Entrada paga agora'), h('strong', null, formatCurrency(paymentBreakdown.entryAmount))),
+                h('div', null, h('span', null, `${clampInstallments(installmentsCount)} ${clampInstallments(installmentsCount) === 1 ? 'conta a pagar' : 'contas a pagar'}`), h('strong', null, formatCurrency(paymentBreakdown.financedAmount))),
+                h('div', { className: 'is-total' }, h('span', null, 'Total da compra'), h('strong', null, formatCurrency(paymentBreakdown.totalAmount))))
+            : h('div', { className: 'batch67-total' }, h('span', null, 'Saída financeira'), h('strong', null, formatCurrency(batchTotal)))
         ),
 
         h('label', { className: 'batch67-card batch67-field' }, h('span', null, 'Observação da movimentação'), h('textarea', { rows: 3, value: notes, onChange: e => setNotes(e.target.value), placeholder: 'Informação adicional sobre esta movimentação...' })),

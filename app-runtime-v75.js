@@ -1,44 +1,44 @@
-// Aplicação consolidada v96 — código-fonte principal do sistema.
+// Aplicação consolidada v97 — código-fonte principal do sistema.
 import React, { useState, useEffect, useMemo } from 'https://esm.sh/react@18.2.0';
 import { createRoot } from 'https://esm.sh/react-dom@18.2.0/client';
 import { Users, User, LogOut, Lock, LayoutDashboard, Receipt, WalletCards, Package, Contact, Store, ShieldCheck, BadgePercent, Banknote, MoreHorizontal, Plus } from 'https://esm.sh/lucide-react@0.292.0';
 
 // Firebase
-import { app, db, auth, APP_ID } from './firebase-config.js?v=96';
-import { collection, onSnapshot, query, doc, getDoc, updateDoc, deleteDoc, addDoc, serverTimestamp, setDoc, runTransaction, writeBatch } from './firestore-runtime-v94.js?v=96';
+import { app, db, auth, APP_ID } from './firebase-config.js?v=97';
+import { collection, onSnapshot, query, doc, getDoc, updateDoc, deleteDoc, addDoc, serverTimestamp, setDoc, runTransaction, writeBatch } from './firestore-runtime-v94.js?v=97';
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js";
 
 // Utils
-import { getCurrentMonthStart, getCurrentMonthEnd, getBrazilDateString, addDays, formatCurrency, formatDate } from './utils.js?v=96';
-import { aggregateSaleItems, buildSaleInventoryPlan } from './inventory-reliability-v69.js?v=96';
-import { applyInstallmentPayment, buildFinancialLedger, fromCents, getHistoryCashAmount, getInstallmentFaceAmount, getRealizedSalesProfit, getSalesAccrualSummary, isTermSale, normalizeSaleMoney, reverseInstallmentPayment, sumMoney, summarizeFinancialLedger, toCents } from './financial-core-v70.js?v=96';
+import { getCurrentMonthStart, getCurrentMonthEnd, getBrazilDateString, addDays, formatCurrency, formatDate } from './utils.js?v=97';
+import { aggregateSaleItems, buildSaleInventoryPlan } from './inventory-reliability-v69.js?v=97';
+import { applyInstallmentPayment, buildFinancialLedger, calculatePurchaseReturnFinancialSplit, fromCents, getHistoryCashAmount, getInstallmentFaceAmount, getRealizedSalesProfit, getSalesAccrualSummary, isTermSale, money, normalizeSaleMoney, reverseInstallmentPayment, sumMoney, summarizeFinancialLedger, toCents } from './financial-core-v70.js?v=97';
 
 // Modais
 import { 
     UserProfileModal, CustomerFormModal, ProductDetailsModal, EditInstallmentModal, 
     SaleDetailsModal, PixCodeModal, InstallmentListModal, PaymentConfirmationModal, 
     ConfirmModal, WhatsAppChooserModal, ProductModal
-} from './modals-runtime-v75.js?v=96';
-import { StockMovementModal } from './stock-movement-modal-v68.js?v=96';
+} from './modals-runtime-v75.js?v=97';
+import { StockMovementModal } from './stock-movement-modal-v68.js?v=97';
 
 // Telas Secundárias
-import { AdminUsersPanel } from './auth-admin.js?v=96';
-import { AuthScreen } from './auth-screen-v71.js?v=96';
-import { NewSaleScreen } from './nova-venda-runtime-v75.js?v=96';
+import { AdminUsersPanel } from './auth-admin.js?v=97';
+import { AuthScreen } from './auth-screen-v71.js?v=97';
+import { NewSaleScreen } from './nova-venda-runtime-v75.js?v=97';
 
 // Abas do Dashboard
-import { AbaVisaoGeral } from './aba-visao-geral-fixed.js?v=96';
-import { AbaVendas } from './aba-vendas-v71.js?v=96';
-import { AbaProdutos } from './aba-produtos-v67.js?v=96';
-import { AbaClientes } from './aba-clientes-runtime-v75.js?v=96';
-import { AbaTaxas } from './aba-taxas.js?v=96';
-import { AbaFinanceiro } from './aba-financeiro-v68.js?v=96';
-import { BatchStockModal } from './batch-stock-modal-v68.js?v=96';
-import { AbaRelatorios } from './aba-relatorios-v73.js?v=96';
-import { AbaComercial } from './aba-comercial-v74.js?v=96';
-import { normalizePaymentSettings } from './payment-settings.js?v=96';
-import { shareSalePdf } from './sale-pdf-v65.js?v=96';
-import { readSharedAnalysisPeriod, resolveAnalysisPeriod, writeSharedAnalysisPeriod } from './analysis-period-v79.js?v=96';
+import { AbaVisaoGeral } from './aba-visao-geral-fixed.js?v=97';
+import { AbaVendas } from './aba-vendas-v71.js?v=97';
+import { AbaProdutos } from './aba-produtos-v67.js?v=97';
+import { AbaClientes } from './aba-clientes-runtime-v75.js?v=97';
+import { AbaTaxas } from './aba-taxas.js?v=97';
+import { AbaFinanceiro } from './aba-financeiro-v68.js?v=97';
+import { BatchStockModal } from './batch-stock-modal-v68.js?v=97';
+import { AbaRelatorios } from './aba-relatorios-v73.js?v=97';
+import { AbaComercial } from './aba-comercial-v74.js?v=97';
+import { normalizePaymentSettings } from './payment-settings.js?v=97';
+import { shareSalePdf } from './sale-pdf-v65.js?v=97';
+import { readSharedAnalysisPeriod, resolveAnalysisPeriod, writeSharedAnalysisPeriod } from './analysis-period-v79.js?v=97';
 
 const Dashboard = ({ user, userProfile, onLogout }) => {
     const [view, setView] = useState('dashboard');
@@ -256,19 +256,25 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
             const originalPurchaseAmount = Math.round(((purchaseQty * purchaseUnitCost) + Number.EPSILON) * 100) / 100;
             const eventAmount = Math.round(((movQty * purchaseUnitCost) + Number.EPSILON) * 100) / 100;
             const paymentPlan = Array.isArray(purchase.financialInstallments) ? purchase.financialInstallments : [];
-            const paidPlanAmount = paymentPlan.length
-                ? paymentPlan.filter(item => item && item.paid).reduce((sum, item) => sum + (Number(item.amount) || 0), 0)
-                : (purchase.financialPaid ? (Number(purchase.batchTotal) || originalPurchaseAmount) : 0);
             const batchPurchaseTotal = Math.max(originalPurchaseAmount, Number(purchase.batchTotal) || originalPurchaseAmount);
+            const paymentEntryAmount = ['credit', 'term'].includes(purchase.paymentMethod)
+                ? Math.max(0, Number(purchase.paymentEntryAmount) || 0)
+                : 0;
+            const paidPlanAmount = paymentPlan.length
+                ? paymentEntryAmount + paymentPlan.filter(item => item && item.paid).reduce((sum, item) => sum + (Number(item.amount) || 0), 0)
+                : (purchase.financialPaid ? batchPurchaseTotal : paymentEntryAmount);
             const productShare = batchPurchaseTotal > 0 ? originalPurchaseAmount / batchPurchaseTotal : 1;
             const paidAmount = Math.round(((paidPlanAmount * productShare) + Number.EPSILON) * 100) / 100;
             const priorAccountReductions = previousEvents.reduce((sum, event) => {
                 if (event && event.accountReductionAmount !== undefined) return sum + (Number(event.accountReductionAmount) || 0);
                 return sum + (event && event.hadCashOut === false ? (Number(event.amount) || 0) : 0);
             }, 0);
-            const openLiability = Math.max(0, originalPurchaseAmount - priorAccountReductions - paidAmount);
-            const accountReductionAmount = Math.round((Math.min(eventAmount, openLiability) + Number.EPSILON) * 100) / 100;
-            const cashRefundAmount = Math.round((Math.max(0, eventAmount - accountReductionAmount) + Number.EPSILON) * 100) / 100;
+            const { accountReductionAmount, cashRefundAmount } = calculatePurchaseReturnFinancialSplit({
+                purchaseAmount: originalPurchaseAmount,
+                paidAmount,
+                priorAccountReductions,
+                returnAmount: eventAmount
+            });
 
             const event = {
                 id: 'supplier-return-' + Date.now(),
@@ -311,6 +317,14 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
 
         const purchasePaymentMethod = movType === 'compra' ? (movementInfo.paymentMethod || 'pix') : null;
         const purchaseDeferred = movType === 'compra' && (purchasePaymentMethod === 'credit' || purchasePaymentMethod === 'term');
+        const purchaseTotal = movType === 'compra' ? money(movQty * movCost) : 0;
+        const paymentEntryAmount = purchaseDeferred ? money(Math.max(0, Number(movementInfo.paymentEntryAmount) || 0)) : 0;
+        if (purchaseDeferred && toCents(paymentEntryAmount) >= toCents(purchaseTotal)) {
+            return alert('A entrada deve ser menor que o total da compra. Para pagar o valor inteiro agora, escolha Dinheiro, PIX ou Cartão de débito.');
+        }
+        const paymentFinancedAmount = purchaseDeferred
+            ? fromCents(Math.max(0, toCents(purchaseTotal) - toCents(paymentEntryAmount)))
+            : 0;
         const rawInstallments = purchaseDeferred && Array.isArray(movementInfo.paymentInstallments) ? movementInfo.paymentInstallments : [];
         const paymentInstallments = rawInstallments.map((item, index) => ({
             number: parseInt(item && item.number, 10) || index + 1,
@@ -320,6 +334,9 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
             paidAt: null,
             paidAtDateTime: null
         }));
+        if (purchaseDeferred && toCents(sumMoney(paymentInstallments, item => item.amount)) !== toCents(paymentFinancedAmount)) {
+            return alert('O valor das parcelas não corresponde ao saldo restante da compra. Revise a entrada e o parcelamento.');
+        }
         const newMovement = {
             id: Date.now().toString(),
             type: movType,
@@ -330,6 +347,10 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
             newQty,
             notes: movementInfo.notes || '',
             paymentMethod: purchasePaymentMethod,
+            paymentEntryAmount,
+            paymentFinancedAmount,
+            paymentEntryPaidAt: purchaseDeferred && toCents(paymentEntryAmount) > 0 ? movementDate.split('T')[0] : null,
+            paymentEntryPaidAtDateTime: purchaseDeferred && toCents(paymentEntryAmount) > 0 ? movementDate : null,
             paymentDueDate: purchaseDeferred ? (movementInfo.paymentDueDate || null) : null,
             paymentFirstDueDate: purchaseDeferred ? (movementInfo.paymentDueDate || null) : null,
             paymentInstallmentsCount: purchaseDeferred ? Math.max(1, parseInt(movementInfo.paymentInstallmentsCount, 10) || paymentInstallments.length || 1) : 1,

@@ -170,6 +170,8 @@ export const buildPurchaseTransactionDetails = (entry, { products = [] } = {}) =
     supplier: movement.supplierName || movement.supplier || movement.vendor || 'Não informado',
     originalTotal: money(group.originalAmount),
     adjustedTotal: money(group.adjustedLiability),
+    downPaymentAmount: money(group.paymentEntryAmount),
+    financedAmount: money(group.financedAmount),
     paidTotal,
     openTotal,
     canceledTotal: money(group.accountReductionAmount),
@@ -179,6 +181,8 @@ export const buildPurchaseTransactionDetails = (entry, { products = [] } = {}) =
     entryDateTime: entry.dateTime || '',
     entryLabel: entry.source === 'stock-refund'
       ? 'Estorno exibido no extrato'
+      : entry.purchasePaymentKind === 'entry'
+        ? 'Entrada paga à vista exibida no extrato'
       : highlightedInstallment
         ? `Pagamento da parcela ${highlightedInstallment.number}/${installments.length}`
         : 'Pagamento exibido no extrato',
@@ -237,6 +241,8 @@ const buildPurchaseDetails = (account, products) => {
     originTotal: money(group?.adjustedLiability ?? originalAmount),
     originTotalLabel: 'Valor total da compra',
     purchaseOriginalTotal: money(group?.originalAmount ?? originalAmount),
+    purchaseEntryAmount: money(group?.paymentEntryAmount),
+    purchaseFinancedTotal: money(group?.financedAmount ?? originalAmount),
     purchasePaidTotal: money(group?.paidAmount ?? paidAmount),
     purchaseOpenTotal: money(group?.openTotal ?? (account.paid ? 0 : originalAmount)),
     purchaseCanceledTotal: money(group?.accountReductionAmount),
