@@ -51,6 +51,44 @@ export const readSelectOptions = select => {
   return rows;
 };
 
+export const getSelectPresentation = select => (
+  select?.dataset?.selectPresentation === 'dropdown'
+  || ['card', 'carnet'].includes(select?.dataset?.installmentKind)
+    ? 'dropdown'
+    : 'dialog'
+);
+
+export const calculateSelectPopoverLayout = ({
+  anchor = {}, viewportWidth = 0, viewportHeight = 0, optionCount = 1
+} = {}) => {
+  const edge = 8;
+  const gap = 6;
+  const safeViewportWidth = Math.max(0, Number(viewportWidth) || 0);
+  const safeViewportHeight = Math.max(0, Number(viewportHeight) || 0);
+  const anchorLeft = Number(anchor.left) || 0;
+  const anchorTop = Number(anchor.top) || 0;
+  const anchorWidth = Math.max(0, Number(anchor.width) || ((Number(anchor.right) || 0) - anchorLeft));
+  const anchorBottom = Number(anchor.bottom) || (anchorTop + (Number(anchor.height) || 0));
+  const desiredHeight = Math.min(360, Math.max(50, (Math.max(1, Number(optionCount) || 1) * 45) + 12));
+  const availableBelow = Math.max(0, safeViewportHeight - anchorBottom - gap - edge);
+  const availableAbove = Math.max(0, anchorTop - gap - edge);
+  const placement = availableBelow < Math.min(desiredHeight, 176) && availableAbove > availableBelow
+    ? 'above'
+    : 'below';
+  const availableHeight = placement === 'above' ? availableAbove : availableBelow;
+  const maxHeight = Math.max(56, Math.min(desiredHeight, Math.max(56, availableHeight)));
+  const usableWidth = Math.max(0, safeViewportWidth - edge * 2);
+  const width = Math.min(Math.max(anchorWidth, 320), usableWidth);
+  const maximumLeft = Math.max(edge, safeViewportWidth - edge - width);
+  const left = Math.min(Math.max(edge, anchorLeft), maximumLeft);
+  const rawTop = placement === 'above'
+    ? anchorTop - gap - maxHeight
+    : anchorBottom + gap;
+  const top = Math.max(edge, Math.min(rawTop, Math.max(edge, safeViewportHeight - edge - maxHeight)));
+
+  return { placement, left, top, width, maxHeight };
+};
+
 const ISO_CALENDAR_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const CALENDAR_WEEKDAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
@@ -131,6 +169,7 @@ const SCROLL_CLICK_BLOCK_MS = 400;
 let activeTouchGesture = null;
 let blockedTouchClick = null;
 let activeSelectTouch = null;
+let selectPopoverSequence = 0;
 
 export const exceededTapTolerance = (start, current, tolerance = TAP_MOVE_TOLERANCE_PX) => {
   const deltaX = Math.abs(Number(current?.x || 0) - Number(start?.x || 0));
@@ -389,10 +428,120 @@ const updateNativeSelect = (select, value) => {
   select.dispatchEvent(new Event('change', { bubbles: true }));
 };
 
+const renderAnchoredSelect = descriptor => {
+  const { select } = descriptor;
+  if (!select?.isConnected || select.disabled) {
+    finishActiveTask(null);
+    return;
+  }
+
+  const renderedTask = activeTask;
+  const options = readSelectOptions(select);
+  const popover = makeElement('div', 'app96-select-popover');
+  popover.id = `app96-select-popover-${++selectPopoverSequence}`;
+  popover.setAttribute('role', 'listbox');
+  popover.setAttribute('aria-label', inferSelectTitle(select));
+
+  const optionButtons = options.map(option => {
+    const button = makeElement('button', `app96-select-option ${option.selected ? 'is-selected' : ''}`);
+    button.type = 'button';
+    button.disabled = option.disabled;
+    button.setAttribute('role', 'option');
+    button.setAttribute('aria-selected', option.selected ? 'true' : 'false');
+    button.appendChild(makeElement('span', 'app96-select-option-label', option.label || 'Sem descrição'));
+    button.appendChild(makeElement('span', 'app96-select-option-check', option.selected ? '✓' : ''));
+    button.addEventListener('click', () => {
+      updateNativeSelect(select, option.value);
+      finishActiveTask(option.value);
+      requestAnimationFrame(() => select.isConnected && select.focus({ preventScroll: true }));
+    });
+    popover.appendChild(button);
+    return button;
+  });
+
+  const enabledButtons = optionButtons.filter(button => !button.disabled);
+  popover.addEventListener('keydown', event => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      finishActiveTask(null);
+      requestAnimationFrame(() => select.isConnected && select.focus({ preventScroll: true }));
+      return;
+    }
+    if (event.key === 'Tab') {
+      finishActiveTask(null);
+      return;
+    }
+    if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key) || enabledButtons.length === 0) return;
+    event.preventDefault();
+    const currentIndex = Math.max(0, enabledButtons.indexOf(document.activeElement));
+    const nextIndex = event.key === 'Home'
+      ? 0
+      : event.key === 'End'
+        ? enabledButtons.length - 1
+        : event.key === 'ArrowDown'
+          ? (currentIndex + 1) % enabledButtons.length
+          : (currentIndex - 1 + enabledButtons.length) % enabledButtons.length;
+    enabledButtons[nextIndex].focus({ preventScroll: true });
+  });
+
+  ensureHost().appendChild(popover);
+  select.setAttribute('aria-expanded', 'true');
+  select.setAttribute('aria-controls', popover.id);
+
+  const positionPopover = () => {
+    if (!select.isConnected) {
+      finishActiveTask(null);
+      return;
+    }
+    const layout = calculateSelectPopoverLayout({
+      anchor: select.getBoundingClientRect(),
+      viewportWidth: document.documentElement.clientWidth || window.innerWidth,
+      viewportHeight: document.documentElement.clientHeight || window.innerHeight,
+      optionCount: options.length
+    });
+    popover.dataset.placement = layout.placement;
+    popover.style.left = `${layout.left}px`;
+    popover.style.top = `${layout.top}px`;
+    popover.style.width = `${layout.width}px`;
+    popover.style.maxHeight = `${layout.maxHeight}px`;
+  };
+  const closeFromOutside = event => {
+    if (popover.contains(event.target) || select.contains(event.target)) return;
+    finishActiveTask(null);
+  };
+
+  let outsideListenerInstalled = false;
+  const focusFrame = requestAnimationFrame(() => {
+    if (activeTask !== renderedTask) return;
+    document.addEventListener('pointerdown', closeFromOutside, true);
+    outsideListenerInstalled = true;
+    const selectedButton = optionButtons.find(button => button.getAttribute('aria-selected') === 'true')
+      || enabledButtons[0];
+    selectedButton?.focus({ preventScroll: true });
+    selectedButton?.scrollIntoView?.({ block: 'nearest' });
+  });
+
+  window.addEventListener('resize', positionPopover);
+  window.addEventListener('scroll', positionPopover, true);
+  activeTask.cleanup = () => {
+    cancelAnimationFrame(focusFrame);
+    if (outsideListenerInstalled) document.removeEventListener('pointerdown', closeFromOutside, true);
+    window.removeEventListener('resize', positionPopover);
+    window.removeEventListener('scroll', positionPopover, true);
+    select.setAttribute('aria-expanded', 'false');
+    select.removeAttribute('aria-controls');
+  };
+  positionPopover();
+};
+
 const renderSelect = descriptor => {
   const { select } = descriptor;
   if (!select?.isConnected || select.disabled) {
     finishActiveTask(null);
+    return;
+  }
+  if (getSelectPresentation(select) === 'dropdown') {
+    renderAnchoredSelect(descriptor);
     return;
   }
   const options = readSelectOptions(select);
@@ -659,6 +808,12 @@ const activateSelect = (select, event) => {
   if (!select || select.disabled || select.multiple || select.dataset.nativeSelect === 'true') return;
   event?.preventDefault?.();
   event?.stopPropagation?.();
+  if (activeTask?.descriptor?.kind === 'select'
+    && activeTask.descriptor.select === select
+    && getSelectPresentation(select) === 'dropdown') {
+    finishActiveTask(null);
+    return;
+  }
   const now = Date.now();
   if (lastSelect === select && now - lastSelectOpenedAt < 500) return;
   lastSelect = select;
@@ -697,8 +852,14 @@ const decorateSelects = root => {
   root?.querySelectorAll?.('select').forEach(select => selects.push(select));
   selects.forEach(select => {
     if (select.multiple || select.dataset.nativeSelect === 'true') return;
-    select.dataset.appSelect = 'dialog';
-    select.setAttribute('aria-haspopup', 'dialog');
+    const presentation = getSelectPresentation(select);
+    select.dataset.appSelect = presentation;
+    if (presentation === 'dropdown') {
+      select.setAttribute('aria-haspopup', 'listbox');
+      select.setAttribute('aria-expanded', 'false');
+    } else {
+      select.setAttribute('aria-haspopup', 'dialog');
+    }
   });
 };
 

@@ -5,7 +5,7 @@ import {
   isTermSale,
   sumMoney,
   toCents
-} from './financial-core-v70.js?v=95';
+} from './financial-core-v70.js?v=96';
 
 export const SALES_VIEW_DEFAULTS = Object.freeze({
   query: '',
@@ -47,6 +47,24 @@ export const getSalePendingAmount = sale => {
     (Array.isArray(sale?.installments) ? sale.installments : []).filter(item => !item?.paid && toCents(item?.amount) > 0),
     item => item.amount
   );
+};
+
+export const getSaleListAmounts = sale => {
+  const totalAmount = toCents(sale?.totalPrice) / 100;
+  if (getOperationalSaleType(sale) === 'term') {
+    return {
+      primaryLabel: 'Total da venda',
+      primaryAmount: totalAmount,
+      secondaryLabel: 'Saldo pendente',
+      secondaryAmount: getSalePendingAmount(sale)
+    };
+  }
+  return {
+    primaryLabel: 'Líquido',
+    primaryAmount: getDirectSaleNet(sale),
+    secondaryLabel: 'Total',
+    secondaryAmount: totalAmount
+  };
 };
 
 export const getSalePaymentLabel = sale => {

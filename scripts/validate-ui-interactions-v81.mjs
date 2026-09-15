@@ -5,8 +5,10 @@ import { fileURLToPath } from 'node:url';
 import {
   advanceCalendarRange,
   buildCalendarMonth,
+  calculateSelectPopoverLayout,
   filterModalOptions,
   exceededTapTolerance,
+  getSelectPresentation,
   inferAlertTone,
   isCalendarDate,
   moveCalendarDate,
@@ -56,6 +58,30 @@ assert.deepEqual(readSelectOptions(fakeSelect), [
   { value: 'purchase', label: 'Compra', group: 'Entradas', disabled: false, selected: true },
   { value: 'adjustment', label: 'Ajuste', group: 'Entradas', disabled: true, selected: false }
 ]);
+
+assert.equal(getSelectPresentation({ dataset: { selectPresentation: 'dropdown' } }), 'dropdown');
+assert.equal(getSelectPresentation({ dataset: { installmentKind: 'card' } }), 'dropdown');
+assert.equal(getSelectPresentation({ dataset: {} }), 'dialog');
+
+const popoverBelow = calculateSelectPopoverLayout({
+  anchor: { left: 20, top: 100, bottom: 144, width: 200 },
+  viewportWidth: 390,
+  viewportHeight: 800,
+  optionCount: 12
+});
+assert.deepEqual(popoverBelow, {
+  placement: 'below', left: 20, top: 150, width: 320, maxHeight: 360
+}, 'A lista deve abrir abaixo do campo quando houver espaço suficiente.');
+
+const popoverAbove = calculateSelectPopoverLayout({
+  anchor: { left: 300, top: 650, bottom: 694, width: 100 },
+  viewportWidth: 390,
+  viewportHeight: 720,
+  optionCount: 12
+});
+assert.deepEqual(popoverAbove, {
+  placement: 'above', left: 62, top: 284, width: 320, maxHeight: 360
+}, 'Perto do fim da tela, a lista deve abrir acima e permanecer dentro das laterais.');
 
 assert.ok(isCalendarDate('2024-02-29'), 'Anos bissextos precisam aparecer corretamente no calendário.');
 assert.ok(!isCalendarDate('2025-02-29'), 'Datas inexistentes não podem ser aceitas.');
@@ -236,6 +262,11 @@ for (const marker of [
   'showAppConfirm',
   'showAppAlert',
   'showAppDateRange',
+  'renderAnchoredSelect',
+  'calculateSelectPopoverLayout',
+  "getSelectPresentation(select) === 'dropdown'",
+  "select.setAttribute('aria-haspopup', 'listbox')",
+  "window.addEventListener('scroll', positionPopover, true)",
   'renderDateRange',
   "kind: 'date-range'",
   "Agora escolha a data final. O período será aplicado automaticamente.",
@@ -297,6 +328,7 @@ const styles = read('styles-runtime-v75.css');
 for (const marker of [
   '.app81-dialog-overlay', '.app81-dialog-panel', '.app81-select-panel',
   '.app81-select-search', '.app81-select-option.is-selected',
+  '.app96-select-popover', '.app96-select-option.is-selected',
   '@keyframes app81-sheet-in', '@media (prefers-reduced-motion: reduce)',
   '.period82-trigger', '.app82-calendar-panel', '.app82-calendar-grid',
   '.app82-calendar-day.is-start', '.finance82-summary-action',

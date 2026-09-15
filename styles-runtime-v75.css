@@ -1,4 +1,4 @@
-/* Estilos consolidados v95 — folha de estilo principal do sistema. */
+/* Estilos consolidados v96 — folha de estilo principal do sistema. */
 :root {
     --app-bg: #f6f7fb;
     --surface: #ffffff;
@@ -5048,8 +5048,11 @@ body > div[id="root"] > div[class*="bg-slate-900"][class*="z-[100]"] {
 .sales-row-money > span { color: #94a3b8; font-size: 8px; font-weight: 800; text-transform: uppercase; }
 .sales-row-money > strong { margin-top: 2px; color: #334155; font-size: 11px; font-weight: 850; white-space: nowrap; }
 .sales-row-money.is-highlight > strong { color: #047857; }
-.sales-row-money.is-highlight > strong.is-muted { color: #b91c1c; text-decoration: line-through; }
+.sales-row-money.is-sale-total > span { color: #b45309; }
+.sales-row-money.is-sale-total > strong { color: #0f172a; font-size: 13px; font-weight: 900; }
+.sales-row-money > strong.is-muted { color: #b91c1c; text-decoration: line-through; }
 .sales-row-money small { margin-top: 2px; color: #94a3b8; font-size: 8px; font-weight: 650; white-space: nowrap; }
+.sales-row-mobile-term-summary { display: none; }
 .sales-row-status .status-badge { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
 .sales-row-arrow { color: #cbd5e1; }
 .sales-row-mobile-badges { display: none; }
@@ -5334,7 +5337,9 @@ body > div[id="root"] > div[class*="bg-slate-900"][class*="z-[100]"] {
     .sales-row-status { display: none; }
     .sales-row-money.is-highlight { align-items: flex-end; text-align: right; }
     .sales-row-money.is-highlight > strong { font-size: 11px; }
+    .sales-row-money.is-sale-total > strong { font-size: 13px; }
     .sales-row-money small { white-space: normal; text-align: right; }
+    .sales-row-mobile-term-summary { display: block; max-width: 150px; line-height: 1.35; }
     .sales-row-arrow { width: 17px; }
     .sales-empty-state { padding: 44px 16px; }
     .auth71-screen { align-items: start; padding: max(14px, env(safe-area-inset-top)) 12px max(14px, env(safe-area-inset-bottom)); }
@@ -6417,6 +6422,64 @@ body > div[id="root"] > div[class*="bg-slate-900"][class*="z-[100]"] {
 .app81-select-option.is-selected .app81-select-option-check { background: #f59e0b; }
 .app81-select-empty { padding: 30px 14px; color: #94a3b8; font-size: 12px; text-align: center; }
 
+/* Lista compacta ancorada usada nas quantidades de parcelas. */
+.app96-select-popover {
+  position: fixed;
+  z-index: 10001;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 6px;
+  border: 1px solid #dbe2ea;
+  border-radius: 14px;
+  color: #334155;
+  background: #fff;
+  box-shadow: 0 18px 48px rgba(15, 23, 42, .2), 0 2px 8px rgba(15, 23, 42, .08);
+  scrollbar-width: thin;
+  transform-origin: top center;
+  animation: app96-select-popover-in .14s ease-out;
+}
+.app96-select-popover[data-placement="above"] { transform-origin: bottom center; }
+.app96-select-option {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 24px;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  min-height: 42px;
+  flex: 0 0 auto;
+  padding: 8px 8px 8px 11px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  color: #475569;
+  background: #fff;
+  text-align: left;
+}
+.app96-select-option:hover { border-color: #e2e8f0; background: #f8fafc; }
+.app96-select-option.is-selected { border-color: #fcd34d; color: #0f172a; background: #fffbeb; }
+.app96-select-option:disabled { opacity: .45; cursor: not-allowed; }
+.app96-select-option:focus-visible { outline: 3px solid rgba(245, 158, 11, .25); outline-offset: -1px; }
+.app96-select-option-label { min-width: 0; overflow-wrap: anywhere; font-size: 11px; font-weight: 780; line-height: 1.4; }
+.app96-select-option-check {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  color: transparent;
+  font-size: 12px;
+  font-weight: 900;
+}
+.app96-select-option.is-selected .app96-select-option-check { color: #fff; background: #f59e0b; }
+
+@keyframes app96-select-popover-in {
+  from { opacity: 0; transform: scale(.985); }
+  to { opacity: 1; transform: scale(1); }
+}
+
 @keyframes app81-overlay-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes app81-dialog-in {
   from { opacity: 0; transform: translateY(10px) scale(.985); }
@@ -6458,6 +6521,7 @@ body > div[id="root"] > div[class*="bg-slate-900"][class*="z-[100]"] {
 @media (prefers-reduced-motion: reduce) {
   .app81-dialog-overlay,
   .app81-dialog-panel,
+  .app96-select-popover,
   .mobile83-more-sheet { animation: none; }
 }
 

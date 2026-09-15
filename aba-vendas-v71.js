@@ -3,20 +3,19 @@ import {
   ArrowDownUp, Banknote, CheckCircle2, ChevronRight, CreditCard,
   Plus, Receipt, RotateCcw, Search, SlidersHorizontal, WalletCards, X, XCircle
 } from 'https://esm.sh/lucide-react@0.292.0';
-import { DateRangePicker, Pagination } from './components.js?v=95';
-import { formatCurrency, formatDate, getCurrentMonthEnd, getCurrentMonthStart } from './utils.js?v=95';
+import { DateRangePicker, Pagination } from './components.js?v=96';
+import { formatCurrency, formatDate, getCurrentMonthEnd, getCurrentMonthStart } from './utils.js?v=96';
 import {
   buildSalesView,
   getNextOpenDueDate,
   getOperationalSaleStatus,
   getOperationalSaleType,
+  getSaleListAmounts,
   getSalePaymentLabel,
-  getSalePendingAmount,
   SALES_VIEW_DEFAULTS,
   summarizeSalesView
-} from './sales-operations-v71.js?v=95';
-import { getDirectSaleNet } from './financial-core-v70.js?v=95';
-import { showAppDateRange } from './ui-interactions-v81.js?v=95';
+} from './sales-operations-v71.js?v=96';
+import { showAppDateRange } from './ui-interactions-v81.js?v=96';
 
 const ITEMS_PER_PAGE = 12;
 
@@ -63,12 +62,16 @@ const SaleRow = ({ sale, onOpen }) => {
   const type = getOperationalSaleType(sale);
   const status = statusPresentation(sale);
   const StatusIcon = status.icon;
-  const pending = getSalePendingAmount(sale);
-  const net = getDirectSaleNet(sale);
+  const amounts = getSaleListAmounts(sale);
   const installments = Array.isArray(sale?.installments) ? sale.installments : [];
   const paidCount = installments.filter(item => item?.paid).length;
   const totalInstallments = Number(sale?.installmentsCount) || installments.length || 0;
   const nextDue = getNextOpenDueDate(sale);
+  const termScheduleLabel = nextDue
+    ? `Próxima ${formatDate(nextDue)}`
+    : totalInstallments > 0
+      ? `${paidCount}/${totalInstallments} pagas`
+      : 'Sem parcelas';
   const canceled = getOperationalSaleStatus(sale) === 'canceled';
   const customer = sale?.customerName || 'Venda avulsa';
   const channel = {
@@ -102,15 +105,16 @@ const SaleRow = ({ sale, onOpen }) => {
         getSalePaymentLabel(sale)
       )
     ),
-    React.createElement('div', { className: 'sales-row-money' },
-      React.createElement('span', null, 'Total'),
-      React.createElement('strong', null, formatCurrency(sale?.totalPrice))
+    React.createElement('div', { className: 'sales-row-money', 'data-sale-value': 'secondary' },
+      React.createElement('span', null, amounts.secondaryLabel),
+      React.createElement('strong', { className: canceled ? 'is-muted' : '' }, formatCurrency(amounts.secondaryAmount)),
+      type === 'term' && React.createElement('small', null, termScheduleLabel)
     ),
-    React.createElement('div', { className: 'sales-row-money is-highlight' },
-      React.createElement('span', null, type === 'direct' ? 'Líquido' : 'Saldo'),
-      React.createElement('strong', { className: canceled ? 'is-muted' : '' }, formatCurrency(type === 'direct' ? net : pending)),
-      type === 'term' && React.createElement('small', null,
-        nextDue ? `Próxima ${formatDate(nextDue)}` : totalInstallments > 0 ? `${paidCount}/${totalInstallments} pagas` : 'Sem parcelas'
+    React.createElement('div', { className: `sales-row-money is-highlight ${type === 'term' ? 'is-sale-total' : ''}`, 'data-sale-value': 'primary' },
+      React.createElement('span', null, amounts.primaryLabel),
+      React.createElement('strong', { className: canceled ? 'is-muted' : '' }, formatCurrency(amounts.primaryAmount)),
+      type === 'term' && React.createElement('small', { className: 'sales-row-mobile-term-summary' },
+        `Saldo: ${formatCurrency(amounts.secondaryAmount)} · ${termScheduleLabel}`
       )
     ),
     React.createElement('div', { className: 'sales-row-status' },
@@ -294,8 +298,8 @@ export const AbaVendas = ({
       React.createElement('div', { className: 'sales-unified-list-header' },
         React.createElement('span', null, 'Cliente / data'),
         React.createElement('span', null, 'Tipo / pagamento'),
-        React.createElement('span', null, 'Valor'),
-        React.createElement('span', null, 'Recebido / saldo'),
+        React.createElement('span', null, 'Valor / saldo'),
+        React.createElement('span', null, 'Líquido / total'),
         React.createElement('span', null, 'Status'),
         React.createElement('span', null, '')
       ),

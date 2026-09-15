@@ -1,12 +1,12 @@
 // Gerado por scripts/consolidate-legacy-runtime-v75.mjs — nova venda consolidada.
 import React, { useState, useEffect } from 'https://esm.sh/react@18.2.0';
 import { ChevronLeft, User, UserPlus, X, Search, CheckCircle, ShoppingBag, Tag, PlusCircle, Trash2, CreditCard, Calendar, QrCode, Banknote, Copy, BadgePercent, RefreshCw, ThumbsUp, ShieldAlert } from 'https://esm.sh/lucide-react@0.292.0';
-import { db, APP_ID } from './firebase-config.js?v=95';
-import { collection, addDoc, serverTimestamp } from './firestore-runtime-v94.js?v=95';
-import { formatCurrency, parseMoney, maskPhone, getBrazilDateString, addDays, generatePixPayload, analyzeCustomerCredit } from './utils.js?v=95';
-import { MoneyInput } from './components.js?v=95';
-import { getCardRate, getCarnetRate, normalizePaymentSettings, evaluateTermEntryRules } from './payment-settings.js?v=95';
-import { splitMoney } from './financial-core-v70.js?v=95';
+import { db, APP_ID } from './firebase-config.js?v=96';
+import { collection, addDoc, serverTimestamp } from './firestore-runtime-v94.js?v=96';
+import { formatCurrency, parseMoney, maskPhone, getBrazilDateString, addDays, generatePixPayload, analyzeCustomerCredit } from './utils.js?v=96';
+import { MoneyInput } from './components.js?v=96';
+import { getCardRate, getCarnetRate, normalizePaymentSettings, evaluateTermEntryRules } from './payment-settings.js?v=96';
+import { splitMoney } from './financial-core-v70.js?v=96';
 import QRCode from 'https://esm.sh/qrcode@1.5.4';
 
 const INSTALLMENT_OPTIONS = Array.from({ length: 12 }, (_, index) => index + 1);
@@ -783,7 +783,7 @@ export const NewSaleScreen = ({ mode: initialMode, onClose, customers, products,
                         totalRemaining > 0 && React.createElement(React.Fragment, null,
                             React.createElement('div', null, React.createElement('label', { className: "block text-xs font-bold text-slate-500 uppercase mb-1" }, "Frequência das Parcelas"), React.createElement('select', { className: "w-full p-3 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-yellow-500", value: frequency, onChange: e => { setFrequency(e.target.value); setWaiveCarnetInterest(false); } }, React.createElement('option', { value: "weekly" }, "Semanal"), React.createElement('option', { value: "biweekly" }, "Quinzenal"), React.createElement('option', { value: "monthly" }, "Mensal"))),
                             React.createElement('div', { className: "grid grid-cols-2 gap-4" },
-                                React.createElement('div', null, React.createElement('label', { className: "block text-xs font-bold text-slate-500 uppercase mb-1" }, "Qtd Parcelas"), React.createElement('select', { 'data-installment-kind': "carnet", 'aria-label': "Parcelas do crediário com valor e total", className: "w-full p-3 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-yellow-500", value: installmentsCount, onChange: e => { setInstallmentsCount(e.target.value); setWaiveCarnetInterest(false); } }, INSTALLMENT_OPTIONS.map(n => React.createElement('option', { key: n, value: n }, getCarnetInstallmentOptionLabel(n))))),
+                                React.createElement('div', null, React.createElement('label', { className: "block text-xs font-bold text-slate-500 uppercase mb-1" }, "Qtd Parcelas"), React.createElement('select', { 'data-installment-kind': "carnet", 'data-select-presentation': "dropdown", 'aria-label': "Parcelas do crediário com valor e total", className: "w-full p-3 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-yellow-500", value: installmentsCount, onChange: e => { setInstallmentsCount(e.target.value); setWaiveCarnetInterest(false); } }, INSTALLMENT_OPTIONS.map(n => React.createElement('option', { key: n, value: n }, getCarnetInstallmentOptionLabel(n))))),
                                 React.createElement('div', null, React.createElement('label', { className: "block text-xs font-bold text-slate-500 uppercase mb-1" }, "1º Vencimento"), React.createElement('input', { type: "date", className: "w-full p-3 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-yellow-500", value: firstDueDate, onChange: e => setFirstDueDate(e.target.value) }))
                             ),
                             React.createElement('div', { className: `legacy-payment-calculation carnet-interest-summary p-3 rounded-xl border space-y-2 ${carnetInterestPercent > 0 ? 'bg-amber-50 border-amber-200' : 'bg-slate-50 border-slate-100'}` },
@@ -825,6 +825,7 @@ export const NewSaleScreen = ({ mode: initialMode, onClose, customers, products,
                             React.createElement('div', null, React.createElement('label', { className: "block text-xs font-bold text-slate-500 uppercase mb-1" }, "Entrada (Dinheiro/Pix) - Opcional"), React.createElement(MoneyInput, { value: entryAmount, onChange: setEntryAmount, className: "w-full p-3 pl-8 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" })),
                             directMethod === 'credit' && React.createElement('div', null, React.createElement('label', { className: "block text-xs font-bold text-slate-500 uppercase mb-1" }, "Parcelas no Cartão"), React.createElement('select', {
                                 'data-installment-kind': "card",
+                                'data-select-presentation': "dropdown",
                                 'aria-label': "Parcelas do cartão com valor e total",
                                 className: "w-full p-3 border border-slate-200 rounded-lg outline-none",
                                 value: cardInstallments,

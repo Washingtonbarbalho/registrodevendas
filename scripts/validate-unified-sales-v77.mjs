@@ -242,6 +242,8 @@ cardPlanSale.render();
 const cardInstallmentSelect = cardPlanSale.find(node => node.type === 'select'
   && node.props['data-installment-kind'] === 'card', 'Parcelas do cartão com valores');
 assert.equal(cardInstallmentSelect.props.children.length, 12);
+assert.equal(cardInstallmentSelect.props['data-select-presentation'], 'dropdown',
+  'As parcelas do cartão devem abrir na lista compacta ligada ao campo.');
 assert.equal(displayText(cardInstallmentSelect.props.children[1]),
   '2x de R$ 50,00 + entrada R$ 10,00 = R$ 110,00',
   'O cartão deve mostrar valor da parcela, entrada e total com a taxa repassada ao cliente.');
@@ -268,6 +270,8 @@ carnetPlanSale.render();
 const carnetInstallmentSelect = carnetPlanSale.find(node => node.type === 'select'
   && node.props['data-installment-kind'] === 'carnet', 'Parcelas do crediário com valores');
 assert.equal(carnetInstallmentSelect.props.children.length, 12);
+assert.equal(carnetInstallmentSelect.props['data-select-presentation'], 'dropdown',
+  'As parcelas do crediário devem abrir na lista compacta ligada ao campo.');
 assert.equal(displayText(carnetInstallmentSelect.props.children[1]),
   '2x de R$ 44,00 + entrada R$ 20,00 = R$ 108,00',
   'O crediário deve mostrar valor da parcela, entrada e total conforme os juros do plano.');

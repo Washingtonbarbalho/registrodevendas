@@ -8,6 +8,7 @@ import {
   buildSalesView,
   getOperationalSaleStatus,
   getOperationalSaleType,
+  getSaleListAmounts,
   getSalePendingAmount,
   summarizeSalesView
 } from '../sales-operations-v71.js';
@@ -86,6 +87,18 @@ assert.equal(getOperationalSaleType(directAugust), 'direct');
 assert.equal(getOperationalSaleStatus(oldOpenTerm), 'open');
 assert.equal(getOperationalSaleStatus(canceledAugust), 'canceled');
 assert.equal(getSalePendingAmount(oldOpenTerm), 60, 'O saldo deve continuar exato em centavos.');
+assert.deepEqual(getSaleListAmounts(oldOpenTerm), {
+  primaryLabel: 'Total da venda',
+  primaryAmount: 90,
+  secondaryLabel: 'Saldo pendente',
+  secondaryAmount: 60
+}, 'Na venda a prazo, o total deve ser principal e o saldo deve permanecer visível.');
+assert.deepEqual(getSaleListAmounts(directAugust), {
+  primaryLabel: 'Líquido',
+  primaryAmount: 100,
+  secondaryLabel: 'Total',
+  secondaryAmount: 100
+}, 'A hierarquia das vendas no caixa deve permanecer preservada.');
 
 const defaultView = buildSalesView({ sales, ...period });
 assert.deepEqual(defaultView.map(sale => sale.id), ['term-open', 'direct-august', 'canceled-august']);
@@ -141,6 +154,14 @@ assert.deepEqual(buildSalesView({ sales, ...period, status: 'canceled' }).map(sa
   ['canceled-august'], 'O filtro Canceladas deve isolar vendas canceladas.');
 
 const source = fs.readFileSync(new URL('../app-runtime-v75.js', import.meta.url), 'utf8');
+const salesScreenSource = fs.readFileSync(new URL('../aba-vendas-v71.js', import.meta.url), 'utf8');
+
+for (const marker of [
+  "'data-sale-value': 'primary'",
+  "'data-sale-value': 'secondary'",
+  'sales-row-mobile-term-summary',
+  '`Saldo: ${formatCurrency(amounts.secondaryAmount)} · ${termScheduleLabel}`'
+]) assert.ok(salesScreenSource.includes(marker), `Listagem das vendas a prazo incompleta: ${marker}`);
 
 for (const marker of [
   'aba-vendas-v71.js?v=',
