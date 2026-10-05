@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'https://esm.sh/react@18.2.0';
 import {
   ArrowDownUp, Banknote, CheckCircle2, ChevronRight, CreditCard,
-  Plus, Receipt, RotateCcw, Search, SlidersHorizontal, WalletCards, X, XCircle
+  FileDown, Plus, Receipt, RotateCcw, Search, SlidersHorizontal, WalletCards, X, XCircle
 } from 'https://esm.sh/lucide-react@0.292.0';
-import { DateRangePicker, Pagination } from './components.js?v=97';
-import { formatCurrency, formatDate, getCurrentMonthEnd, getCurrentMonthStart } from './utils.js?v=97';
+import { DateRangePicker, Pagination } from './components.js?v=98';
+import { formatCurrency, formatDate, getCurrentMonthEnd, getCurrentMonthStart } from './utils.js?v=98';
 import {
   buildSalesView,
   getNextOpenDueDate,
@@ -14,8 +14,8 @@ import {
   getSalePaymentLabel,
   SALES_VIEW_DEFAULTS,
   summarizeSalesView
-} from './sales-operations-v71.js?v=97';
-import { showAppDateRange } from './ui-interactions-v81.js?v=97';
+} from './sales-operations-v71.js?v=98';
+import { showAppDateRange } from './ui-interactions-v81.js?v=98';
 
 const ITEMS_PER_PAGE = 12;
 
@@ -58,7 +58,7 @@ const SalesFilterTabs = ({ value, onChange, summary }) => {
   );
 };
 
-const SaleRow = ({ sale, onOpen }) => {
+const SaleRow = ({ sale, onOpen, onGenerateBooklet, generatingBooklet }) => {
   const type = getOperationalSaleType(sale);
   const status = statusPresentation(sale);
   const StatusIcon = status.icon;
@@ -79,11 +79,16 @@ const SaleRow = ({ sale, onOpen }) => {
     facebook: 'Facebook / Marketplace', outro: 'Outro canal'
   }[sale?.saleChannel];
 
-  return React.createElement('button', {
-    type: 'button',
-    onClick: () => onOpen(sale),
+  const openSale = () => onOpen(sale);
+  const generateBooklet = event => {
+    event.stopPropagation();
+    if (!generatingBooklet && installments.length > 0) onGenerateBooklet?.(sale);
+  };
+
+  return React.createElement('div', {
+    onClick: openSale,
     className: `sales-unified-row ${canceled ? 'is-canceled' : ''}`,
-    'aria-label': `Abrir venda de ${customer}`
+    'data-sale-id': sale?.id || ''
   },
     React.createElement('div', { className: 'sales-row-main' },
       React.createElement('div', { className: 'sales-row-title-line' },
@@ -120,12 +125,29 @@ const SaleRow = ({ sale, onOpen }) => {
     React.createElement('div', { className: 'sales-row-status' },
       React.createElement('span', { className: `status-badge ${status.className}` }, React.createElement(StatusIcon, { size: 12 }), status.label)
     ),
-    React.createElement(ChevronRight, { size: 18, className: 'sales-row-arrow' })
+    React.createElement('div', { className: 'sales-row-actions' },
+      type === 'term' && React.createElement('button', {
+        type: 'button',
+        onClick: generateBooklet,
+        disabled: generatingBooklet || installments.length === 0,
+        className: 'sales-row-booklet-button',
+        title: installments.length > 0 ? 'Gerar carnê das parcelas em PDF' : 'Esta venda não possui parcelas',
+        'aria-label': `Gerar carnê em PDF da venda de ${customer}`
+      }, React.createElement(FileDown, { size: 15 }), React.createElement('span', null, generatingBooklet ? 'Gerando...' : 'Carnê PDF')),
+      React.createElement('button', {
+        type: 'button',
+        onClick: event => { event.stopPropagation(); openSale(); },
+        className: 'sales-row-open-button',
+        title: 'Abrir detalhes da venda',
+        'aria-label': `Abrir venda de ${customer}`
+      }, React.createElement(ChevronRight, { size: 18, className: 'sales-row-arrow' }))
+    )
   );
 };
 
 export const AbaVendas = ({
   sales, setNewSaleMode, setSelectedSaleDetail,
+  onGenerateBooklet,
   analysisPeriod = 'month', analysisStartDate, analysisEndDate,
   onAnalysisPeriodChange, onAnalysisStartDateChange, onAnalysisEndDateChange
 }) => {
@@ -138,6 +160,17 @@ export const AbaVendas = ({
   const [endDate, setEndDate] = useState(analysisEndDate || getCurrentMonthEnd());
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [page, setPage] = useState(1);
+  const [generatingBookletSaleId, setGeneratingBookletSaleId] = useState(null);
+
+  const handleGenerateBooklet = async sale => {
+    if (!onGenerateBooklet || generatingBookletSaleId) return;
+    setGeneratingBookletSaleId(sale?.id || 'sale');
+    try {
+      await onGenerateBooklet(sale);
+    } finally {
+      setGeneratingBookletSaleId(null);
+    }
+  };
 
   useEffect(() => {
     if (!analysisStartDate || !analysisEndDate) return;
@@ -301,7 +334,7 @@ export const AbaVendas = ({
         React.createElement('span', null, 'Valor / saldo'),
         React.createElement('span', null, 'Líquido / total'),
         React.createElement('span', null, 'Status'),
-        React.createElement('span', null, '')
+        React.createElement('span', null, 'Ações')
       ),
       paginated.length === 0
         ? React.createElement('div', { className: 'empty-state sales-empty-state' },
@@ -310,7 +343,13 @@ export const AbaVendas = ({
           React.createElement('p', { className: 'empty-state-copy' }, hasFilters ? 'Ajuste ou limpe os filtros para ampliar a busca.' : 'Sua próxima venda aparecerá aqui.'),
           hasFilters && React.createElement('button', { type: 'button', onClick: resetFilters, className: 'sales-empty-reset' }, 'Limpar filtros')
         )
-        : paginated.map(sale => React.createElement(SaleRow, { key: sale.id, sale, onOpen: setSelectedSaleDetail }))
+        : paginated.map(sale => React.createElement(SaleRow, {
+          key: sale.id,
+          sale,
+          onOpen: setSelectedSaleDetail,
+          onGenerateBooklet: handleGenerateBooklet,
+          generatingBooklet: generatingBookletSaleId === (sale?.id || 'sale')
+        }))
     ),
 
     React.createElement(Pagination, {

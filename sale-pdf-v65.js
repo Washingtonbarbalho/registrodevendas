@@ -1,5 +1,5 @@
 import { formatCurrency, formatDate } from './utils.js';
-import { getHistoryCashAmount } from './financial-core-v70.js';
+import { getHistoryCashAmount, getInstallmentFaceAmount } from './financial-core-v70.js';
 
 const num = value => Number.isFinite(Number(value)) ? Number(value) : 0;
 const cleanDate = value => String(value || '').split('T')[0];
@@ -21,6 +21,34 @@ const saleMoment = sale => {
   return text;
 };
 const contractId = sale => sale?.id ? `VP-${sale.id.slice(-5).toUpperCase()}` : 'VENDA';
+const loadJsPdf = async () => {
+  const module = await import('https://esm.sh/jspdf@2.5.1');
+  const JsPdf = module.jsPDF || module.default?.jsPDF || module.default;
+  if (!JsPdf) throw new Error('Biblioteca de PDF indisponível.');
+  return JsPdf;
+};
+const safeFilePart = value => String(value || '')
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .replace(/[^a-zA-Z0-9]+/g, '-')
+  .replace(/^-+|-+$/g, '')
+  .toLowerCase();
+const shareOrDownloadPdf = async ({ blob, name, title }) => {
+  const file = new File([blob], name, { type:'application/pdf' });
+  if (navigator.share && (!navigator.canShare || navigator.canShare({ files:[file] }))) {
+    await navigator.share({ files:[file], title });
+    return { shared:true, downloaded:false };
+  }
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = name;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  return { shared:false, downloaded:true };
+};
 
 export const SALE_PDF_INSTALLMENT_HEADER_STYLE = Object.freeze({
   fillColor: Object.freeze([15, 23, 42]),
@@ -28,11 +56,19 @@ export const SALE_PDF_INSTALLMENT_HEADER_STYLE = Object.freeze({
   textColor: Object.freeze([255, 255, 255])
 });
 
+export const INSTALLMENT_BOOKLET_LAYOUT = Object.freeze({
+  pageFormat: 'a4',
+  pageOrientation: 'portrait',
+  cardsPerPage: 3,
+  margin: 10,
+  cardHeight: 82,
+  cardGap: 7,
+  storeCopyWidth: 68
+});
+
 export const generateSalePdfBlob = async ({ sale, userProfile = {}, type = 'detalhe', installment = null, historyItem = null }) => {
   if (!sale) throw new Error('Venda não informada.');
-  const module = await import('https://esm.sh/jspdf@2.5.1');
-  const JsPdf = module.jsPDF || module.default?.jsPDF || module.default;
-  if (!JsPdf) throw new Error('Biblioteca de PDF indisponível.');
+  const JsPdf = await loadJsPdf();
   const store = userProfile?.storeName || 'Registro de Vendas';
   const isDirect = sale.saleType === 'direct';
   const pdf = isDirect
@@ -98,16 +134,157 @@ export const generateSalePdfBlob = async ({ sale, userProfile = {}, type = 'deta
   return pdf.output('blob');
 };
 
+const installmentBookletStatus = (sale, installment) => {
+  if (sale?.status === 'canceled') return { label: 'VENDA CANCELADA', color: [185, 28, 28] };
+  if (installment?.paid) {
+    const paidDate = cleanDate(installment.paidAt);
+    return { label: paidDate ? `PAGA EM ${formatDate(paidDate)}` : 'PAGA', color: [4, 120, 87] };
+  }
+  const dueDate = cleanDate(installment?.dueDate);
+  const today = cleanDate(new Date().toISOString());
+  if (dueDate && dueDate < today) return { label: 'VENCIDA', color: [185, 28, 28] };
+  return { label: 'EM ABERTO', color: [71, 85, 105] };
+};
+
+const bookletText = (pdf, value, x, y, width, options = {}) => {
+  pdf.setFont('helvetica', options.bold ? 'bold' : 'normal');
+  pdf.setFontSize(options.size || 7);
+  pdf.setTextColor(...(options.color || [51, 65, 85]));
+  const line = pdf.splitTextToSize(String(value ?? ''), width)[0] || '';
+  pdf.text(line, x, y, options.align ? { align: options.align } : undefined);
+};
+
+const bookletField = (pdf, label, value, x, y, width, options = {}) => {
+  bookletText(pdf, label.toUpperCase(), x, y, width, { size: 5.5, bold: true, color: [100, 116, 139] });
+  bookletText(pdf, value, x, y + 4.5, width, { size: options.size || 8, bold: options.bold !== false, color: options.color });
+};
+
+const drawInstallmentBookletCard = ({ pdf, sale, installment, index, userProfile, x, y, width, height }) => {
+  const store = userProfile?.storeName || 'Registro de Vendas';
+  const storePhone = userProfile?.phone || '';
+  const customer = sale?.customerName || 'Cliente';
+  const customerPhone = sale?.customerPhone || '';
+  const totalInstallments = Number(sale?.installmentsCount) || sale?.installments?.length || 1;
+  const installmentNumber = Number(installment?.number) || index + 1;
+  const installmentValue = getInstallmentFaceAmount(installment);
+  const dueDate = cleanDate(installment?.dueDate);
+  const status = installmentBookletStatus(sale, installment);
+  const storeCopyWidth = Math.min(INSTALLMENT_BOOKLET_LAYOUT.storeCopyWidth, width * .4);
+  const customerX = x + storeCopyWidth;
+  const customerWidth = width - storeCopyWidth;
+  const headerHeight = 12;
+
+  pdf.setLineWidth(.35);
+  pdf.setDrawColor(148, 163, 184);
+  pdf.setFillColor(255, 255, 255);
+  pdf.rect(x, y, width, height, 'FD');
+
+  pdf.setFillColor(245, 158, 11);
+  pdf.setDrawColor(245, 158, 11);
+  pdf.rect(x, y, storeCopyWidth, headerHeight, 'FD');
+  bookletText(pdf, 'VIA DA LOJA', x + 4, y + 5.2, storeCopyWidth - 8, { size: 8.5, bold: true, color: [15, 23, 42] });
+  bookletText(pdf, 'Destacar e guardar no pagamento', x + 4, y + 9.3, storeCopyWidth - 8, { size: 5.5, color: [51, 65, 85] });
+
+  pdf.setFillColor(15, 23, 42);
+  pdf.setDrawColor(15, 23, 42);
+  pdf.rect(customerX, y, customerWidth, headerHeight, 'FD');
+  bookletText(pdf, store, customerX + 4, y + 5.2, customerWidth - 43, { size: 8.5, bold: true, color: [255, 255, 255] });
+  bookletText(pdf, 'CARNÊ DO CLIENTE', x + width - 4, y + 5.2, 36, { size: 6.5, bold: true, color: [255, 255, 255], align: 'right' });
+  if (storePhone) bookletText(pdf, storePhone, customerX + 4, y + 9.3, customerWidth - 8, { size: 5.5, color: [203, 213, 225] });
+
+  pdf.setDrawColor(100, 116, 139);
+  pdf.setLineDashPattern([1.6, 1.6], 0);
+  pdf.line(customerX, y, customerX, y + height);
+  pdf.setLineDashPattern([], 0);
+  bookletText(pdf, 'DESTACAR', customerX - 1.5, y + height - 4, 24, { size: 5, bold: true, color: [100, 116, 139], align: 'right' });
+
+  bookletField(pdf, 'Cliente', customer, x + 4, y + 18, storeCopyWidth - 8);
+  bookletField(pdf, 'Parcela', `${installmentNumber}/${totalInstallments}`, x + 4, y + 30, 22, { size: 9 });
+  bookletField(pdf, 'Vencimento', dueDate ? formatDate(dueDate) : '--/--/----', x + 29, y + 30, storeCopyWidth - 33, { size: 8 });
+  bookletField(pdf, 'Valor da parcela', formatCurrency(installmentValue), x + 4, y + 43, storeCopyWidth - 8, { size: 12 });
+  bookletText(pdf, 'Pago em: ____/____/________', x + 4, y + 63, storeCopyWidth - 8, { size: 6.5, bold: true });
+  bookletText(pdf, 'Assinatura/caixa: __________________', x + 4, y + 71, storeCopyWidth - 8, { size: 6 });
+  bookletText(pdf, status.label, x + 4, y + 78, storeCopyWidth - 8, { size: 6, bold: true, color: status.color });
+
+  const contentX = customerX + 5;
+  const contentWidth = customerWidth - 10;
+  bookletText(pdf, `Contrato ${contractId(sale)}  |  Venda ${saleMoment(sale)}`, contentX, y + 18, contentWidth, { size: 6.5, color: [100, 116, 139] });
+  bookletField(pdf, 'Cliente', customer, contentX, y + 25, contentWidth * .64);
+  if (customerPhone) bookletField(pdf, 'Telefone', customerPhone, contentX + contentWidth * .66, y + 25, contentWidth * .34);
+
+  const boxY = y + 39;
+  const boxHeight = 23;
+  const boxGap = 3;
+  const firstWidth = 23;
+  const secondWidth = 37;
+  const thirdWidth = contentWidth - firstWidth - secondWidth - boxGap * 2;
+  const boxes = [
+    { x: contentX, width: firstWidth, label: 'Parcela', value: `${installmentNumber}/${totalInstallments}`, size: 10 },
+    { x: contentX + firstWidth + boxGap, width: secondWidth, label: 'Vencimento', value: dueDate ? formatDate(dueDate) : '--/--/----', size: 8 },
+    { x: contentX + firstWidth + secondWidth + boxGap * 2, width: thirdWidth, label: 'Valor', value: formatCurrency(installmentValue), size: 11 }
+  ];
+  boxes.forEach(box => {
+    pdf.setFillColor(248, 250, 252);
+    pdf.setDrawColor(226, 232, 240);
+    pdf.rect(box.x, boxY, box.width, boxHeight, 'FD');
+    bookletText(pdf, box.label.toUpperCase(), box.x + 3, boxY + 6, box.width - 6, { size: 5.5, bold: true, color: [100, 116, 139] });
+    bookletText(pdf, box.value, box.x + 3, boxY + 15.5, box.width - 6, { size: box.size, bold: true, color: [15, 23, 42] });
+  });
+
+  bookletText(pdf, status.label, contentX, y + 69, contentWidth, { size: 7, bold: true, color: status.color });
+  bookletText(pdf, 'Documento não fiscal. Apresente esta via no pagamento.', contentX, y + 77, contentWidth, { size: 5.5, color: [100, 116, 139] });
+};
+
+export const generateInstallmentBookletPdfBlob = async ({ sale, userProfile = {} }) => {
+  if (!sale) throw new Error('Venda não informada.');
+  if (sale.saleType === 'direct') throw new Error('O carnê está disponível somente para vendas a prazo.');
+  const installments = Array.isArray(sale.installments) ? sale.installments : [];
+  if (installments.length === 0) throw new Error('Esta venda não possui parcelas para gerar o carnê.');
+
+  const JsPdf = await loadJsPdf();
+  const pdf = new JsPdf({
+    unit: 'mm',
+    format: INSTALLMENT_BOOKLET_LAYOUT.pageFormat,
+    orientation: INSTALLMENT_BOOKLET_LAYOUT.pageOrientation
+  });
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const cardWidth = pageWidth - INSTALLMENT_BOOKLET_LAYOUT.margin * 2;
+
+  installments.forEach((installment, index) => {
+    const pageIndex = index % INSTALLMENT_BOOKLET_LAYOUT.cardsPerPage;
+    if (index > 0 && pageIndex === 0) pdf.addPage();
+    drawInstallmentBookletCard({
+      pdf,
+      sale,
+      installment,
+      index,
+      userProfile,
+      x: INSTALLMENT_BOOKLET_LAYOUT.margin,
+      y: INSTALLMENT_BOOKLET_LAYOUT.margin + pageIndex * (INSTALLMENT_BOOKLET_LAYOUT.cardHeight + INSTALLMENT_BOOKLET_LAYOUT.cardGap),
+      width: cardWidth,
+      height: INSTALLMENT_BOOKLET_LAYOUT.cardHeight
+    });
+  });
+
+  return pdf.output('blob');
+};
+
 export const shareSalePdf = async options => {
   const blob = await generateSalePdfBlob(options);
   const sale = options?.sale;
   const isDirect = sale?.saleType === 'direct';
   const name = `${isDirect ? 'comprovante-venda' : 'contrato'}-${sale?.id ? sale.id.slice(-6) : Date.now()}.pdf`;
-  const file = new File([blob], name, { type:'application/pdf' });
-  if (navigator.share && (!navigator.canShare || navigator.canShare({ files:[file] }))) {
-    await navigator.share({ files:[file], title: isDirect ? 'Comprovante de venda' : 'Detalhamento da compra' });
-    return { shared:true, downloaded:false };
-  }
-  const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href=url; link.download=name; document.body.appendChild(link); link.click(); link.remove(); setTimeout(()=>URL.revokeObjectURL(url),1000);
-  return { shared:false, downloaded:true };
+  return shareOrDownloadPdf({ blob, name, title: isDirect ? 'Comprovante de venda' : 'Detalhamento da compra' });
+};
+
+export const shareInstallmentBookletPdf = async options => {
+  const blob = await generateInstallmentBookletPdfBlob(options);
+  const sale = options?.sale;
+  const customerPart = safeFilePart(sale?.customerName) || 'cliente';
+  const salePart = sale?.id ? safeFilePart(sale.id.slice(-6)) : String(Date.now());
+  return shareOrDownloadPdf({
+    blob,
+    name: `carne-${customerPart}-${salePart}.pdf`,
+    title: `Carnê de parcelas - ${sale?.customerName || 'Cliente'}`
+  });
 };
