@@ -5,7 +5,7 @@ import {
   projectSalesAsOf,
   toCents
 } from './financial-core-v70.js';
-import { buildRecurringCustomers } from './reports-engine-v73.js?v=99';
+import { buildRecurringCustomers } from './reports-engine-v73.js?v=100';
 
 const DAY_MS = 86_400_000;
 const DEFAULT_REPURCHASE_DAYS = 60;

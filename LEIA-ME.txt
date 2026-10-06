@@ -1,4 +1,4 @@
-REGISTRO DE VENDAS — VERSÃO 99
+REGISTRO DE VENDAS — VERSÃO 100
 
 ARQUITETURA ATIVA
 - app-runtime-v75.js é o código principal oficial, já consolidado e editado diretamente.
@@ -26,7 +26,8 @@ VENDAS UNIFICADAS
 - Na listagem de vendas a prazo, o total da venda é o valor principal e o saldo pendente continua visível, inclusive no celular.
 - No PDF de detalhamento da venda a prazo, o cabeçalho da tabela de parcelas usa fundo escuro e texto branco para manter os nomes das colunas legíveis.
 - Ao abrir o detalhamento de uma venda a prazo, o botão Gerar Carnê PDF cria um canhoto horizontal para cada parcela com os dados do cliente, vencimento, valor e situação.
-- Cada folha A4 comporta quatro canhotos compactos; cada um possui uma via destacável para a loja, com espaço para data e assinatura, e outra via que permanece no carnê do cliente.
+- Cada folha A4 comporta cinco canhotos compactos; cada um possui uma via destacável para a loja, com espaço para data e assinatura, e outra via que permanece no carnê do cliente.
+- O número do contrato aparece nas duas partes de cada canhoto: na via da loja e na via do cliente.
 - npm test simula a gravação das cinco formas de pagamento e preserva as verificações anteriores.
 
 POSIÇÃO HISTÓRICA DO CREDIÁRIO

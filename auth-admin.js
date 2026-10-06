@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'https://esm.sh/react@18.2.0';
 import { Store, AlertTriangle, Mail, UserCheck, Lock, UserCog, Shield, X, Search, Edit2, Trash2 } from 'https://esm.sh/lucide-react@0.292.0';
-import { db, auth, APP_ID, ADMIN_EMAIL } from './firebase-config.js?v=99';
-import { collection, query, doc, getDoc, onSnapshot, serverTimestamp, writeBatch, deleteField } from './firestore-runtime-v94.js?v=99';
+import { db, auth, APP_ID, ADMIN_EMAIL } from './firebase-config.js?v=100';
+import { collection, query, doc, getDoc, onSnapshot, serverTimestamp, writeBatch, deleteField } from './firestore-runtime-v94.js?v=100';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js";
 import { maskPhone, applyPixMask } from './utils.js';
 import { Pagination } from './components.js';
-import { showAppConfirm } from './ui-interactions-v81.js?v=99';
+import { showAppConfirm } from './ui-interactions-v81.js?v=100';
 
 export const AuthScreen = () => {
     const [step, setStep] = useState('email'); 

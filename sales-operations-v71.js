@@ -5,7 +5,7 @@ import {
   isTermSale,
   sumMoney,
   toCents
-} from './financial-core-v70.js?v=99';
+} from './financial-core-v70.js?v=100';
 
 export const SALES_VIEW_DEFAULTS = Object.freeze({
   query: '',

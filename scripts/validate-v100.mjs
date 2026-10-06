@@ -85,13 +85,13 @@ const { generateInstallmentBookletPdfBlob, INSTALLMENT_BOOKLET_LAYOUT } = create
 );
 
 assert.equal(INSTALLMENT_BOOKLET_LAYOUT.pageFormat, 'a4');
-assert.equal(INSTALLMENT_BOOKLET_LAYOUT.cardsPerPage, 4);
-assert.ok(INSTALLMENT_BOOKLET_LAYOUT.cardHeight <= 64, 'Cada canhoto deve ter altura compacta.');
+assert.equal(INSTALLMENT_BOOKLET_LAYOUT.cardsPerPage, 5);
+assert.ok(INSTALLMENT_BOOKLET_LAYOUT.cardHeight <= 52, 'Cada canhoto deve ter altura compacta para a grade de cinco por folha.');
 assert.ok(
   INSTALLMENT_BOOKLET_LAYOUT.cardsPerPage * INSTALLMENT_BOOKLET_LAYOUT.cardHeight
     + (INSTALLMENT_BOOKLET_LAYOUT.cardsPerPage - 1) * INSTALLMENT_BOOKLET_LAYOUT.cardGap
     <= 297 - INSTALLMENT_BOOKLET_LAYOUT.margin * 2,
-  'Quatro canhotos precisam caber dentro da área útil de uma folha A4.'
+  'Cinco canhotos precisam caber dentro da área útil de uma folha A4.'
 );
 
 const installments = [
@@ -99,7 +99,8 @@ const installments = [
   { number: 2, dueDate: '2026-11-10', amount: 125.5, originalAmount: 125.5, paid: false },
   { number: 3, dueDate: '2026-12-10', amount: 125.5, originalAmount: 125.5, paid: false },
   { number: 4, dueDate: '2027-01-10', amount: 125.5, originalAmount: 125.5, paid: false },
-  { number: 5, dueDate: '2027-02-10', amount: 125.5, originalAmount: 125.5, paid: false }
+  { number: 5, dueDate: '2027-02-10', amount: 125.5, originalAmount: 125.5, paid: false },
+  { number: 6, dueDate: '2027-03-10', amount: 125.5, originalAmount: 125.5, paid: false }
 ];
 
 const blob = await generateInstallmentBookletPdfBlob({
@@ -110,7 +111,7 @@ const blob = await generateInstallmentBookletPdfBlob({
     saleDate: '2026-09-10',
     customerName: 'Maria da Silva',
     customerPhone: '(11) 99999-8888',
-    installmentsCount: 5,
+    installmentsCount: 6,
     installments
   }
 });
@@ -119,24 +120,26 @@ assert.equal(blob.type, 'application/pdf');
 assert.ok(renderedPdf, 'O carnê deve criar um PDF.');
 assert.deepEqual(renderedPdf.options, { unit: 'mm', format: 'a4', orientation: 'portrait' });
 assert.equal(renderedPdf.calls.filter(call => call.type === 'page').length, 1,
-  'Cinco parcelas devem ocupar duas páginas, com quatro canhotos na primeira.');
+  'Seis parcelas devem ocupar duas páginas, com cinco canhotos na primeira.');
 
 const horizontalCards = renderedPdf.calls.filter(call => call.type === 'rect'
   && call.width === 190
   && call.height === INSTALLMENT_BOOKLET_LAYOUT.cardHeight);
 assert.equal(horizontalCards.length, installments.length, 'Cada parcela deve gerar um canhoto horizontal próprio.');
 assert.ok(horizontalCards.every(card => card.width > card.height * 2), 'Os canhotos precisam ser mais largos do que altos.');
-assert.equal(horizontalCards.filter(card => card.page === 1).length, 4, 'A primeira folha deve conter quatro canhotos.');
-assert.equal(horizontalCards.filter(card => card.page === 2).length, 1, 'A quinta parcela deve iniciar a segunda folha.');
+assert.equal(horizontalCards.filter(card => card.page === 1).length, 5, 'A primeira folha deve conter cinco canhotos.');
+assert.equal(horizontalCards.filter(card => card.page === 2).length, 1, 'A sexta parcela deve iniciar a segunda folha.');
 
 const labels = renderedPdf.calls.filter(call => call.type === 'text').map(call => call.value);
 assert.equal(labels.filter(value => value === 'VIA DA LOJA').length, installments.length);
 assert.equal(labels.filter(value => value === 'CARNÊ DO CLIENTE').length, installments.length);
 assert.ok(labels.includes('Maria da Silva'), 'O nome do cliente deve constar no carnê.');
 assert.ok(labels.includes('(11) 99999-8888'), 'O telefone do cliente deve constar na via do cliente.');
-assert.ok(labels.includes('1/5') && labels.includes('5/5'), 'O número de cada parcela deve ser impresso.');
+assert.ok(labels.includes('1/6') && labels.includes('6/6'), 'O número de cada parcela deve ser impresso.');
 assert.ok(labels.some(value => value.includes('125,50')), 'O valor original da parcela deve ser impresso.');
 assert.ok(labels.some(value => value === 'PAGA EM 09/10/2026'), 'Parcelas pagas devem manter a situação atual no carnê.');
+assert.equal(labels.filter(value => value.includes('Contrato VP-23456')).length, installments.length * 2,
+  'O número do contrato deve aparecer uma vez na via da loja e outra na via do cliente de cada canhoto.');
 
 const cutLines = renderedPdf.calls.filter(call => call.type === 'line'
   && call.x1 === call.x2
@@ -169,4 +172,4 @@ for (const removed of ['.sales-row-actions', '.sales-row-booklet-button', '.sale
   assert.ok(!styles.includes(removed), `O estilo do botão antigo não pode permanecer na listagem: ${removed}`);
 }
 
-console.log('Versão 99 validada: botão no detalhamento e quatro canhotos horizontais por folha A4.');
+console.log('Versão 100 validada: contrato nas duas vias e cinco canhotos horizontais por folha A4.');

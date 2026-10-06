@@ -54,7 +54,7 @@ const criticalFiles = [
   'scripts/validate-ui-interactions-v81.mjs',
   'scripts/validate-v94.mjs',
   'scripts/validate-v95.mjs',
-  'scripts/validate-v99.mjs',
+  'scripts/validate-v100.mjs',
   'scripts/validate-v75.mjs'
 ];
 criticalFiles.forEach(checkSyntax);
@@ -260,11 +260,11 @@ for (const [label, validator] of [
   ['interações profissionais', 'scripts/validate-ui-interactions-v81.mjs'],
   ['melhorias financeiras e sincronização', 'scripts/validate-v94.mjs'],
   ['parcelamento detalhado e PDF legível', 'scripts/validate-v95.mjs'],
-  ['carnê compacto no detalhamento da venda', 'scripts/validate-v99.mjs']
+  ['carnê compacto no detalhamento da venda', 'scripts/validate-v100.mjs']
 ]) {
   const result = spawnSync(process.execPath, [validator], { cwd: root, encoding: 'utf8' });
   if (result.status !== 0) throw new Error(`Falha em ${label}:\n${result.stderr || result.stdout}`);
   process.stdout.write(result.stdout);
 }
 
-console.log(`Aplicação v${version} validada: carnê no detalhamento da venda, com quatro canhotos horizontais por folha.`);
+console.log(`Aplicação v${version} validada: carnê no detalhamento da venda, com cinco canhotos horizontais por folha.`);

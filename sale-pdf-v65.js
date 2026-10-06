@@ -59,10 +59,10 @@ export const SALE_PDF_INSTALLMENT_HEADER_STYLE = Object.freeze({
 export const INSTALLMENT_BOOKLET_LAYOUT = Object.freeze({
   pageFormat: 'a4',
   pageOrientation: 'portrait',
-  cardsPerPage: 4,
+  cardsPerPage: 5,
   margin: 10,
-  cardHeight: 64,
-  cardGap: 5,
+  cardHeight: 52,
+  cardGap: 4,
   storeCopyWidth: 68
 });
 
@@ -169,10 +169,11 @@ const drawInstallmentBookletCard = ({ pdf, sale, installment, index, userProfile
   const installmentValue = getInstallmentFaceAmount(installment);
   const dueDate = cleanDate(installment?.dueDate);
   const status = installmentBookletStatus(sale, installment);
+  const saleContractId = contractId(sale);
   const storeCopyWidth = Math.min(INSTALLMENT_BOOKLET_LAYOUT.storeCopyWidth, width * .4);
   const customerX = x + storeCopyWidth;
   const customerWidth = width - storeCopyWidth;
-  const headerHeight = 10;
+  const headerHeight = 9;
 
   pdf.setLineWidth(.35);
   pdf.setDrawColor(148, 163, 184);
@@ -182,38 +183,39 @@ const drawInstallmentBookletCard = ({ pdf, sale, installment, index, userProfile
   pdf.setFillColor(245, 158, 11);
   pdf.setDrawColor(245, 158, 11);
   pdf.rect(x, y, storeCopyWidth, headerHeight, 'FD');
-  bookletText(pdf, 'VIA DA LOJA', x + 4, y + 4.4, storeCopyWidth - 8, { size: 8, bold: true, color: [15, 23, 42] });
-  bookletText(pdf, 'Destacar e guardar no pagamento', x + 4, y + 8, storeCopyWidth - 8, { size: 5, color: [51, 65, 85] });
+  bookletText(pdf, 'VIA DA LOJA', x + 3, y + 4, 27, { size: 7.2, bold: true, color: [15, 23, 42] });
+  bookletText(pdf, `Contrato ${saleContractId}`, x + storeCopyWidth - 3, y + 4, 31, { size: 5.5, bold: true, color: [15, 23, 42], align: 'right' });
+  bookletText(pdf, 'Destacar e guardar no pagamento', x + 3, y + 7.3, storeCopyWidth - 6, { size: 4.7, color: [51, 65, 85] });
 
   pdf.setFillColor(15, 23, 42);
   pdf.setDrawColor(15, 23, 42);
   pdf.rect(customerX, y, customerWidth, headerHeight, 'FD');
-  bookletText(pdf, store, customerX + 4, y + 4.4, customerWidth - 43, { size: 8, bold: true, color: [255, 255, 255] });
-  bookletText(pdf, 'CARNÊ DO CLIENTE', x + width - 4, y + 4.4, 36, { size: 6, bold: true, color: [255, 255, 255], align: 'right' });
-  if (storePhone) bookletText(pdf, storePhone, customerX + 4, y + 8, customerWidth - 8, { size: 5, color: [203, 213, 225] });
+  bookletText(pdf, store, customerX + 4, y + 4, customerWidth - 43, { size: 7.2, bold: true, color: [255, 255, 255] });
+  bookletText(pdf, 'CARNÊ DO CLIENTE', x + width - 4, y + 4, 36, { size: 5.7, bold: true, color: [255, 255, 255], align: 'right' });
+  if (storePhone) bookletText(pdf, storePhone, customerX + 4, y + 7.3, customerWidth - 8, { size: 4.7, color: [203, 213, 225] });
 
   pdf.setDrawColor(100, 116, 139);
   pdf.setLineDashPattern([1.6, 1.6], 0);
   pdf.line(customerX, y, customerX, y + height);
   pdf.setLineDashPattern([], 0);
-  bookletText(pdf, 'DESTACAR', customerX - 1.5, y + height - 2.5, 24, { size: 4.5, bold: true, color: [100, 116, 139], align: 'right' });
+  bookletText(pdf, 'DESTACAR', customerX - 1.5, y + height - 2.2, 24, { size: 4.2, bold: true, color: [100, 116, 139], align: 'right' });
 
-  bookletField(pdf, 'Cliente', customer, x + 4, y + 15, storeCopyWidth - 8, { size: 7.5 });
-  bookletField(pdf, 'Parcela', `${installmentNumber}/${totalInstallments}`, x + 4, y + 25, 22, { size: 8 });
-  bookletField(pdf, 'Vencimento', dueDate ? formatDate(dueDate) : '--/--/----', x + 29, y + 25, storeCopyWidth - 33, { size: 7 });
-  bookletField(pdf, 'Valor da parcela', formatCurrency(installmentValue), x + 4, y + 36, storeCopyWidth - 8, { size: 10.5 });
-  bookletText(pdf, 'Pago em: ____/____/________', x + 4, y + 51, storeCopyWidth - 8, { size: 5.8, bold: true });
-  bookletText(pdf, 'Assinatura/caixa: __________________', x + 4, y + 57, storeCopyWidth - 8, { size: 5.4 });
-  bookletText(pdf, status.label, x + 4, y + 62, storeCopyWidth - 8, { size: 5.4, bold: true, color: status.color });
+  bookletField(pdf, 'Cliente', customer, x + 3, y + 12.2, storeCopyWidth - 6, { size: 6.8 });
+  bookletField(pdf, 'Parcela', `${installmentNumber}/${totalInstallments}`, x + 3, y + 21, 21, { size: 7.3 });
+  bookletField(pdf, 'Vencimento', dueDate ? formatDate(dueDate) : '--/--/----', x + 27, y + 21, storeCopyWidth - 30, { size: 6.5 });
+  bookletField(pdf, 'Valor da parcela', formatCurrency(installmentValue), x + 3, y + 29.8, storeCopyWidth - 6, { size: 9 });
+  bookletText(pdf, 'Pago em: ____/____/________', x + 3, y + 42, storeCopyWidth - 6, { size: 5.2, bold: true });
+  bookletText(pdf, 'Assinatura/caixa: __________________', x + 3, y + 46.3, storeCopyWidth - 6, { size: 4.8 });
+  bookletText(pdf, status.label, x + 3, y + 50.2, storeCopyWidth - 6, { size: 4.9, bold: true, color: status.color });
 
   const contentX = customerX + 5;
   const contentWidth = customerWidth - 10;
-  bookletText(pdf, `Contrato ${contractId(sale)}  |  Venda ${saleMoment(sale)}`, contentX, y + 15, contentWidth, { size: 5.8, color: [100, 116, 139] });
-  bookletField(pdf, 'Cliente', customer, contentX, y + 21, contentWidth * .64, { size: 7.5 });
-  if (customerPhone) bookletField(pdf, 'Telefone', customerPhone, contentX + contentWidth * .66, y + 21, contentWidth * .34, { size: 7 });
+  bookletText(pdf, `Contrato ${saleContractId}  |  Venda ${saleMoment(sale)}`, contentX, y + 12.5, contentWidth, { size: 5.3, color: [100, 116, 139] });
+  bookletField(pdf, 'Cliente', customer, contentX, y + 16, contentWidth * .64, { size: 6.8 });
+  if (customerPhone) bookletField(pdf, 'Telefone', customerPhone, contentX + contentWidth * .66, y + 16, contentWidth * .34, { size: 6.3 });
 
-  const boxY = y + 31;
-  const boxHeight = 18;
+  const boxY = y + 25;
+  const boxHeight = 15;
   const boxGap = 3;
   const firstWidth = 23;
   const secondWidth = 37;
@@ -227,12 +229,12 @@ const drawInstallmentBookletCard = ({ pdf, sale, installment, index, userProfile
     pdf.setFillColor(248, 250, 252);
     pdf.setDrawColor(226, 232, 240);
     pdf.rect(box.x, boxY, box.width, boxHeight, 'FD');
-    bookletText(pdf, box.label.toUpperCase(), box.x + 3, boxY + 5, box.width - 6, { size: 5, bold: true, color: [100, 116, 139] });
-    bookletText(pdf, box.value, box.x + 3, boxY + 12.7, box.width - 6, { size: box.size, bold: true, color: [15, 23, 42] });
+    bookletText(pdf, box.label.toUpperCase(), box.x + 3, boxY + 4.3, box.width - 6, { size: 4.7, bold: true, color: [100, 116, 139] });
+    bookletText(pdf, box.value, box.x + 3, boxY + 10.8, box.width - 6, { size: box.size - .7, bold: true, color: [15, 23, 42] });
   });
 
-  bookletText(pdf, status.label, contentX, y + 55, contentWidth, { size: 6.2, bold: true, color: status.color });
-  bookletText(pdf, 'Documento não fiscal. Apresente esta via no pagamento.', contentX, y + 61.5, contentWidth, { size: 5, color: [100, 116, 139] });
+  bookletText(pdf, status.label, contentX, y + 44, contentWidth, { size: 5.7, bold: true, color: status.color });
+  bookletText(pdf, 'Documento não fiscal. Apresente esta via no pagamento.', contentX, y + 49.5, contentWidth, { size: 4.7, color: [100, 116, 139] });
 };
 
 export const generateInstallmentBookletPdfBlob = async ({ sale, userProfile = {} }) => {

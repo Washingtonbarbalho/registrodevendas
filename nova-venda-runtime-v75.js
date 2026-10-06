@@ -1,12 +1,12 @@
 // Gerado por scripts/consolidate-legacy-runtime-v75.mjs — nova venda consolidada.
 import React, { useState, useEffect } from 'https://esm.sh/react@18.2.0';
 import { ChevronLeft, User, UserPlus, X, Search, CheckCircle, ShoppingBag, Tag, PlusCircle, Trash2, CreditCard, Calendar, QrCode, Banknote, Copy, BadgePercent, RefreshCw, ThumbsUp, ShieldAlert } from 'https://esm.sh/lucide-react@0.292.0';
-import { db, APP_ID } from './firebase-config.js?v=99';
-import { collection, addDoc, serverTimestamp } from './firestore-runtime-v94.js?v=99';
-import { formatCurrency, parseMoney, maskPhone, getBrazilDateString, addDays, generatePixPayload, analyzeCustomerCredit } from './utils.js?v=99';
-import { MoneyInput } from './components.js?v=99';
-import { getCardRate, getCarnetRate, normalizePaymentSettings, evaluateTermEntryRules } from './payment-settings.js?v=99';
-import { splitMoney } from './financial-core-v70.js?v=99';
+import { db, APP_ID } from './firebase-config.js?v=100';
+import { collection, addDoc, serverTimestamp } from './firestore-runtime-v94.js?v=100';
+import { formatCurrency, parseMoney, maskPhone, getBrazilDateString, addDays, generatePixPayload, analyzeCustomerCredit } from './utils.js?v=100';
+import { MoneyInput } from './components.js?v=100';
+import { getCardRate, getCarnetRate, normalizePaymentSettings, evaluateTermEntryRules } from './payment-settings.js?v=100';
+import { splitMoney } from './financial-core-v70.js?v=100';
 import QRCode from 'https://esm.sh/qrcode@1.5.4';
 
 const INSTALLMENT_OPTIONS = Array.from({ length: 12 }, (_, index) => index + 1);
