@@ -2,11 +2,11 @@
 import React, { useState } from 'https://esm.sh/react@18.2.0';
 import { createPortal } from 'https://esm.sh/react-dom@18.2.0';
 import { Search, Phone, FileText, MapPin, ShieldCheck, Pencil, Trash2, Plus, Users, X, Lock, SlidersHorizontal, History } from 'https://esm.sh/lucide-react@0.292.0';
-import { formatCurrency, analyzeCustomerCredit, maskMoney, parseMoney } from './utils.js?v=98';
-import { Pagination, MoneyInput } from './components.js?v=98';
-import { CustomerPurchaseHistoryModal } from './customer-history-runtime-v75.js?v=98';
-import { db, auth, APP_ID } from './firebase-config.js?v=98';
-import { doc, updateDoc } from './firestore-runtime-v94.js?v=98';
+import { formatCurrency, analyzeCustomerCredit, maskMoney, parseMoney } from './utils.js?v=99';
+import { Pagination, MoneyInput } from './components.js?v=99';
+import { CustomerPurchaseHistoryModal } from './customer-history-runtime-v75.js?v=99';
+import { db, auth, APP_ID } from './firebase-config.js?v=99';
+import { doc, updateDoc } from './firestore-runtime-v94.js?v=99';
 
 export const AbaClientes = ({ customerSearch, setCustomerSearch, setCustomerModalData, paginatedCustomers, sales, requestDelete, sortedCustomers, customersPage, setCustomersPage, ITEMS_PER_PAGE }) => {
     const [historyModal, setHistoryModal] = useState({ open: false, customer: null });

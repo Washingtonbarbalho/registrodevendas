@@ -1,10 +1,10 @@
 // Gerado por scripts/consolidate-legacy-runtime-v75.mjs — modais-base consolidados.
 import React, { useState, useEffect, useMemo } from 'https://esm.sh/react@18.2.0';
 import { PackageMinus, AlertTriangle, MessageCircle, Copy, QrCode, X, User, Wallet, Clock, Users, CheckCircle, Edit2, Package, Tag, Info, ShieldAlert, History, XCircle, Receipt, BadgePercent, Calendar, PieChart, Trash2, ArrowUpCircle, ArrowDownCircle } from 'https://esm.sh/lucide-react@0.292.0';
-import { formatCurrency, parseMoney, maskMoney, maskPhone, applyPixMask, generatePixPayload, maskCpfCnpj, maskCep, formatDate, getBrazilDateString } from './utils.js?v=98';
-import { MoneyInput } from './components.js?v=98';
+import { formatCurrency, parseMoney, maskMoney, maskPhone, applyPixMask, generatePixPayload, maskCpfCnpj, maskCep, formatDate, getBrazilDateString } from './utils.js?v=99';
+import { MoneyInput } from './components.js?v=99';
 import QRCode from 'https://esm.sh/qrcode@1.5.4';
-import { getHistoryCashAmount } from './financial-core-v70.js?v=98';
+import { getHistoryCashAmount } from './financial-core-v70.js?v=99';
 
 const formatDateTime = (dateStr) => {
     if (!dateStr) return '--/--/---- --:--';
@@ -846,7 +846,7 @@ export const CustomerFormModal = ({ isOpen, onClose, onSave, initialData }) => {
     );
 };
 
-export const SaleDetailsModal = ({ isOpen, onClose, sale, onPay, onEdit, onDeletePayment, onCancelSale, onDeleteSale, onOpenWA, onShowPixCode, hasPixSetup, onGeneratePdf }) => {
+export const SaleDetailsModal = ({ isOpen, onClose, sale, onPay, onEdit, onDeletePayment, onCancelSale, onDeleteSale, onOpenWA, onShowPixCode, hasPixSetup, onGeneratePdf, onGenerateBooklet }) => {
     if (!isOpen || !sale) return null;
 
     const pendingAmount = sale.installments ? sale.installments.filter(i => !i.paid).reduce((acc, i) => acc + i.amount, 0) : 0;
@@ -915,6 +915,13 @@ export const SaleDetailsModal = ({ isOpen, onClose, sale, onPay, onEdit, onDelet
                 sale.status === 'canceled' && React.createElement('div', { className: "absolute inset-0 z-0 flex items-center justify-center pointer-events-none opacity-10" }, 
                     React.createElement('div', { className: "transform -rotate-45 text-red-600 font-black text-6xl border-4 border-red-600 p-4 rounded-xl uppercase tracking-widest" }, "Cancelado")
                 ),
+
+                (sale.saleType === 'prazo' || !sale.saleType) && onGenerateBooklet && (sale.installments?.length || 0) > 0 && React.createElement('button', {
+                    type: 'button',
+                    onClick: onGenerateBooklet,
+                    className: "sale-details-booklet-button desktop-span-full w-full p-3 bg-amber-100 text-amber-900 font-black rounded-xl flex items-center justify-center gap-2 hover:bg-amber-200 transition-colors border border-amber-200 relative z-10",
+                    title: "Gerar carnê com os canhotos de todas as parcelas"
+                }, React.createElement(Receipt, { size: 18 }), "Gerar Carnê PDF"),
 
                 sale.creditAnalysis?.approvedBySystem === false && sale.status !== 'canceled' && React.createElement('div', { className: "desktop-span-full bg-red-50 p-3 rounded-lg border border-red-100 relative z-10 text-sm" },
                     React.createElement('p', { className: "text-[10px] uppercase font-bold text-red-600 mb-1 flex items-center gap-1" }, React.createElement(ShieldAlert, { size: 14 }), "Exceção de Crédito"),

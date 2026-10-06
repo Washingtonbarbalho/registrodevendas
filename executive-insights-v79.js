@@ -6,13 +6,13 @@ import {
   buildRecurringCustomers,
   buildReplenishmentForecast,
   getNetOperatingResult
-} from './reports-engine-v73.js?v=98';
+} from './reports-engine-v73.js?v=99';
 import {
   buildCollectionQueue,
   buildRepurchaseSuggestions,
   calculateMonthlyGoals,
   normalizeCommercialGoals
-} from './commercial-engine-v74.js?v=98';
+} from './commercial-engine-v74.js?v=99';
 
 export const buildExecutiveInsights = ({
   sales = [], products = [], customers = [], financialData = {},
