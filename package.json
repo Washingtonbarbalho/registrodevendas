@@ -7,6 +7,7 @@
     "test": "node scripts/validate-v75.mjs",
     "test:pix-setup": "node --test workers/asaas-pix-testes/worker.test.mjs",
     "test:pix-profile": "node --test workers/asaas-pix-testes/profile.test.mjs scripts/asaas-profile-client.test.mjs",
-    "check": "npm run build && npm test && npm run test:pix-profile"
+    "test:pix-sandbox": "node --test workers/asaas-pix-testes/sandbox.test.mjs scripts/asaas-sandbox-client.test.mjs",
+    "check": "npm run build && npm test && npm run test:pix-profile && npm run test:pix-sandbox"
   }
 }

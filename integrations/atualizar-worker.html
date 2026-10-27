@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>Atualizar Worker de testes · Registro de Vendas</title>
+  <style>
+    *{box-sizing:border-box}body{margin:0;padding:20px;background:#f1f5f9;font:16px/1.5 system-ui,sans-serif;color:#0f172a}main{max-width:640px;margin:auto;padding:24px;background:white;border-radius:20px}h1{font-size:24px;line-height:1.2}li{margin:12px 0}button{padding:14px 18px;border:0;border-radius:12px;background:#047857;color:white;font:inherit;font-weight:700;width:100%}button:disabled{opacity:.6}textarea{width:100%;min-height:240px;font:12px/1.4 monospace;border:1px solid #cbd5e1;border-radius:12px;padding:12px}a{color:#047857}code{overflow-wrap:anywhere}.note{padding:12px;background:#fffbeb;border:1px solid #fde68a;border-radius:12px}.status{min-height:48px;font-weight:700}
+  </style>
+</head>
+<body>
+<main>
+  <h1>Atualizar Worker de testes</h1>
+  <p>Versão 102 · Cobrança isolada e retorno automático do Asaas Sandbox.</p>
+  <p class="note">Mantenha os Secrets já cadastrados, incluindo <code>PIX_ENCRYPTION_KEY</code>. Esta atualização não precisa de novas chaves.</p>
+  <ol>
+    <li>Toque em <strong>Copiar código completo</strong> abaixo.</li>
+    <li>No painel da Cloudflare, abra o Worker <strong>registro-vendas-pix-testes</strong> e escolha <strong>Edit code / Editar código</strong>.</li>
+    <li>Selecione todo o código atual, cole o novo código e toque em <strong>Deploy / Implantar</strong>.</li>
+    <li>Volte a <strong>Meu Perfil</strong> no sistema. Toque em <strong>Verificar retorno</strong> e depois em <strong>Criar cobrança de teste</strong>.</li>
+  </ol>
+  <button id="copy" disabled>Carregando código…</button>
+  <p id="status" class="status" role="status" aria-live="polite">Carregando a atualização…</p>
+  <details><summary>Ver ou selecionar o código completo</summary><textarea id="code" readonly spellcheck="false" aria-label="Código completo do Worker" autocomplete="off"></textarea></details>
+  <p><a href="../?v=102">Voltar ao sistema</a></p>
+</main>
+<script type="module">
+  const button = document.getElementById('copy');
+  const status = document.getElementById('status');
+  const code = document.getElementById('code');
+  try {
+    const response = await fetch('../workers/asaas-pix-testes/worker.js?v=102', { cache: 'no-store', credentials: 'omit', redirect: 'error' });
+    if (!response.ok) throw new Error('code_unavailable');
+    const source = await response.text();
+    if (!source.startsWith('// Etapa 5:') || !source.includes('async function handleSandboxWebhook(') || !source.includes('export default createWorker();')) throw new Error('code_invalid');
+    code.value = source;
+    button.disabled = false;
+    button.textContent = 'Copiar código completo';
+    status.textContent = 'Código completo pronto para copiar.';
+  } catch {
+    button.textContent = 'Recarregue esta página';
+    status.textContent = 'Não foi possível carregar o código. Recarregue a página para tentar novamente.';
+  }
+  button.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(code.value);
+      status.textContent = 'Código completo copiado. Cole no editor do Worker e toque em Deploy.';
+    } catch {
+      document.querySelector('details').open = true;
+      code.focus();
+      code.select();
+      status.textContent = 'Selecione e copie o código no campo aberto abaixo.';
+    }
+  });
+</script>
+</body>
+</html>

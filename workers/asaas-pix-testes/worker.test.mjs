@@ -47,11 +47,11 @@ test('health não significa que a API foi conectada e não acessa o provedor', a
   const { worker, calls } = mockedWorker();
   const response = await worker.fetch(request('/health', { method: 'GET' }), env);
   assert.equal(response.status, 200);
-  assert.deepEqual(await response.json(), { service: 'registro-vendas-pix-testes', stage: 'connection-only', environment: 'sandbox' });
+  assert.deepEqual(await response.json(), { service: 'registro-vendas-pix-testes', stage: 'sandbox-charge-test', environment: 'sandbox' });
   assert.equal(calls.length, 0);
 });
 
-test('não aceita nem confirma Webhooks antes da integração financeira', async () => {
+test('recusa rotas de cobrança e Webhooks financeiros não implementados', async () => {
   const { worker, calls } = mockedWorker();
   for (const pathname of ['/webhook', '/asaas/webhook', '/v3/payments', '/api/pix', '/favicon.ico']) {
     const response = await worker.fetch(request(pathname), env);
