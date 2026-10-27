@@ -8,8 +8,8 @@ Os diagnósticos Firebase acessam somente a coleção `_pix_connection_check`. O
 
 ## Testar no sistema v103
 
-1. Abra `integrations/atualizar-worker.html?v=103` e use **Copiar código compacto**. A página confere tamanho e SHA-256 antes de liberar a cópia. Não renderiza o código em uma caixa de texto até que o usuário escolha abri-la.
-2. No editor Cloudflare do Worker existente, substitua todo o código e publique com Deploy. Preserve todos os Secrets, especialmente `PIX_ENCRYPTION_KEY`. Não há novos Secrets.
+1. Abra `integrations/atualizar-worker.html?v=103-partes`. A página oferece **Copiar primeira parte** e **Copiar segunda parte** do código completo, sem compactação, divididas em quantidades de linhas aproximadamente iguais. Confere o tamanho e o SHA-256 do arquivo e de cada parte antes de liberar os botões. Só renderiza uma parte em uma caixa de texto se a cópia automática falhar.
+2. No editor Cloudflare do Worker existente, apague o código antigo e cole a primeira parte. Depois cole a segunda no final da primeira, sem apagá-la. Publique com Deploy somente com as duas partes juntas. Preserve todos os Secrets, especialmente `PIX_ENCRYPTION_KEY`. Não há novos Secrets.
 3. No caixa, adicione produtos normalmente, selecione Pix e marque **Testar Pix automático do Asaas (Sandbox)**. O botão passa a **Gerar Pix de teste**. A opção de teste começa desmarcada; não há mudança automática para recebimento manual se o Asaas estiver indisponível.
 4. Gere o Pix e use **Simular pagamento no Sandbox**. A resposta da simulação não conclui o pedido. A confirmação vem do Webhook autenticado, após conferir a cobrança na API. **Conferir no Asaas** permite conciliar uma entrega que atrasou; a interface identifica a origem da confirmação.
 5. Nas parcelas, abra o recebimento normal e use **Testar Pix Asaas da parcela inteira**. O servidor usa o saldo do registro atual, sem aceitar um valor ou uma confirmação enviados pelo navegador. Os pagamentos parciais manuais continuam no fluxo original. Se a parcela for paga, editada ou cancelada durante a simulação, o resultado fica para conferência.
@@ -31,6 +31,8 @@ O cálculo da parcela e o plano de estoque usam as mesmas funções puras do apl
 `worker.entry.js` e `flow.js` são as fontes. Execute `npm ci` e `npm run build` nesta pasta para gerar `worker.js`, o pacote completo independente, e `worker-mobile.js`, o pacote compacto para o editor do celular. Não edite os arquivos gerados diretamente.
 
 Ambos contêm as APIs e todas as funções de integração. O compacto usa uma página inicial resumida, sem o formulário antigo de diagnóstico; os diagnósticos continuam disponíveis pelas rotas protegidas. `worker-mobile-manifest.json` registra o tamanho e o SHA-256 do pacote. Nenhum pacote busca ou executa código remoto em tempo de execução.
+
+O build também gera `worker-full-manifest.json`, com as linhas de divisão e o tamanho e SHA-256 das duas metades de `worker.js`. A página de cópia usa exclusivamente esse pacote completo e preserva todos os seus bytes ao juntar as partes. A divisão ocorre junto a uma declaração de nível superior perto da metade das linhas. As partes isoladas não são um Worker publicável.
 
 Endereço informado para o Worker de testes:
 
@@ -55,7 +57,7 @@ https://registro-vendas-pix-testes.washington-wn8.workers.dev
 6. Cole o código `SETUP_TOKEN` já configurado e clique em **Testar proteção**. Não cole a chave do Asaas nem o JSON do Firebase no campo da página. Os outros botões repetem os diagnósticos anteriores.
 7. Se tiver perdido `SETUP_TOKEN`, gere outro código de configuração e atualize somente esse Secret antes de testar.
 8. Depois de validar o Worker e a proteção, publique os arquivos da aplicação v103. No perfil, selecione **Asaas — ambiente de testes**, informe sua chave Sandbox e clique em **Salvar conexão Asaas**. O campo da chave será limpo. Clique em **Testar chave salva** para validar a recuperação da chave no banco.
-9. Para atualizar um Worker já configurado, a página `integrations/atualizar-worker.html` copia `worker-mobile.js`. Preserve todos os Secrets existentes; nenhuma chave nova é necessária nesta etapa.
+9. Para atualizar um Worker já configurado pelo celular, a página `integrations/atualizar-worker.html` copia `worker.js` em duas partes. Cole a segunda no final da primeira e só então publique. Preserve todos os Secrets existentes; nenhuma chave nova é necessária nesta etapa.
 10. Em **Meu Perfil → Teste de cobrança e retorno automático**, toque em **Criar cobrança de teste**. O Worker cria ou recupera um Webhook próprio, um cliente fictício e uma cobrança Pix de R$ 5,00 na conta Sandbox conectada. O cliente usa o CPF de exemplo da documentação oficial Asaas (`24971563792`), sem e-mail ou telefone e com notificações desabilitadas. O e-mail da identidade validada no Firebase é usado somente como contato do Webhook, exigido pelo Asaas.
 11. Toque em **Simular pagamento no Sandbox**. Não use o banco para pagar o QR Code. A simulação usa a rota exclusiva de Sandbox e não movimenta dinheiro real. A tela consulta o retorno salvo no Firebase a cada oito segundos por até dois minutos, enquanto estiver visível. Não faz polling de cobranças no Asaas. É possível reabrir o perfil e tocar em **Verificar retorno**.
 12. O teste só conclui com status `RECEIVED` consultado pelo servidor e um Webhook autenticado. `CONFIRMED` não é tratado como recebido. A simulação, por si só, não grava um sucesso local. Se o aviso não chegar, confira os Logs de Webhooks do Asaas e se a Cloudflare permite o POST autenticado no endereço exato, sem redirecionamentos. Não libere o Firestore nem exponha os Secrets.
