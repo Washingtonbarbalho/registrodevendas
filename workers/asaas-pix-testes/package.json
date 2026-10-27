@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test worker.test.mjs worker.runtime.test.mjs profile.test.mjs"
+    "test": "node --test worker.test.mjs worker.runtime.test.mjs profile.test.mjs sandbox.test.mjs"
   },
   "devDependencies": {
     "miniflare": "4.20260730.0"

@@ -3,6 +3,7 @@ import fs from 'node:fs/promises';
 import test from 'node:test';
 import { generateKeyPairSync, verify } from 'node:crypto';
 import { createFetchMock, Miniflare } from 'miniflare';
+import { fixture as sandboxFixture, env as sandboxEnv, request as sandboxRequest, webhookRequest, key as sandboxApiKey } from './sandbox-fixture.mjs';
 
 const source = await fs.readFile(new URL('./worker.js', import.meta.url), 'utf8');
 const testToken = 'a1'.repeat(32);
@@ -249,5 +250,47 @@ test('workerd salva chave por usuário e testa a cifra recuperada sem depender d
   assert.equal(writes, 2);
   assert.ok(savedDocument.fields.cipher.stringValue);
   assert.ok(!JSON.stringify(savedDocument).includes(userKey));
+  fetchMock.assertNoPendingInterceptors();
+});
+
+test('workerd cria a cobrança isolada, simula e valida Webhook com HMAC e consulta ao Asaas', async t => {
+  const f = sandboxFixture();
+  const fetchMock = createFetchMock();
+  fetchMock.disableNetConnect();
+  const root = '/v1/projects/vendas-aura/databases/(default)/documents/';
+  const firestore = fetchMock.get('https://firestore.googleapis.com');
+  firestore.intercept({ path: root + '_asaas_integrations/userA', method: 'GET' }).reply(404, '{}');
+  firestore.intercept({ path: root + '_asaas_sandbox_checks/userA', method: 'GET' }).reply(404, '{}').times(2);
+  const proxy = (host, method, handler) => {
+    fetchMock.get(host).intercept({ path: () => true, method }).reply(200, async options => {
+      const incoming = new Headers(options.headers);
+      const headers = { Authorization: incoming.get('authorization'), access_token: incoming.get('access_token') };
+      const body = options.body ? await new Response(options.body).text() : undefined;
+      const response = await handler(host + options.path, { method, headers, body: body || undefined, redirect: 'manual' });
+      const raw = await response.text();
+      assert.equal(response.status, 200, raw);
+      return raw;
+    }).persist();
+  };
+  proxy('https://identitytoolkit.googleapis.com', 'POST', f.fetchGoogle);
+  proxy('https://oauth2.googleapis.com', 'POST', f.fetchGoogle);
+  for (const method of ['GET', 'PATCH']) proxy('https://firestore.googleapis.com', method, f.fetchGoogle);
+  for (const method of ['GET', 'POST', 'PUT']) proxy('https://api-sandbox.asaas.com', method, f.fetchAsaas);
+  const mf = new Miniflare({ modules: true, script: source, compatibilityDate: '2026-07-30', fetchMock, bindings: sandboxEnv });
+  t.after(() => mf.dispose());
+  const dispatch = async request => {
+    const body = request.body ? await request.text() : undefined;
+    const response = await mf.dispatchFetch(request.url, { method: request.method, headers: Object.fromEntries(request.headers), ...(body ? { body } : {}) });
+    const raw = await response.text();
+    assert.equal(response.status, 200, raw);
+    return JSON.parse(raw);
+  };
+  await dispatch(sandboxRequest('PUT', '', 'userA', { headers: { Origin: 'https://washingtonbarbalho.github.io', Authorization: sandboxRequest().headers.get('Authorization'), 'Content-Type': 'application/json' }, body: JSON.stringify({ apiKey: sandboxApiKey }) }));
+  assert.equal((await dispatch(sandboxRequest('POST'))).ready, true);
+  assert.equal((await dispatch(sandboxRequest('POST'))).ready, true);
+  assert.equal((await dispatch(sandboxRequest('POST', '/sandbox-charge/simulate'))).testComplete, false);
+  await dispatch(webhookRequest({ id: 'pay_test' }));
+  assert.equal((await dispatch(sandboxRequest())).testComplete, true);
+  assert.equal(f.payments.length, 1);
   fetchMock.assertNoPendingInterceptors();
 });

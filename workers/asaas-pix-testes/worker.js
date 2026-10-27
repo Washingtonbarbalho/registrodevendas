@@ -1,4 +1,4 @@
-// Etapa 4: cadastro privado do Asaas por usuário, somente Sandbox.
+// Etapa 5: cobrança isolada e retorno autenticado do Asaas, somente Sandbox.
 // Arquivo independente: pode ser colado no editor de código do Cloudflare Worker.
 const SANDBOX_URL = 'https://api-sandbox.asaas.com/v3';
 const TOKEN_PATTERN = /^[a-f0-9]{64}$/i;
@@ -10,6 +10,10 @@ const FIRESTORE_DOCUMENTS = 'https://firestore.googleapis.com/v1/projects/vendas
 const FIREBASE_WEB_API_KEY = 'AIzaSyDQQcD2tzsVS8Xzy-GpHT897kB7EC-S8Ng';
 const DEFAULT_APP_ORIGIN = 'https://washingtonbarbalho.github.io';
 const INTEGRATION_PATH = '/api/integrations/asaas';
+const SANDBOX_CHECK_PATH = INTEGRATION_PATH + '/sandbox-charge';
+const WEBHOOK_PATH = '/api/webhooks/asaas/sandbox/';
+const PUBLIC_WORKER_URL = 'https://registro-vendas-pix-testes.washington-wn8.workers.dev';
+const SANDBOX_EVENTS = ['PAYMENT_CONFIRMED', 'PAYMENT_RECEIVED', 'PAYMENT_REFUNDED', 'PAYMENT_DELETED', 'PAYMENT_OVERDUE', 'PAYMENT_RESTORED', 'PAYMENT_UPDATED'];
 
 /**
  * @typedef {Object} WorkerEnv
@@ -78,9 +82,9 @@ function setupPage() {
 </head>
 <body>
 <main>
-  <span class="tag">Etapa 4 · Cadastro por usuário</span>
+  <span class="tag">Etapa 5 · Cobrança isolada Sandbox</span>
   <h1>Teste de conexão com o Asaas e Firebase</h1>
-  <p>As conexões já foram validadas. Agora prepare a chave de proteção e clique em <strong>Testar proteção</strong>. Use o mesmo código <code>SETUP_TOKEN</code>.</p>
+  <p>As conexões e a proteção já foram validadas. O teste de cobrança e retorno automático está em <strong>Meu Perfil</strong> no sistema. Os diagnósticos anteriores continuam disponíveis abaixo. Use o mesmo código <code>SETUP_TOKEN</code>.</p>
   <p>O teste de gravação cria um registro temporário de diagnóstico, atualiza, lê e apaga esse registro. Não acessa vendas, clientes ou parcelas. Os botões anteriores continuam disponíveis.</p>
   <form id="setup-form" autocomplete="off">
     <label for="setup-token">Código de configuração</label>
@@ -107,7 +111,7 @@ function setupPage() {
     <button type="button" class="secondary" id="generate-encryption">Gerar chave de proteção</button>
     <button type="button" class="secondary" id="copy-encryption">Copiar chave de proteção</button>
   </div>
-  <p class="small">Esta etapa permite salvar e testar a conexão Asaas Sandbox pelo perfil. A criação de cobranças e a confirmação automática serão habilitadas na próxima etapa.</p>
+  <p class="small">Depois de publicar o código, abra o perfil no sistema para criar uma cobrança fictícia e simular o pagamento. O teste não altera vendas ou parcelas.</p>
 </main>
 <script nonce="${nonce}">
   const token = document.getElementById('setup-token');
@@ -263,7 +267,7 @@ async function checkEncryption(env) {
 }
 
 /** @param {Request} request @param {AsaasFetch} fetchGoogle */
-async function authenticatedUid(request, fetchGoogle) {
+async function authenticatedUser(request, fetchGoogle) {
   const bearer = request.headers.get('Authorization') || '';
   const token = bearer.startsWith('Bearer ') ? bearer.slice(7) : '';
   const unauthorized = () => new IntegrationError('login_required', 'Entre novamente no sistema para configurar o Asaas.', 401);
@@ -289,7 +293,244 @@ async function authenticatedUid(request, fetchGoogle) {
   const data = JSON.parse(await response.text());
   const user = Array.isArray(data?.users) && data.users.length === 1 ? data.users[0] : null;
   if (!user || user.localId !== claims.sub || user.disabled === true || Number(user.validSince || 0) > claims.auth_time) throw unauthorized();
-  return user.localId;
+  return { uid: user.localId, email: typeof user.email === 'string' && user.email.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(user.email) ? user.email : '' };
+}
+
+/** @param {AsaasFetch} fetchGoogle @param {Record<string,string>} headers @param {AbortSignal} signal @param {string} path */
+async function loadPrivateDocument(fetchGoogle, headers, signal, path) {
+  const response = await fetchGoogle(FIRESTORE_DOCUMENTS + path, { method: 'GET', headers, redirect: 'manual', signal });
+  if (response.status === 404) return null;
+  if (!response.ok) throw new IntegrationError('integration_read_failed', 'Não foi possível carregar a configuração da integração.');
+  const data = JSON.parse(await response.text());
+  if (data?.name !== 'projects/vendas-aura/databases/(default)/documents/' + path || !data.fields || typeof data.fields !== 'object' || Array.isArray(data.fields) || typeof data.updateTime !== 'string' || !/^\d{4}-\d{2}-\d{2}T[\d:.]+Z$/.test(data.updateTime)) throw new IntegrationError('integration_read_failed', 'Não foi possível conferir a configuração salva.');
+  return data;
+}
+
+/** @param {WorkerEnv} env @param {string} message */
+async function sandboxTag(env, message) {
+  await encryptionKey(env);
+  const raw = Uint8Array.from(env.PIX_ENCRYPTION_KEY.trim().match(/../g) || [], byte => parseInt(byte, 16));
+  const key = await crypto.subtle.importKey('raw', raw, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const digest = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(message));
+  return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
+}
+
+const stringField = value => ({ stringValue: value });
+const timeField = value => ({ timestampValue: value });
+const boolField = value => ({ booleanValue: value });
+const fieldString = (document, field) => document?.fields?.[field]?.stringValue || '';
+const providerId = value => typeof value === 'string' && /^[A-Za-z0-9_-]{5,128}$/.test(value);
+
+/** @param {AsaasFetch} fetchAsaas @param {string} apiKey @param {AbortSignal} signal */
+function sandboxApi(fetchAsaas, apiKey, signal) {
+  return async (path, method = 'GET', body) => {
+    const response = await fetchAsaas(SANDBOX_URL + path, {
+      method, redirect: 'manual', signal,
+      headers: { accept: 'application/json', access_token: apiKey, 'User-Agent': 'RegistroDeVendas-Pix-Sandbox/2.0', ...(body === undefined ? {} : { 'Content-Type': 'application/json' }) },
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+    });
+    if (!response.ok) {
+      const error = new IntegrationError('sandbox_provider_failed', [401, 403].includes(response.status) ? 'O Asaas recusou o acesso. Confira as permissões da chave Sandbox para clientes, cobranças e Webhooks.' : response.status === 400 ? 'O Asaas recusou os dados do teste. Confira se a conta Sandbox está aprovada e permite cobranças Pix e Webhooks.' : 'O Asaas não concluiu o teste. Aguarde um pouco e tente novamente.', 502);
+      error.definitive = [400, 401, 403, 404, 422, 429].includes(response.status);
+      throw error;
+    }
+    try { return JSON.parse(await response.text()); }
+    catch { throw new IntegrationError('sandbox_response_invalid', 'O Asaas respondeu em um formato inesperado. Reabra o perfil para conferir o andamento do teste.'); }
+  };
+}
+
+function sandboxStatus(document, message = '') {
+  const fields = document?.fields || {};
+  const status = fieldString(document, 'providerStatus');
+  const complete = fields.setupComplete?.booleanValue === true;
+  const received = status === 'RECEIVED';
+  const webhookVerified = !!fields.webhookAt?.timestampValue;
+  return {
+    environment: 'sandbox', created: !!fieldString(document, 'paymentId'), ready: complete,
+    status: status || 'NOT_CREATED', received, webhookVerified, testComplete: complete && received && webhookVerified,
+    paymentId: fieldString(document, 'paymentId'), amount: 5,
+    payload: complete ? fieldString(document, 'payload') : '',
+    encodedImage: complete ? fieldString(document, 'encodedImage') : '',
+    expirationDate: fieldString(document, 'expirationDate'),
+    message: message || (complete && received && webhookVerified ? 'Teste completo: o pagamento simulado foi recebido e o retorno automático do Asaas foi validado. Nenhuma venda ou parcela foi alterada.' : complete && received ? 'O Asaas indica recebimento. Aguardando o retorno automático autenticado.' : status === 'CONFIRMED' ? 'O Asaas confirmou a simulação. Aguardando o recebimento e o retorno automático.' : complete && !['PENDING', 'OVERDUE', 'RECEIVED'].includes(status) ? 'A cobrança de teste foi alterada no Asaas e não permite simular outro pagamento. Nenhuma venda ou parcela foi alterada.' : complete ? 'Cobrança de teste criada. Simule o pagamento para validar o retorno automático.' : 'Prepare uma cobrança isolada de R$ 5,00 no Sandbox. Nenhum valor real será movimentado.'),
+  };
+}
+
+function checkSandboxPayment(payment, document) {
+  if (!providerId(payment?.id) || (fieldString(document, 'paymentId') && payment.id !== fieldString(document, 'paymentId')) || payment.customer !== fieldString(document, 'customerId') || payment.externalReference !== fieldString(document, 'reference') || payment.billingType !== 'PIX' || payment.value !== 5 || typeof payment.status !== 'string' || !/^[A-Z_]{3,64}$/.test(payment.status)) {
+    throw new IntegrationError('sandbox_payment_mismatch', 'Os dados da cobrança não correspondem ao teste. Nenhuma confirmação foi registrada.', 409);
+  }
+}
+
+/** Cobrança de homologação sem vínculo com vendas, parcelas, estoque ou clientes do sistema. */
+async function handleSandboxCheck({ request, user, env, current, headers, signal, load, fetchGoogle, fetchAsaas }) {
+  if (!current || current.fields.enabled?.booleanValue !== true) throw new IntegrationError('sandbox_disabled', 'Ative a conexão Asaas Sandbox no perfil antes de testar.', 409);
+  const apiKey = await decryptAsaasKey(env, user.uid, current.fields);
+  const keyTag = await sandboxTag(env, 'aura:sandbox-key:v1:' + apiKey);
+  const path = '_asaas_sandbox_checks/' + user.uid;
+  let document = await load(path);
+  if (fieldString(document, 'keyTag') !== keyTag) document = null;
+  const action = new URL(request.url).pathname;
+  if (request.method === 'GET') return json(sandboxStatus(document));
+  // Endpoints de ação não aceitam valores, clientes ou IDs enviados pelo navegador.
+  if (request.body) {
+    const reader = request.body.getReader();
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      if (value.length) { await reader.cancel(); throw new IntegrationError('invalid_body', 'O teste usa somente a cobrança preparada pelo sistema.', 400); }
+    }
+  }
+  const api = sandboxApi(fetchAsaas, apiKey, signal);
+  if (action === SANDBOX_CHECK_PATH + '/simulate') {
+    if (!document?.fields?.setupComplete?.booleanValue) throw new IntegrationError('sandbox_not_ready', 'Prepare a cobrança de teste antes de simular o pagamento.', 409);
+    const paymentId = fieldString(document, 'paymentId');
+    const payment = await api('/payments/' + paymentId);
+    checkSandboxPayment(payment, document);
+    if (payment.deleted === true || !['PENDING', 'OVERDUE', 'CONFIRMED', 'RECEIVED'].includes(payment.status)) throw new IntegrationError('sandbox_status_invalid', 'Esta cobrança não permite a simulação. Confira o status no painel Asaas Sandbox.', 409);
+    if (['PENDING', 'OVERDUE'].includes(payment.status)) await api('/sandbox/payment/' + paymentId + '/confirm', 'POST');
+    // A simulação não grava o resultado: o sucesso depende do Webhook validado.
+    return json(sandboxStatus(document, 'Simulação enviada ao Asaas Sandbox. Aguarde o retorno automático nesta tela.'));
+  }
+  if (!user.email) throw new IntegrationError('sandbox_email_required', 'Sua conta precisa ter um e-mail válido para configurar o retorno do Asaas.', 409);
+  const original = await load(path);
+  document = fieldString(original, 'keyTag') === keyTag ? original : null;
+  let version = original?.updateTime || '';
+  if (document && Date.parse(document.fields.leaseUntil?.timestampValue || '') > Date.now()) throw new IntegrationError('sandbox_busy', 'A preparação já está em andamento. Aguarde um minuto antes de tentar novamente.', 409);
+  const save = async fields => {
+    const params = new URLSearchParams(version ? { 'currentDocument.updateTime': version } : { 'currentDocument.exists': 'false' });
+    for (const field of Object.keys(fields)) params.append('updateMask.fieldPaths', field);
+    const response = await fetchGoogle(FIRESTORE_DOCUMENTS + path + '?' + params, { method: 'PATCH', headers, redirect: 'manual', signal, body: JSON.stringify({ fields }) });
+    if ([409, 412].includes(response.status)) throw new IntegrationError('sandbox_changed', 'O teste mudou durante esta operação. Atualize a tela e tente novamente.', 409);
+    if (!response.ok) throw new IntegrationError('sandbox_save_failed', 'Não foi possível salvar o andamento do teste. Aguarde um minuto e tente novamente.');
+    const next = JSON.parse(await response.text());
+    if (next?.name !== 'projects/vendas-aura/databases/(default)/documents/' + path || !next.updateTime || !next.fields) throw new IntegrationError('sandbox_save_failed', 'Não foi possível conferir o andamento do teste. Aguarde um minuto e tente novamente.');
+    document = next;
+    version = next.updateTime;
+  };
+  const until = new Date(Date.now() + 90000).toISOString();
+  if (!document) {
+    const reset = { keyTag: stringField(keyTag), reference: stringField('aura-sandbox-' + crypto.randomUUID()), customerId: stringField(''), paymentId: stringField(''), webhookId: stringField(''), pendingCreate: stringField(''), providerStatus: stringField(''), payload: stringField(''), encodedImage: stringField(''), expirationDate: stringField(''), setupComplete: boolField(false), webhookAt: { nullValue: null }, lastEventId: stringField(''), leaseUntil: timeField(until) };
+    await save(reset);
+  } else await save({ leaseUntil: timeField(until) });
+  try {
+    const reference = fieldString(document, 'reference');
+    const find = async (collection, externalReference, matches) => {
+      const list = await api('/' + collection + '?externalReference=' + encodeURIComponent(externalReference) + '&limit=2');
+      if (!Array.isArray(list?.data) || list.data.length > 1 || list.hasMore === true || list.data.some(item => !matches(item))) throw new IntegrationError('sandbox_duplicates', 'Não foi possível identificar um único registro para este teste. Confira os registros de teste no Asaas Sandbox.', 409);
+      return list.data[0] || null;
+    };
+    const create = async (kind, providerPath, body, recover, validate, checkpoint) => {
+      const found = await recover();
+      if (found) { validate(found); await save({ ...checkpoint(found), pendingCreate: stringField('') }); return; }
+      if (fieldString(document, 'pendingCreate') === kind) throw new IntegrationError('sandbox_creation_unknown', 'Uma criação anterior ficou sem confirmação. O sistema evitou repetir a cobrança. Confira o painel Asaas Sandbox e envie esta mensagem para continuarmos.', 409);
+      await save({ pendingCreate: stringField(kind) });
+      let created;
+      try { created = await api(providerPath, 'POST', body); }
+      catch (error) { if (error.definitive) await save({ pendingCreate: stringField('') }); throw error; }
+      validate(created);
+      await save({ ...checkpoint(created), pendingCreate: stringField('') });
+    };
+    const webhookUrl = PUBLIC_WORKER_URL + WEBHOOK_PATH + user.uid;
+    const authToken = await sandboxTag(env, 'aura:sandbox-webhook:v1:' + user.uid);
+    const webhookBody = { name: 'Registro de Vendas - teste isolado', url: webhookUrl, email: user.email, enabled: true, interrupted: false, authToken, events: SANDBOX_EVENTS, sendType: 'SEQUENTIALLY', apiVersion: 3 };
+    const hooks = await api('/webhooks?limit=100');
+    if (!Array.isArray(hooks?.data) || hooks.hasMore === true) throw new IntegrationError('sandbox_webhook_invalid', 'Não foi possível conferir os Webhooks da conta Sandbox.');
+    const ownHooks = hooks.data.filter(hook => hook.url === webhookUrl);
+    if (ownHooks.length > 1 || (ownHooks.length && !providerId(ownHooks[0].id))) throw new IntegrationError('sandbox_webhook_invalid', 'Existe mais de um retorno para este teste. Confira os Webhooks no Asaas Sandbox.', 409);
+    if (ownHooks.length) {
+      const hook = await api('/webhooks/' + ownHooks[0].id, 'PUT', webhookBody);
+      if (hook?.id !== ownHooks[0].id || hook.url !== webhookUrl) throw new IntegrationError('sandbox_webhook_invalid', 'Não foi possível confirmar a configuração do retorno automático.');
+      await save({ webhookId: stringField(hook.id), ...(fieldString(document, 'pendingCreate') === 'webhook' ? { pendingCreate: stringField('') } : {}) });
+    } else {
+      await create('webhook', '/webhooks', webhookBody,
+        async () => null,
+        hook => { if (!providerId(hook?.id) || hook.url !== webhookUrl) throw new IntegrationError('sandbox_webhook_invalid', 'Não foi possível conferir o retorno automático.'); },
+        hook => ({ webhookId: stringField(hook.id) }));
+    }
+    if (!fieldString(document, 'customerId')) {
+      const validate = customer => { if (!providerId(customer?.id) || customer.externalReference !== reference || customer.deleted === true) throw new IntegrationError('sandbox_customer_invalid', 'Não foi possível conferir o cliente fictício de teste.'); };
+      await create('customer', '/customers', { name: 'Cliente Teste Registro de Vendas', cpfCnpj: '24971563792', notificationDisabled: true, externalReference: reference },
+        () => find('customers', reference, customer => customer.externalReference === reference), validate,
+        customer => ({ customerId: stringField(customer.id) }));
+    }
+    if (!fieldString(document, 'paymentId')) {
+      const dateParts = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date());
+      const dueDate = ['year', 'month', 'day'].map(type => dateParts.find(part => part.type === type)?.value).join('-');
+      await create('payment', '/payments', { customer: fieldString(document, 'customerId'), billingType: 'PIX', value: 5, dueDate, description: 'Teste isolado do Registro de Vendas - sem valor real', externalReference: reference, interest: { value: 0 }, fine: { value: 0 }, discount: { value: 0 } },
+        () => find('payments', reference, payment => payment.externalReference === reference),
+        payment => checkSandboxPayment(payment, document), payment => ({ paymentId: stringField(payment.id), providerStatus: stringField(payment.status) }));
+    }
+    const payment = await api('/payments/' + fieldString(document, 'paymentId'));
+    checkSandboxPayment(payment, document);
+    if (payment.deleted === true) throw new IntegrationError('sandbox_payment_deleted', 'A cobrança de teste foi excluída no Asaas Sandbox. Envie esta mensagem para prepararmos outro teste.', 409);
+    let qrFields = {};
+    if (!document.fields.setupComplete?.booleanValue) {
+      const qr = await api('/payments/' + payment.id + '/pixQrCode');
+      if (typeof qr?.payload !== 'string' || qr.payload.length < 30 || qr.payload.length > 8192 || typeof qr.encodedImage !== 'string' || !/^iVBORw0KGgo[A-Za-z0-9+/]*={0,2}$/.test(qr.encodedImage) || qr.encodedImage.length > 200000 || typeof qr.expirationDate !== 'string' || qr.expirationDate.length > 64) throw new IntegrationError('sandbox_qr_invalid', 'A cobrança existe, mas o Asaas ainda não retornou um QR Code válido. Tente preparar o teste novamente.');
+      qrFields = { payload: stringField(qr.payload), encodedImage: stringField(qr.encodedImage), expirationDate: stringField(qr.expirationDate) };
+    }
+    await save({ ...qrFields, setupComplete: boolField(true), providerStatus: stringField(payment.status), leaseUntil: timeField(new Date(0).toISOString()) });
+    return json(sandboxStatus(document));
+  } catch (error) {
+    // A precondição não permite liberar a trava de outra requisição.
+    // pendingCreate permanece salvo quando a criação pode ter ocorrido no provedor.
+    try { await save({ leaseUntil: timeField(new Date(0).toISOString()) }); } catch { /* Em timeout a trava expira sozinha. */ }
+    throw error;
+  }
+}
+
+async function handleSandboxWebhook(request, env, uid, fetchGoogle, fetchAsaas) {
+  if (!/^[A-Za-z0-9_-]{1,128}$/.test(uid)) return json({ code: 'not_found' }, 404);
+  if (request.method !== 'POST') return json({ code: 'method_not_allowed' }, 405);
+  try {
+    const token = request.headers.get('asaas-access-token') || '';
+    if (!TOKEN_PATTERN.test(token) || !equalToken(token, await sandboxTag(env, 'aura:sandbox-webhook:v1:' + uid))) return json({ code: 'unauthorized' }, 401);
+    if (!(request.headers.get('Content-Type') || '').toLowerCase().startsWith('application/json')) return json({ code: 'invalid_body' }, 400);
+    const reader = request.body?.getReader();
+    const chunks = [];
+    let length = 0;
+    if (!reader) return json({ code: 'invalid_body' }, 400);
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      length += value.length;
+      if (length > 131072) { await reader.cancel(); return json({ code: 'invalid_body' }, 413); }
+      chunks.push(value);
+    }
+    const bytes = new Uint8Array(length);
+    let offset = 0;
+    for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.length; }
+    let event;
+    try { event = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes)); } catch { return json({ code: 'invalid_body' }, 400); }
+    if (!event || typeof event.id !== 'string' || event.id.length > 200 || !event.id || !providerId(event.payment?.id)) return json({ code: 'invalid_event' }, 400);
+    if (!SANDBOX_EVENTS.includes(event.event)) return json({ accepted: true });
+    return await checkFirebase(env, fetchGoogle, false, async (accessToken, signal) => {
+      const headers = { accept: 'application/json', 'Content-Type': 'application/json', Authorization: 'Bearer ' + accessToken };
+      const load = path => loadPrivateDocument(fetchGoogle, headers, signal, path);
+      const path = '_asaas_sandbox_checks/' + uid;
+      const document = await load(path);
+      if (!document || event.payment.id !== fieldString(document, 'paymentId')) return json({ accepted: true });
+      if (fieldString(document, 'lastEventId') === event.id) return json({ accepted: true });
+      const current = await load('_asaas_integrations/' + uid);
+      const profile = await load('artifacts/vendas-aura-main/users/' + uid + '/profile/info');
+      if (!current?.fields?.enabled?.booleanValue || profile?.fields?.approved?.booleanValue !== true || !['', 'active'].includes(profile.fields.status?.stringValue || '')) return json({ accepted: true });
+      const apiKey = await decryptAsaasKey(env, uid, current.fields);
+      if (fieldString(document, 'keyTag') !== await sandboxTag(env, 'aura:sandbox-key:v1:' + apiKey)) return json({ accepted: true });
+      const api = sandboxApi(fetchAsaas, apiKey, signal);
+      const payment = await api('/payments/' + fieldString(document, 'paymentId'));
+      // O JSON do evento não é suficiente: conferir a cobrança na própria API.
+      checkSandboxPayment(payment, document);
+      const fields = { providerStatus: stringField(payment.deleted === true ? 'DELETED' : payment.status), webhookAt: timeField(new Date().toISOString()), lastEventId: stringField(event.id) };
+      const params = new URLSearchParams({ 'currentDocument.updateTime': document.updateTime });
+      for (const field of Object.keys(fields)) params.append('updateMask.fieldPaths', field);
+      const response = await fetchGoogle(FIRESTORE_DOCUMENTS + path + '?' + params, { method: 'PATCH', headers, redirect: 'manual', signal, body: JSON.stringify({ fields }) });
+      if (!response.ok) throw new IntegrationError('sandbox_webhook_retry', 'Retorno ainda não registrado. Repetir entrega.', 503);
+      return json({ accepted: true });
+    });
+  } catch (error) {
+    return json({ code: error instanceof IntegrationError ? error.code : 'sandbox_webhook_retry' }, error instanceof IntegrationError ? error.status : 503);
+  }
 }
 
 /** @param {Request} request */
@@ -341,7 +582,7 @@ async function handleAsaasProfile(request, env, fetchGoogle, fetchAsaas) {
   if (!origin || origin !== appOrigin) return json({ code: 'origin_denied', message: 'Abra a integração pelo sistema de vendas.' }, 403);
   const cors = { 'Access-Control-Allow-Origin': origin, Vary: 'Origin' };
   const withCors = response => { for (const [key, value] of Object.entries(cors)) response.headers.set(key, value); return response; };
-  const methods = path === INTEGRATION_PATH ? ['GET', 'PUT', 'DELETE'] : path === INTEGRATION_PATH + '/test' ? ['POST'] : [];
+  const methods = path === INTEGRATION_PATH ? ['GET', 'PUT', 'DELETE'] : path === SANDBOX_CHECK_PATH ? ['GET', 'POST'] : [INTEGRATION_PATH + '/test', SANDBOX_CHECK_PATH + '/simulate'].includes(path) ? ['POST'] : [];
   if (!methods.length) return withCors(json({ code: 'not_found', message: 'Rota não encontrada.' }, 404));
   if (request.method === 'OPTIONS') {
     if (!methods.includes(request.headers.get('Access-Control-Request-Method') || '')) return withCors(json({ code: 'method_not_allowed', message: 'Método não permitido.' }, 405));
@@ -349,23 +590,18 @@ async function handleAsaasProfile(request, env, fetchGoogle, fetchAsaas) {
   }
   if (!methods.includes(request.method)) return withCors(json({ code: 'method_not_allowed', message: 'Método não permitido.' }, 405));
   try {
-    const uid = await authenticatedUid(request, fetchGoogle);
+    const user = await authenticatedUser(request, fetchGoogle);
+    const uid = user.uid;
     const input = request.method === 'PUT' ? await integrationBody(request) : null;
     const result = await checkFirebase(env, fetchGoogle, false, async (accessToken, signal) => {
       const headers = { accept: 'application/json', 'Content-Type': 'application/json', Authorization: 'Bearer ' + accessToken };
       const profilePath = 'artifacts/vendas-aura-main/users/' + uid + '/profile/info';
       const integrationPath = '_asaas_integrations/' + uid;
-      const load = async resourcePath => {
-        const response = await fetchGoogle(FIRESTORE_DOCUMENTS + resourcePath, { method: 'GET', headers, redirect: 'manual', signal });
-        if (response.status === 404) return null;
-        if (!response.ok) throw new IntegrationError('integration_read_failed', 'Não foi possível carregar a configuração da integração.');
-        const data = JSON.parse(await response.text());
-        if (data?.name !== 'projects/vendas-aura/databases/(default)/documents/' + resourcePath || !data.fields || typeof data.fields !== 'object' || Array.isArray(data.fields) || typeof data.updateTime !== 'string' || !/^\d{4}-\d{2}-\d{2}T[\d:.]+Z$/.test(data.updateTime)) throw new IntegrationError('integration_read_failed', 'Não foi possível conferir a configuração salva.');
-        return data;
-      };
+      const load = resourcePath => loadPrivateDocument(fetchGoogle, headers, signal, resourcePath);
       const profile = await load(profilePath);
       if (profile?.fields?.approved?.booleanValue !== true || !['', 'active'].includes(profile.fields.status?.stringValue || '')) throw new IntegrationError('account_not_approved', 'Sua conta precisa estar aprovada e ativa para configurar o Asaas.', 403);
       const current = await load(integrationPath);
+      if (path === SANDBOX_CHECK_PATH || path === SANDBOX_CHECK_PATH + '/simulate') return handleSandboxCheck({ request, user, env, current, headers, signal, load, fetchGoogle, fetchAsaas });
       const versionParams = () => new URLSearchParams(current ? { 'currentDocument.updateTime': current.updateTime } : { 'currentDocument.exists': 'false' });
       const save = async fields => {
         const params = versionParams();
@@ -520,7 +756,7 @@ async function checkFirebase(env, fetchGoogle, writeCheck = false, operation = n
   }
   try {
     // Um único prazo para autenticação e leitura. Os destinos são fixos.
-    const signal = AbortSignal.timeout(20000);
+    const signal = AbortSignal.timeout(operation ? 40000 : 20000);
     const auth = await fetchGoogle(GOOGLE_TOKEN_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded', accept: 'application/json' },
@@ -570,7 +806,7 @@ async function checkFirebase(env, fetchGoogle, writeCheck = false, operation = n
     if (error instanceof IntegrationError) return json({ code: error.code, message: error.message }, error.status);
     // Não devolver exceções, JSON da credencial, JWTs ou respostas do Google.
     if (error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError')) {
-      return json({ code: 'firebase_timeout', message: 'A consulta ao Firebase excedeu 20 segundos. Aguarde um pouco e tente novamente.' }, 504);
+      return json({ code: 'firebase_timeout', message: 'A consulta ao Firebase excedeu ' + (operation ? '40' : '20') + ' segundos. Aguarde um pouco e tente novamente.' }, 504);
     }
     if (error instanceof SyntaxError) {
       return json({ code: 'firebase_response_invalid', message: 'O Google ou o Firestore não retornou uma resposta JSON válida. Tente novamente.' }, 502);
@@ -587,10 +823,11 @@ export function createWorker(options = {}) {
     /** @param {Request} request @param {WorkerEnv} [env] */
     async fetch(request, env = {}) {
       const url = new URL(request.url);
+      if (url.pathname.startsWith(WEBHOOK_PATH)) return handleSandboxWebhook(request, env, url.pathname.slice(WEBHOOK_PATH.length), fetchGoogle, fetchAsaas);
       if (url.pathname === INTEGRATION_PATH || url.pathname.startsWith(INTEGRATION_PATH + '/')) return handleAsaasProfile(request, env, fetchGoogle, fetchAsaas);
       if (request.method === 'GET' && url.pathname === '/') return setupPage();
       if (request.method === 'GET' && url.pathname === '/health') {
-        return json({ service: 'registro-vendas-pix-testes', stage: 'connection-only', environment: 'sandbox' });
+        return json({ service: 'registro-vendas-pix-testes', stage: 'sandbox-charge-test', environment: 'sandbox' });
       }
       if (!['/api/setup/check', '/api/setup/firebase-check', '/api/setup/firebase-write-check', '/api/setup/encryption-check'].includes(url.pathname)) {
         return json({ code: 'not_found', message: 'Rota não encontrada.' }, 404);

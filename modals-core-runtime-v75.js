@@ -1,11 +1,11 @@
 // Gerado por scripts/consolidate-legacy-runtime-v75.mjs — modais-base consolidados.
 import React, { useState, useEffect, useMemo } from 'https://esm.sh/react@18.2.0';
 import { PackageMinus, AlertTriangle, MessageCircle, Copy, QrCode, X, User, Wallet, Clock, Users, CheckCircle, Edit2, Package, Tag, Info, ShieldAlert, History, XCircle, Receipt, BadgePercent, Calendar, PieChart, Trash2, ArrowUpCircle, ArrowDownCircle } from 'https://esm.sh/lucide-react@0.292.0';
-import { formatCurrency, parseMoney, maskMoney, maskPhone, applyPixMask, generatePixPayload, maskCpfCnpj, maskCep, formatDate, getBrazilDateString } from './utils.js?v=101';
-import { MoneyInput } from './components.js?v=101';
+import { formatCurrency, parseMoney, maskMoney, maskPhone, applyPixMask, generatePixPayload, maskCpfCnpj, maskCep, formatDate, getBrazilDateString } from './utils.js?v=102';
+import { MoneyInput } from './components.js?v=102';
 import QRCode from 'https://esm.sh/qrcode@1.5.4';
-import { getHistoryCashAmount } from './financial-core-v70.js?v=101';
-import { AsaasProfileSettings } from './integrations/asaas-profile-settings.js?v=101';
+import { getHistoryCashAmount } from './financial-core-v70.js?v=102';
+import { AsaasProfileSettings } from './integrations/asaas-profile-settings.js?v=102';
 
 const formatDateTime = (dateStr) => {
     if (!dateStr) return '--/--/---- --:--';

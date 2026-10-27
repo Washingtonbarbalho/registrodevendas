@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'https://esm.sh/react@18.2.0';
-import { auth } from '../firebase-config.js?v=101';
-import { showAppConfirm } from '../ui-interactions-v81.js?v=101';
-import { createAsaasProfileClient } from './asaas-profile-client.js?v=101';
+import { auth } from '../firebase-config.js?v=102';
+import { showAppConfirm } from '../ui-interactions-v81.js?v=102';
+import { createAsaasProfileClient } from './asaas-profile-client.js?v=102';
+import { AsaasSandboxCheck } from './asaas-sandbox-check.js?v=102';
 
 const client = createAsaasProfileClient({
     getIdToken: async forceRefresh => {
@@ -83,7 +84,7 @@ export const AsaasProfileSettings = () => {
             React.createElement('label', { className: 'block text-xs font-bold text-slate-600', htmlFor: 'asaas-profile-key' }, 'Chave da API do Asaas Sandbox'),
             React.createElement('input', { id: 'asaas-profile-key', type: 'password', autoComplete: 'new-password', autoCapitalize: 'off', spellCheck: false, maxLength: 2048, className: 'w-full p-3 border border-slate-200 rounded-lg bg-white', value: apiKey, disabled, onChange: event => setApiKey(event.target.value), placeholder: status?.configured ? 'Preencha somente para substituir a chave' : 'Cole a chave da API do Sandbox' }),
             React.createElement('p', { className: 'text-xs text-slate-600' }, 'A chave salva não será exibida novamente. Cada usuário conecta sua própria conta Asaas.'),
-            React.createElement('p', { className: 'text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3' }, 'Ambiente Sandbox: esta conexão ainda não recebe Pix reais. A confirmação automática será habilitada após os testes de cobrança.')
+            React.createElement('p', { className: 'text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3' }, 'Ambiente Sandbox: esta conexão ainda não recebe Pix reais. Valide a cobrança de teste abaixo antes de conectar o recebimento às vendas.')
         ),
         React.createElement('div', { className: 'flex flex-wrap gap-2' },
             React.createElement('button', { type: 'button', onClick: save, disabled, className: 'p-3 bg-emerald-700 text-white font-bold rounded-lg text-xs disabled:opacity-50' }, busy ? 'Aguarde…' : mode === 'asaas' ? 'Salvar conexão Asaas' : 'Usar Pix manual'),
@@ -92,6 +93,7 @@ export const AsaasProfileSettings = () => {
             error && React.createElement('button', { type: 'button', onClick: () => setReload(previous => previous + 1), disabled: busy || loading, className: 'p-3 bg-white border border-slate-200 rounded-lg text-xs font-bold disabled:opacity-50' }, 'Tentar novamente')
         ),
         error && React.createElement('p', { className: 'text-xs text-red-700 bg-red-50 p-3 rounded-lg', role: 'alert' }, error),
-        message && React.createElement('p', { className: 'text-xs text-emerald-800 bg-white p-3 rounded-lg', role: 'status', 'aria-live': 'polite' }, message)
+        message && React.createElement('p', { className: 'text-xs text-emerald-800 bg-white p-3 rounded-lg', role: 'status', 'aria-live': 'polite' }, message),
+        status?.enabled && mode === 'asaas' && !busy && React.createElement(AsaasSandboxCheck)
     );
 };
