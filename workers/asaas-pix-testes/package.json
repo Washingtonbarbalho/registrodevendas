@@ -1,0 +1,11 @@
+{
+  "name": "registro-vendas-pix-sandbox-check",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test worker.test.mjs worker.runtime.test.mjs profile.test.mjs"
+  },
+  "devDependencies": {
+    "miniflare": "4.20260730.0"
+  }
+}
