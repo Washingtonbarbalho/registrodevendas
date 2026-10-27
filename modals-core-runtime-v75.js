@@ -1,11 +1,11 @@
 // Gerado por scripts/consolidate-legacy-runtime-v75.mjs — modais-base consolidados.
 import React, { useState, useEffect, useMemo } from 'https://esm.sh/react@18.2.0';
 import { PackageMinus, AlertTriangle, MessageCircle, Copy, QrCode, X, User, Wallet, Clock, Users, CheckCircle, Edit2, Package, Tag, Info, ShieldAlert, History, XCircle, Receipt, BadgePercent, Calendar, PieChart, Trash2, ArrowUpCircle, ArrowDownCircle } from 'https://esm.sh/lucide-react@0.292.0';
-import { formatCurrency, parseMoney, maskMoney, maskPhone, applyPixMask, generatePixPayload, maskCpfCnpj, maskCep, formatDate, getBrazilDateString } from './utils.js?v=102';
-import { MoneyInput } from './components.js?v=102';
+import { formatCurrency, parseMoney, maskMoney, maskPhone, applyPixMask, generatePixPayload, maskCpfCnpj, maskCep, formatDate, getBrazilDateString } from './utils.js?v=103';
+import { MoneyInput } from './components.js?v=103';
 import QRCode from 'https://esm.sh/qrcode@1.5.4';
-import { getHistoryCashAmount } from './financial-core-v70.js?v=102';
-import { AsaasProfileSettings } from './integrations/asaas-profile-settings.js?v=102';
+import { getHistoryCashAmount } from './financial-core-v70.js?v=103';
+import { AsaasProfileSettings } from './integrations/asaas-profile-settings.js?v=103';
 
 const formatDateTime = (dateStr) => {
     if (!dateStr) return '--/--/---- --:--';
@@ -190,7 +190,7 @@ export const UserProfileModal = ({ isOpen, onClose, userProfile, onSave }) => {
     );
 };
 
-export const PaymentConfirmationModal = ({ isOpen, onClose, onConfirm, installment, isLast }) => {
+export const PaymentConfirmationModal = ({ isOpen, onClose, onConfirm, installment, isLast, asaasAction }) => {
     const [amount, setAmount] = useState('');
     const [date, setDate] = useState(getBrazilDateString());
     const [error, setError] = useState('');
@@ -214,7 +214,7 @@ export const PaymentConfirmationModal = ({ isOpen, onClose, onConfirm, installme
 
     if (!isOpen || !installment) return null;
     return React.createElement('div', { className: "app-modal-overlay fixed inset-0 flex items-center justify-center p-4 z-[75] backdrop-blur-sm" },
-        React.createElement('div', { className: "app-modal-panel bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl animate-fade-in" },
+        React.createElement('div', { className: "app-modal-panel bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl animate-fade-in max-h-[90vh] overflow-y-auto" },
             React.createElement('div', { className: "text-center mb-4" },
                 React.createElement('div', { className: "w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-3" }, React.createElement(Wallet, { className: "text-emerald-600", size: 24 })),
                 React.createElement('h3', { className: "text-lg font-bold text-slate-800" }, "Confirmar Pagamento"),
@@ -231,6 +231,7 @@ export const PaymentConfirmationModal = ({ isOpen, onClose, onConfirm, installme
                     React.createElement('input', { type: "date", className: "w-full p-3 border border-slate-200 rounded-xl", value: date, onChange: e => setDate(e.target.value) })
                 )
             ),
+            asaasAction,
             React.createElement('div', { className: "flex gap-3 mt-6" },
                 React.createElement('button', { onClick: onClose, className: "flex-1 p-3 text-slate-500 font-bold hover:bg-slate-50 rounded-xl" }, "Cancelar"),
                 React.createElement('button', { onClick: handleConfirm, className: "flex-1 p-3 bg-emerald-500 text-white font-bold rounded-xl shadow-lg shadow-emerald-200 hover:bg-emerald-600" }, "Confirmar")

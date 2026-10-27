@@ -27,6 +27,7 @@ export const createAsaasProfileClient = ({ getIdToken, fetcher = globalThis.fetc
                 return {
                     configured: data.configured, enabled: data.enabled, environment: 'sandbox',
                     hasActivePixKey: data.hasActivePixKey === true,
+                    flowVersion: data.flowVersion === 1 ? 1 : 0,
                     checkedAt: typeof data.checkedAt === 'string' && !Number.isNaN(Date.parse(data.checkedAt)) ? data.checkedAt : null,
                     message: typeof data.message === 'string' ? data.message : '',
                 };

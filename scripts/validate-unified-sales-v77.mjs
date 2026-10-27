@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createCheckoutTestRequest } from '../integrations/asaas-flow-client.js';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const source = fs.readFileSync(path.join(root, 'nova-venda-runtime-v75.js'), 'utf8')
@@ -50,7 +51,7 @@ const splitMoney = (value, count) => {
   return Array.from({ length: count }, (_, index) => (base + Number(index < remainder)) / 100);
 };
 
-const createHarness = ({ promotional = false, cardRate = 0, carnetRate = 0, paymentSettings = {} } = {}) => {
+const createHarness = ({ promotional = false, cardRate = 0, carnetRate = 0, paymentSettings = {}, asaasSandbox = false } = {}) => {
   const states = [];
   let cursor = 0;
   let tree;
@@ -142,7 +143,8 @@ const createHarness = ({ promotional = false, cardRate = 0, carnetRate = 0, paym
     onSaveSale: async sale => { saved.push(sale); },
     userProfile: {},
     user: { uid: 'user-1' },
-    paymentSettings
+    paymentSettings,
+    ...(asaasSandbox ? { asaasSandbox: { Option: 'AsaasOption', Modal: 'AsaasModal', createRequest: createCheckoutTestRequest } } : {})
   };
 
   const render = () => {
@@ -225,6 +227,28 @@ for (const [label, expectedMethod] of directMethods) {
   assert.equal(sale.saved[0].anonymousSale, true, 'Vendas diretas devem continuar permitindo cliente opcional.');
   assert.equal(sale.closed, 1);
 }
+
+const asaasSale = createHarness({ asaasSandbox: true });
+asaasSale.addProduct();
+let asaasOption = asaasSale.find(node => node.type === 'AsaasOption', 'Opção Sandbox');
+asaasOption.props.onChange(true);
+asaasSale.render();
+assert.equal(asaasSale.findButton('Gerar Pix de teste').props.disabled, true);
+asaasOption = asaasSale.find(node => node.type === 'AsaasOption', 'Opção Sandbox');
+asaasOption.props.onAvailability(true);
+asaasSale.render();
+await asaasSale.findButton('Gerar Pix de teste').props.onClick();
+asaasSale.render();
+const flowModal = asaasSale.find(node => node.type === 'AsaasModal', 'Pix de teste do caixa');
+assert.equal(flowModal.props.startRequest.items[0].lineTotalCents, 10000);
+assert.equal(asaasSale.saved.length, 0, 'Sandbox não pode chamar a gravação de vendas reais.');
+flowModal.props.onClose({ state: 'received' });
+asaasSale.render();
+assert.equal(asaasSale.saved.length, 0, 'Confirmar ou fechar o teste não pode gravar recebimento real.');
+assert.equal(asaasSale.closed, 0, 'O teste não conclui o caixa real automaticamente.');
+await asaasSale.findButton('Gerar Pix de teste').props.onClick();
+asaasSale.render();
+assert.equal(asaasSale.find(node => node.type === 'AsaasModal', 'Teste repetido').props.startRequest.idempotencyKey, flowModal.props.startRequest.idempotencyKey, 'Reabrir o mesmo carrinho conserva a intenção e não gera outra cobrança.');
 
 const cardPlanSale = createHarness({
   cardRate: plan => Number(plan.installments) === 2 ? 10 : 0

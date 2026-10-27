@@ -4,8 +4,9 @@ import test from 'node:test';
 import { generateKeyPairSync, verify } from 'node:crypto';
 import { createFetchMock, Miniflare } from 'miniflare';
 import { fixture as sandboxFixture, env as sandboxEnv, request as sandboxRequest, webhookRequest, key as sandboxApiKey } from './sandbox-fixture.mjs';
+import { flowFixture, flowRequest, checkout as checkoutBody, parcel as parcelBody, env as flowEnv, result as flowResult } from './flow-fixture.mjs';
 
-const source = await fs.readFile(new URL('./worker.js', import.meta.url), 'utf8');
+const source = await fs.readFile(new URL(process.env.PIX_WORKER_VARIANT === 'mobile' ? './worker-mobile.js' : './worker.js', import.meta.url), 'utf8');
 const testToken = 'a1'.repeat(32);
 const privateKey = 'sandbox-key-only-for-runtime-tests';
 
@@ -292,5 +293,52 @@ test('workerd cria a cobrança isolada, simula e valida Webhook com HMAC e consu
   await dispatch(webhookRequest({ id: 'pay_test' }));
   assert.equal((await dispatch(sandboxRequest())).testComplete, true);
   assert.equal(f.payments.length, 1);
+  fetchMock.assertNoPendingInterceptors();
+});
+
+for (const kind of ['checkout', 'installment']) test('workerd confirma ' + kind + ' em cópia Sandbox sem gravar dados reais', async t => {
+  const f = flowFixture();
+  await f.setup();
+  const before = structuredClone([...f.sources]);
+  const body = kind === 'checkout' ? checkoutBody() : parcelBody;
+  const id = kind === 'checkout' ? body.idempotencyKey : null;
+  const fetchMock = createFetchMock();
+  fetchMock.disableNetConnect();
+  const root = '/v1/projects/vendas-aura/databases/(default)/documents/';
+  const firestore = fetchMock.get('https://firestore.googleapis.com');
+  const initialOrder = path => path.startsWith(root + '_asaas_flow_sandbox/userA/orders/');
+  firestore.intercept({ path: id ? root + '_asaas_flow_sandbox/userA/orders/' + id : initialOrder, method: 'GET' }).reply(404, '{}').times(kind === 'checkout' ? 2 : 1);
+  for (const collection of ['payments', 'receipts', ...(kind === 'installment' ? ['slots'] : [])]) firestore.intercept({ path: path => path.startsWith(root + '_asaas_flow_sandbox/userA/' + collection + '/'), method: 'GET' }).reply(404, '{}');
+  const proxy = (host, method, handler) => {
+    fetchMock.get(host).intercept({ path: () => true, method }).reply(200, async options => {
+      const incoming = new Headers(options.headers);
+      const headers = { Authorization: incoming.get('authorization'), access_token: incoming.get('access_token') };
+      const rawBody = options.body ? await new Response(options.body).text() : undefined;
+      const response = await handler(host + options.path, { method, headers, body: rawBody || undefined, redirect: 'manual' });
+      const raw = await response.text();
+      assert.equal(response.status, 200, raw);
+      return raw;
+    }).persist();
+  };
+  proxy('https://identitytoolkit.googleapis.com', 'POST', f.fetchGoogle);
+  proxy('https://oauth2.googleapis.com', 'POST', f.fetchGoogle);
+  for (const method of ['GET', 'PATCH', 'POST']) proxy('https://firestore.googleapis.com', method, f.fetchGoogle);
+  for (const method of ['GET', 'POST', 'PUT']) proxy('https://api-sandbox.asaas.com', method, f.fetchAsaas);
+  const mf = new Miniflare({ modules: true, script: source, compatibilityDate: '2026-07-30', fetchMock, bindings: flowEnv });
+  t.after(() => mf.dispose());
+  const dispatch = async request => {
+    const body = request.body ? await request.text() : undefined;
+    return mf.dispatchFetch(request.url, { method: request.method, headers: Object.fromEntries(request.headers), ...(body ? { body } : {}) });
+  };
+  const created = await flowResult(await dispatch(flowRequest('POST', '', body)));
+  assert.equal(created.simulationOnly, true);
+  assert.equal(created.state, 'pending');
+  assert.equal((await flowResult(await dispatch(flowRequest('POST', '/' + created.id + '/simulate')))).state, 'pending');
+  await flowResult(await dispatch(webhookRequest({ id: 'pay_flow_1', externalReference: 'aura-flow-' + created.id })));
+  const done = await flowResult(await dispatch(flowRequest('GET', '/' + created.id)));
+  assert.equal(done.state, 'received');
+  assert.equal(done.confirmationSource, 'webhook');
+  assert.equal(done.summary.receivedCents, kind === 'checkout' ? 20000 : 6000);
+  assert.deepEqual([...f.sources], before);
   fetchMock.assertNoPendingInterceptors();
 });
