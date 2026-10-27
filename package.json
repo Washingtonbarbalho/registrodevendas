@@ -5,6 +5,8 @@
   "scripts": {
     "build": "node scripts/build-runtime-v75.mjs",
     "test": "node scripts/validate-v75.mjs",
-    "check": "npm run build && npm test"
+    "test:pix-setup": "node --test workers/asaas-pix-testes/worker.test.mjs",
+    "test:pix-profile": "node --test workers/asaas-pix-testes/profile.test.mjs scripts/asaas-profile-client.test.mjs",
+    "check": "npm run build && npm test && npm run test:pix-profile"
   }
 }

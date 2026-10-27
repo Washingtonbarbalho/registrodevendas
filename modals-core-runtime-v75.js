@@ -1,10 +1,11 @@
 // Gerado por scripts/consolidate-legacy-runtime-v75.mjs — modais-base consolidados.
 import React, { useState, useEffect, useMemo } from 'https://esm.sh/react@18.2.0';
 import { PackageMinus, AlertTriangle, MessageCircle, Copy, QrCode, X, User, Wallet, Clock, Users, CheckCircle, Edit2, Package, Tag, Info, ShieldAlert, History, XCircle, Receipt, BadgePercent, Calendar, PieChart, Trash2, ArrowUpCircle, ArrowDownCircle } from 'https://esm.sh/lucide-react@0.292.0';
-import { formatCurrency, parseMoney, maskMoney, maskPhone, applyPixMask, generatePixPayload, maskCpfCnpj, maskCep, formatDate, getBrazilDateString } from './utils.js?v=100';
-import { MoneyInput } from './components.js?v=100';
+import { formatCurrency, parseMoney, maskMoney, maskPhone, applyPixMask, generatePixPayload, maskCpfCnpj, maskCep, formatDate, getBrazilDateString } from './utils.js?v=101';
+import { MoneyInput } from './components.js?v=101';
 import QRCode from 'https://esm.sh/qrcode@1.5.4';
-import { getHistoryCashAmount } from './financial-core-v70.js?v=100';
+import { getHistoryCashAmount } from './financial-core-v70.js?v=101';
+import { AsaasProfileSettings } from './integrations/asaas-profile-settings.js?v=101';
 
 const formatDateTime = (dateStr) => {
     if (!dateStr) return '--/--/---- --:--';
@@ -177,7 +178,8 @@ export const UserProfileModal = ({ isOpen, onClose, userProfile, onSave }) => {
                     ),
                     React.createElement('input', { className: "w-full p-3 border border-slate-200 rounded-lg bg-white", value: applyPixMask(pixKey, pixType), onChange: e => setPixKey(e.target.value), placeholder: "Chave PIX", disabled: !pixType }),
                     React.createElement('input', { className: "w-full p-3 border border-slate-200 rounded-lg bg-white", value: pixBank, onChange: e => setPixBank(e.target.value), placeholder: "Nome do Banco (Ex: NuBank)" }),
-                    React.createElement('input', { className: "w-full p-3 border border-slate-200 rounded-lg bg-white", value: pixName, onChange: e => setPixName(e.target.value), placeholder: "Nome Completo do Titular" })
+                    React.createElement('input', { className: "w-full p-3 border border-slate-200 rounded-lg bg-white", value: pixName, onChange: e => setPixName(e.target.value), placeholder: "Nome Completo do Titular" }),
+                    React.createElement(AsaasProfileSettings)
                 )
             ),
             React.createElement('div', { className: "desktop-modal-footer p-4 border-t border-slate-100 flex gap-2" },
