@@ -178,17 +178,18 @@ test('não encaminha erros ou dados privados vindos do Asaas', async () => {
   }
 });
 
-test('trata timeout, JSON malformado e formato inesperado sem expor dados', async () => {
-  for (const responder of [
-    () => { throw new Error(apiKey + setupToken); },
-    () => { throw new DOMException('timeout', 'TimeoutError'); },
-    () => new Response('invalid JSON ' + apiKey),
-    () => upstream({ unexpected: apiKey }),
-    () => upstream(null),
+test('distingue falha de rede, timeout e resposta inválida sem expor dados', async () => {
+  for (const [responder, status, code] of [
+    [() => { throw new Error(apiKey + setupToken); }, 502, 'connection_failed'],
+    [() => { throw new DOMException(apiKey, 'TimeoutError'); }, 504, 'asaas_timeout'],
+    [() => { throw new DOMException(apiKey, 'AbortError'); }, 504, 'asaas_timeout'],
+    [() => new Response('invalid JSON ' + apiKey), 502, 'invalid_response'],
+    [() => upstream({ unexpected: apiKey }), 502, 'invalid_response'],
+    [() => upstream(null), 502, 'invalid_response'],
   ]) {
     const { worker } = mockedWorker(responder);
     const response = await worker.fetch(request(), env);
-    assert.equal(response.status, 502);
-    assert.match(await assertPrivate(response), /connection_failed/);
+    assert.equal(response.status, status);
+    assert.equal(JSON.parse(await assertPrivate(response)).code, code);
   }
 });

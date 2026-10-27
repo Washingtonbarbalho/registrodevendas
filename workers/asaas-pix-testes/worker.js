@@ -3,6 +3,23 @@
 const SANDBOX_URL = 'https://api-sandbox.asaas.com/v3';
 const TOKEN_PATTERN = /^[a-f0-9]{64}$/i;
 
+/**
+ * @typedef {Object} WorkerEnv
+ * @property {string} [ASAAS_API_KEY]
+ * @property {string} [ASAAS_BASE_URL]
+ * @property {string} [SETUP_TOKEN]
+ */
+
+/**
+ * @callback AsaasFetch
+ * @param {RequestInfo | URL} input
+ * @param {RequestInit} [init]
+ * @returns {Promise<Response>}
+ */
+
+/** @type {AsaasFetch} */
+const defaultAsaasFetch = (input, init) => fetch(input, init);
+
 const SECURITY_HEADERS = {
   'Cache-Control': 'no-store',
   'Referrer-Policy': 'no-referrer',
@@ -12,6 +29,7 @@ const SECURITY_HEADERS = {
   'Strict-Transport-Security': 'max-age=31536000',
 };
 
+/** @param {unknown} value @param {number} [status] */
 function json(value, status = 200) {
   return new Response(JSON.stringify(value), {
     status,
@@ -19,6 +37,7 @@ function json(value, status = 200) {
   });
 }
 
+/** @param {string} actual @param {string} expected */
 function equalToken(actual, expected) {
   let difference = actual.length ^ expected.length;
   for (let index = 0; index < 64; index += 1) {
@@ -97,9 +116,9 @@ function setupPage() {
         method: 'POST',
         headers: { 'X-Setup-Token': token.value },
         credentials: 'omit',
-        redirect: 'error',
+        redirect: 'manual',
         cache: 'no-store',
-        signal: AbortSignal.timeout(12000),
+        signal: AbortSignal.timeout(25000),
       });
       const data = await response.json();
       show(data.message || 'Não foi possível concluir o teste.', response.ok ? 'success' : 'error');
@@ -120,8 +139,11 @@ function setupPage() {
   });
 }
 
-export function createWorker({ fetchAsaas = (...args) => fetch(...args) } = {}) {
+/** @param {{ fetchAsaas?: AsaasFetch }} [options] */
+export function createWorker(options = {}) {
+  const fetchAsaas = options.fetchAsaas || defaultAsaasFetch;
   return {
+    /** @param {Request} request @param {WorkerEnv} [env] */
     async fetch(request, env = {}) {
       const url = new URL(request.url);
       if (request.method === 'GET' && url.pathname === '/') return setupPage();
@@ -164,9 +186,10 @@ export function createWorker({ fetchAsaas = (...args) => fetch(...args) } = {}) 
           },
           // Workers aceita somente manual/follow. Não seguir redirecionamentos com a chave.
           redirect: 'manual',
-          signal: AbortSignal.timeout(8000),
+          signal: AbortSignal.timeout(20000),
         });
         if (!response.ok) {
+          /** @type {Record<number, string>} */
           const messages = {
             401: 'O Asaas não aceitou a chave de API. Confira se a chave é do Sandbox, está habilitada e foi copiada integralmente.',
             403: 'O Asaas recusou o acesso. Confira as permissões e eventuais restrições de IP da chave no Sandbox.',
@@ -177,9 +200,14 @@ export function createWorker({ fetchAsaas = (...args) => fetch(...args) } = {}) 
             message: messages[response.status] || 'O Asaas não concluiu a consulta. Tente novamente mais tarde.',
           }, response.status === 429 ? 503 : 502);
         }
-        const data = await response.json();
-        if (!data || !Array.isArray(data.data)) throw new Error('invalid-asaas-response');
-        const hasActivePixKey = data.data.some(key => key?.status === 'ACTIVE');
+        const data = JSON.parse(await response.text());
+        if (!data || !Array.isArray(data.data)) {
+          return json({ code: 'invalid_response', message: 'O Asaas respondeu em um formato inesperado. Tente novamente mais tarde.' }, 502);
+        }
+        const hasActivePixKey = data.data.some(
+          /** @param {{ status?: string } | null} key */
+          key => key?.status === 'ACTIVE'
+        );
         return json({
           code: hasActivePixKey ? 'ready_for_firebase' : 'pix_key_required',
           apiConnected: true,
@@ -189,8 +217,14 @@ export function createWorker({ fetchAsaas = (...args) => fetch(...args) } = {}) 
             ? 'Conexão com o Asaas Sandbox funcionando. Existe uma chave Pix ativa de teste. A próxima etapa é configurar o Firebase para integrar as vendas e parcelas.'
             : 'Conexão com o Asaas Sandbox funcionando. Falta cadastrar ou ativar uma chave Pix na conta de testes. Depois, repita este teste.',
         });
-      } catch {
+      } catch (error) {
         // Nunca retornar respostas brutas do provedor, tokens ou dados da conta.
+        if (error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError')) {
+          return json({ code: 'asaas_timeout', message: 'A consulta ao Asaas Sandbox excedeu 20 segundos. Aguarde um pouco e tente novamente.' }, 504);
+        }
+        if (error instanceof SyntaxError) {
+          return json({ code: 'invalid_response', message: 'O Asaas não retornou uma resposta JSON válida. Tente novamente mais tarde.' }, 502);
+        }
         return json({ code: 'connection_failed', message: 'Não foi possível consultar o Asaas Sandbox. Tente novamente; se persistir, confira o painel da Cloudflare.' }, 502);
       }
     },
