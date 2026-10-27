@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createWorker } from './worker.js';
+import { createWorker } from './worker-under-test.mjs';
 import { fixture, env, request, webhookRequest, result, connect, prepare, hookToken } from './sandbox-fixture.mjs';
 
 test('prepara teste fixo, guarda somente no namespace privado e não altera dados financeiros', async () => {

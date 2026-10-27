@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { generateKeyPairSync, createHmac } from 'node:crypto';
-import { createWorker } from './worker.js';
+import { createWorker } from './worker-under-test.mjs';
 
 const pair = generateKeyPairSync('rsa', { modulusLength: 2048, privateKeyEncoding: { type: 'pkcs8', format: 'pem' }, publicKeyEncoding: { type: 'spki', format: 'pem' } });
 const env = { PIX_ENCRYPTION_KEY: 'ab'.repeat(32), FIREBASE_SERVICE_ACCOUNT: JSON.stringify({ type: 'service_account', project_id: 'vendas-aura', client_email: 'sandbox-fixture@vendas-aura.iam.gserviceaccount.com', private_key: pair.privateKey }), ASAAS_BASE_URL: 'https://api.asaas.com/v3', ASAAS_API_KEY: 'global-key-must-not-be-used' };
@@ -40,7 +40,7 @@ function fixture(options = {}) {
         assert.equal(url.origin, 'https://firestore.googleapis.com');
         assert.equal(init.headers.Authorization, 'Bearer google-private-test-access-token');
         const path = url.pathname.split('/documents/')[1];
-        assert.match(path, /^(?:_asaas_integrations\/[\w-]+|_asaas_sandbox_checks\/[\w-]+|artifacts\/vendas-aura-main\/users\/[\w-]+\/profile\/info)$/,
+        assert.match(path, /^(?:_asaas_integrations\/[\w-]+|_asaas_sandbox_checks\/[\w-]+|_asaas_flow_sandbox\/[\w-]+\/(?:orders|pending|payments|receipts|slots)\/[\w-]+|artifacts\/vendas-aura-main\/users\/[\w-]+\/profile\/info)$/,
             'O teste nunca pode acessar vendas, clientes, parcelas ou estoque.');
         if (path.startsWith('artifacts/')) return reply({ name: name(path), fields: { approved: { booleanValue: !options.unapproved }, status: { stringValue: 'active' } }, updateTime: '2026-10-27T12:00:00.000001Z' });
         const current = docs.get(path);

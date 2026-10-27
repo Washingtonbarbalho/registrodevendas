@@ -296,8 +296,8 @@ assert.equal((productionSource.match(/\b(?:window\.)?(?:confirm|prompt)\s*\(/g) 
   'Nenhuma confirmação ou prompt nativo pode permanecer no sistema.');
 assert.equal((productionSource.match(/(?:createElement|\bh)\(['"]select['"]/g) || []).length, 31,
   'As 30 listas existentes e a nova opção Asaas precisam continuar cobertas pela camada visual.');
-assert.equal((productionSource.match(/\b(?:window\.)?alert\s*\(/g) || []).length, 71,
-  'Os 71 avisos auditados precisam permanecer cobertos pelo interceptador profissional.');
+assert.equal((productionSource.match(/\b(?:window\.)?alert\s*\(/g) || []).length, 72,
+  'Os avisos existentes e a indisponibilidade do Pix Asaas precisam usar o interceptador profissional.');
 assert.ok(!/(?:createElement|\bh)\(['"]select['"][\s\S]{0,220}?multiple\s*:/.test(productionSource),
   'Seletores múltiplos exigiriam uma interação específica.');
 
@@ -341,4 +341,4 @@ for (const marker of [
   '.mobile83-more-sheet', '.mobile83-more-nav-button'
 ]) assert.ok(styles.includes(marker), `Estilo interativo ausente: ${marker}`);
 
-console.log(`Interface v${version} validada: lançamento financeiro unificado, calendário único, 71 avisos e 31 seletores.`);
+console.log(`Interface v${version} validada: lançamento financeiro unificado, calendário único, 72 avisos e 31 seletores.`);

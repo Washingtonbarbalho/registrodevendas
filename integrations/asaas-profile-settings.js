@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState } from 'https://esm.sh/react@18.2.0';
-import { auth } from '../firebase-config.js?v=102';
-import { showAppConfirm } from '../ui-interactions-v81.js?v=102';
-import { createAsaasProfileClient } from './asaas-profile-client.js?v=102';
-import { AsaasSandboxCheck } from './asaas-sandbox-check.js?v=102';
+import { auth } from '../firebase-config.js?v=103';
+import { showAppConfirm } from '../ui-interactions-v81.js?v=103';
+import { createAsaasProfileClient } from './asaas-profile-client.js?v=103';
+import { AsaasSandboxCheck } from './asaas-sandbox-check.js?v=103';
+import { AsaasPendingCharges } from './asaas-flow-ui.js?v=103';
 
 const client = createAsaasProfileClient({
     getIdToken: async forceRefresh => {
@@ -94,6 +95,7 @@ export const AsaasProfileSettings = () => {
         ),
         error && React.createElement('p', { className: 'text-xs text-red-700 bg-red-50 p-3 rounded-lg', role: 'alert' }, error),
         message && React.createElement('p', { className: 'text-xs text-emerald-800 bg-white p-3 rounded-lg', role: 'status', 'aria-live': 'polite' }, message),
-        status?.enabled && mode === 'asaas' && !busy && React.createElement(AsaasSandboxCheck)
+        status?.enabled && mode === 'asaas' && !busy && React.createElement(AsaasSandboxCheck),
+        status?.enabled && !busy && React.createElement(AsaasPendingCharges)
     );
 };

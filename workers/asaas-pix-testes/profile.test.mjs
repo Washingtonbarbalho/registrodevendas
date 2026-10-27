@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { generateKeyPairSync, sign, verify } from 'node:crypto';
-import { createWorker } from './worker.js';
+import { createWorker } from './worker-under-test.mjs';
 
 const pair = generateKeyPairSync('rsa', { modulusLength: 2048, privateKeyEncoding: { type: 'pkcs8', format: 'pem' }, publicKeyEncoding: { type: 'spki', format: 'pem' } });
 const serviceAccount = { type: 'service_account', project_id: 'vendas-aura', client_email: 'profile-fixture@vendas-aura.iam.gserviceaccount.com', private_key: pair.privateKey };

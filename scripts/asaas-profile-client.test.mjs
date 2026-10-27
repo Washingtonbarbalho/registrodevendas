@@ -9,7 +9,7 @@ test('cliente usa ID token por HTTPS e devolve apenas os metadados esperados', a
     const calls = [];
     const client = createAsaasProfileClient({ getIdToken: async () => 'private-id-token', fetcher: async (...args) => { calls.push(args); return reply({ ...status, cipher: 'private-cipher', iv: 'private-iv', apiKey: 'private-api-key' }); } });
     const result = await client.getStatus();
-    assert.deepEqual(result, { ...status, message: '' });
+    assert.deepEqual(result, { ...status, flowVersion: 0, message: '' });
     assert.equal(calls[0][0], 'https://registro-vendas-pix-testes.washington-wn8.workers.dev/api/integrations/asaas');
     assert.equal(calls[0][1].headers.Authorization, 'Bearer private-id-token');
     assert.equal(calls[0][1].credentials, 'omit');

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { generateKeyPairSync, verify } from 'node:crypto';
 import vm from 'node:vm';
-import { createWorker } from './worker.js';
+import { createWorker } from './worker-under-test.mjs';
 
 const origin = 'https://registro-vendas-pix-testes.washington-wn8.workers.dev';
 const setupToken = 'a1'.repeat(32);
@@ -33,6 +33,12 @@ test('a página inicial não consulta a API nem recebe os segredos no HTML', asy
   const response = await worker.fetch(request('/', { method: 'GET' }), env);
   assert.equal(response.status, 200);
   const html = await assertPrivate(response);
+  if (process.env.PIX_WORKER_VARIANT === 'mobile') {
+    assert.match(html, /Asaas Sandbox/);
+    assert.match(html, /Abrir o sistema/);
+    assert.equal(calls.length, 0);
+    return;
+  }
   assert.match(html, /Teste de conexão com o Asaas/);
   assert.match(html, /crypto\.getRandomValues/);
   assert.match(html, /textContent = message/);
@@ -226,6 +232,11 @@ test('a página oferece o teste Firebase e seu JavaScript tem sintaxe válida', 
   const { worker } = firebaseWorker();
   const response = await worker.fetch(request('/', { method: 'GET' }), firebaseEnv);
   const html = await privateFirebase(response);
+  if (process.env.PIX_WORKER_VARIANT === 'mobile') {
+    assert.match(html, /Etapa 6/);
+    assert.doesNotMatch(html, /<script/);
+    return;
+  }
   assert.match(html, /Testar Firebase/);
   assert.match(html, /Use o mesmo código/);
   const script = html.match(/<script nonce="[^"]+">([\s\S]*?)<\/script>/)[1];

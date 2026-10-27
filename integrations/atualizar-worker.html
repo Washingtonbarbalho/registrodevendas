@@ -12,47 +12,58 @@
 <body>
 <main>
   <h1>Atualizar Worker de testes</h1>
-  <p>Versão 102 · Cobrança isolada e retorno automático do Asaas Sandbox.</p>
+  <p>Versão 103 · Testes do Pix no caixa e nas parcelas. Código compacto para copiar pelo celular.</p>
   <p class="note">Mantenha os Secrets já cadastrados, incluindo <code>PIX_ENCRYPTION_KEY</code>. Esta atualização não precisa de novas chaves.</p>
   <ol>
-    <li>Toque em <strong>Copiar código completo</strong> abaixo.</li>
+    <li>Toque em <strong>Copiar código compacto</strong> abaixo.</li>
     <li>No painel da Cloudflare, abra o Worker <strong>registro-vendas-pix-testes</strong> e escolha <strong>Edit code / Editar código</strong>.</li>
     <li>Selecione todo o código atual, cole o novo código e toque em <strong>Deploy / Implantar</strong>.</li>
-    <li>Volte a <strong>Meu Perfil</strong> no sistema. Toque em <strong>Verificar retorno</strong> e depois em <strong>Criar cobrança de teste</strong>.</li>
+    <li>Volte ao sistema atualizado. No caixa, selecione <strong>Pix → Testar Pix automático do Asaas (Sandbox)</strong>. Nas parcelas, abra <strong>Receber → Testar Pix Asaas da parcela inteira</strong>.</li>
   </ol>
   <button id="copy" disabled>Carregando código…</button>
   <p id="status" class="status" role="status" aria-live="polite">Carregando a atualização…</p>
-  <details><summary>Ver ou selecionar o código completo</summary><textarea id="code" readonly spellcheck="false" aria-label="Código completo do Worker" autocomplete="off"></textarea></details>
-  <p><a href="../?v=102">Voltar ao sistema</a></p>
+  <details><summary>Ver ou selecionar o código compacto</summary><textarea id="code" readonly spellcheck="false" aria-label="Código compacto do Worker" autocomplete="off"></textarea></details>
+  <p><a href="../workers/asaas-pix-testes/worker-mobile.js?v=103" download="worker.js">Baixar o código compacto</a></p>
+  <p><a href="../?v=103">Voltar ao sistema</a></p>
 </main>
 <script type="module">
   const button = document.getElementById('copy');
   const status = document.getElementById('status');
   const code = document.getElementById('code');
+  let source = '';
   try {
-    const response = await fetch('../workers/asaas-pix-testes/worker.js?v=102', { cache: 'no-store', credentials: 'omit', redirect: 'error' });
-    if (!response.ok) throw new Error('code_unavailable');
-    const source = await response.text();
-    if (!source.startsWith('// Etapa 5:') || !source.includes('async function handleSandboxWebhook(') || !source.includes('export default createWorker();')) throw new Error('code_invalid');
-    code.value = source;
+    const options = { cache: 'no-store', credentials: 'omit', redirect: 'error' };
+    const [response, manifestResponse] = await Promise.all([
+      fetch('../workers/asaas-pix-testes/worker-mobile.js?v=103', options),
+      fetch('../workers/asaas-pix-testes/worker-mobile-manifest.json?v=103', options)
+    ]);
+    if (!response.ok || !manifestResponse.ok) throw new Error('code_unavailable');
+    const bytes = await response.arrayBuffer();
+    const manifest = await manifestResponse.json();
+    const digest = await crypto.subtle.digest('SHA-256', bytes);
+    const hash = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
+    source = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+    if (manifest.version !== '103' || manifest.bytes !== bytes.byteLength || manifest.sha256 !== hash || !source.startsWith('// Registro de Vendas - Worker Sandbox 103 compacto.')) throw new Error('code_invalid');
     button.disabled = false;
-    button.textContent = 'Copiar código completo';
-    status.textContent = 'Código completo pronto para copiar.';
+    button.textContent = 'Copiar código compacto';
+    status.textContent = 'Código compacto pronto para copiar (' + Math.ceil(bytes.byteLength / 1024) + ' KB).';
   } catch {
     button.textContent = 'Recarregue esta página';
     status.textContent = 'Não foi possível carregar o código. Recarregue a página para tentar novamente.';
   }
   button.addEventListener('click', async () => {
     try {
-      await navigator.clipboard.writeText(code.value);
-      status.textContent = 'Código completo copiado. Cole no editor do Worker e toque em Deploy.';
+      await navigator.clipboard.writeText(source);
+      status.textContent = 'Código compacto copiado. Cole no editor do Worker e toque em Deploy.';
     } catch {
       document.querySelector('details').open = true;
+      code.value = source;
       code.focus();
       code.select();
       status.textContent = 'Selecione e copie o código no campo aberto abaixo.';
     }
   });
+  document.querySelector('details').addEventListener('toggle', event => { code.value = event.target.open ? source : ''; });
 </script>
 </body>
 </html>

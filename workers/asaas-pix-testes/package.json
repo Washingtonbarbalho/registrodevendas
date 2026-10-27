@@ -3,9 +3,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test worker.test.mjs worker.runtime.test.mjs profile.test.mjs sandbox.test.mjs"
+    "build": "node build.mjs",
+    "test": "node build.mjs && node verify.mjs"
   },
   "devDependencies": {
+    "esbuild": "0.28.2",
     "miniflare": "4.20260730.0"
   }
 }
