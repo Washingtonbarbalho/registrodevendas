@@ -145,7 +145,7 @@ test('consulta somente as chaves Pix ativas, sem body, criação de cobranças o
   assert.equal(options.method, 'GET');
   assert.equal(options.body, undefined);
   assert.equal(options.headers.access_token, apiKey);
-  assert.equal(options.redirect, 'error', 'Não seguir redirecionamentos portando a credencial.');
+  assert.equal(options.redirect, 'manual', 'Usar o modo compatível com Workers sem seguir redirecionamentos portando a credencial.');
   assert.ok(options.signal instanceof AbortSignal);
 });
 

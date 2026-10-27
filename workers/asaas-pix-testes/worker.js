@@ -162,7 +162,8 @@ export function createWorker({ fetchAsaas = (...args) => fetch(...args) } = {}) 
             access_token: apiKey,
             'User-Agent': 'RegistroDeVendas-Pix-Sandbox-Setup/1.0',
           },
-          redirect: 'error',
+          // Workers aceita somente manual/follow. Não seguir redirecionamentos com a chave.
+          redirect: 'manual',
           signal: AbortSignal.timeout(8000),
         });
         if (!response.ok) {

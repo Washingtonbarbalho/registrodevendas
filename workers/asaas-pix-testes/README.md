@@ -43,6 +43,16 @@ npm run test:pix-setup
 
 Os testes usam respostas simuladas e não chamam o Asaas nem movimentam dinheiro. Não são uma homologação da conta real ou do endpoint publicado.
 
+Para também verificar a execução no runtime do Cloudflare Workers (workerd), instale as dependências de teste desta pasta e execute:
+
+```sh
+cd workers/asaas-pix-testes
+npm ci
+npm test
+```
+
+O teste no workerd usa a mesma chamada `fetch` do Worker e simula somente o servidor Asaas. Isso verifica a compatibilidade do runtime, além da lógica testada no Node. Workers aceita `redirect: 'manual'` ou `redirect: 'follow'`; a consulta usa `manual` e recusa respostas 3xx para não encaminhar a credencial a outro endereço.
+
 ## Próxima etapa
 
 Após confirmar a conexão, preparar uma conta de serviço do Firebase com as permissões necessárias, cadastrar suas credenciais como Secrets e implementar a autenticação do usuário, o armazenamento de pedidos pendentes, as reservas de estoque, o tratamento de Webhooks e a reconciliação dos recebimentos. As baixas usarão uma identificação exclusiva do pagamento e uma transação do banco para impedir duplicidades.
