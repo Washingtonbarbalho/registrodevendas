@@ -1,12 +1,12 @@
 // Gerado por scripts/consolidate-legacy-runtime-v75.mjs — nova venda consolidada.
 import React, { useState, useEffect } from 'https://esm.sh/react@18.2.0';
 import { ChevronLeft, User, UserPlus, X, Search, CheckCircle, ShoppingBag, Tag, PlusCircle, Trash2, CreditCard, Calendar, QrCode, Banknote, Copy, BadgePercent, RefreshCw, ThumbsUp, ShieldAlert } from 'https://esm.sh/lucide-react@0.292.0';
-import { db, APP_ID } from './firebase-config.js?v=105';
-import { collection, addDoc, serverTimestamp } from './firestore-runtime-v94.js?v=105';
-import { formatCurrency, parseMoney, maskPhone, getBrazilDateString, addDays, generatePixPayload, analyzeCustomerCredit } from './utils.js?v=105';
-import { MoneyInput } from './components.js?v=105';
-import { getCardRate, getCarnetRate, normalizePaymentSettings, evaluateTermEntryRules } from './payment-settings.js?v=105';
-import { splitMoney } from './financial-core-v70.js?v=105';
+import { db, APP_ID } from './firebase-config.js?v=106';
+import { collection, addDoc, serverTimestamp } from './firestore-runtime-v94.js?v=106';
+import { formatCurrency, parseMoney, maskPhone, getBrazilDateString, addDays, generatePixPayload, analyzeCustomerCredit } from './utils.js?v=106';
+import { MoneyInput } from './components.js?v=106';
+import { getCardRate, getCarnetRate, normalizePaymentSettings, evaluateTermEntryRules } from './payment-settings.js?v=106';
+import { splitMoney } from './financial-core-v70.js?v=106';
 import QRCode from 'https://esm.sh/qrcode@1.5.4';
 
 const INSTALLMENT_OPTIONS = Array.from({ length: 12 }, (_, index) => index + 1);
@@ -53,7 +53,7 @@ const LocalPixQrCode = ({ payload }) => {
         }, error || 'Gerando QR Code com segurança...');
 };
 
-export const NewSaleScreen = ({ mode: initialMode, onClose, customers, products, sales, onSaveSale, userProfile, user, paymentSettings, asaasSandbox }) => {
+export const NewSaleScreen = ({ mode: initialMode, onClose, customers, products, sales, onSaveSale, userProfile, user, paymentSettings }) => {
     useEffect(() => { window.scrollTo(0, 0); }, []);
 
     const [customerId, setCustomerId] = useState('');
@@ -68,10 +68,6 @@ export const NewSaleScreen = ({ mode: initialMode, onClose, customers, products,
     const [savingCustomer, setSavingCustomer] = useState(false);
     const [savingSale, setSavingSale] = useState(false);
     const savingSaleRef = React.useRef(false);
-    const [asaasSelected, setAsaasSelected] = useState(false);
-    const [asaasReady, setAsaasReady] = useState(false);
-    const [asaasRequest, setAsaasRequest] = useState(null);
-    const asaasIntent = React.useRef(null);
 
     const [productSearch, setProductSearch] = useState('');
     const [showProductList, setShowProductList] = useState(false);
@@ -428,13 +424,6 @@ export const NewSaleScreen = ({ mode: initialMode, onClose, customers, products,
         if (saleType === 'prazo' && !customerId) return alert("Selecione um cliente cadastrado.");
         if (cart.length === 0) return alert("Adicione ao menos um produto no carrinho.");
         if (entryValue > totalCartValue) return alert("A entrada não pode ser maior que o valor total dos produtos.");
-        if (saleType === 'direct' && directMethod === 'pix' && asaasSelected) {
-            if (!asaasReady || !asaasSandbox) return alert('A conexão de teste do Asaas não está disponível. Confira o perfil antes de gerar o Pix de teste.');
-            const fingerprint = JSON.stringify(cart.map(item => [item.productId, item.quantity, item.price]));
-            if (asaasIntent.current?.fingerprint !== fingerprint) asaasIntent.current = { fingerprint, id: crypto.randomUUID() };
-            setAsaasRequest(asaasSandbox.createRequest(cart, asaasIntent.current.id));
-            return;
-        }
 
         const customer = customerId ? customers.find(c => c.id === customerId) : null;
         const isAnonymousDirectSale = saleType === 'direct' && !customer;
@@ -820,8 +809,7 @@ export const NewSaleScreen = ({ mode: initialMode, onClose, customers, products,
 
                     mode === 'direct' && React.createElement('div', { className: "space-y-4 animate-fade-in" },
                         directMethod === 'pix' && React.createElement('div', { className: "space-y-4 pt-4 border-t border-slate-100" },
-                            asaasSandbox?.Option && React.createElement(asaasSandbox.Option, { selected: asaasSelected, onChange: setAsaasSelected, onAvailability: setAsaasReady }),
-                            !asaasSelected && (userProfile?.pixKey ? React.createElement('div', { className: "bg-emerald-50 p-4 rounded-xl border border-emerald-100 flex flex-col items-center text-center" },
+                            userProfile?.pixKey ? React.createElement('div', { className: "bg-emerald-50 p-4 rounded-xl border border-emerald-100 flex flex-col items-center text-center" },
                                 React.createElement('p', { className: "text-xs font-bold text-emerald-700 uppercase mb-3 flex items-center gap-2" }, React.createElement(QrCode, { size: 16 }), "Receber via PIX"),
                                 React.createElement(LocalPixQrCode, {
                                     payload: generatePixPayload(userProfile.pixKey, userProfile.pixType, userProfile.pixName, userProfile.city || "BRASIL", totalRemaining, "VND")
@@ -830,7 +818,7 @@ export const NewSaleScreen = ({ mode: initialMode, onClose, customers, products,
                                     React.createElement('input', { type: "text", readOnly: true, value: generatePixPayload(userProfile.pixKey, userProfile.pixType, userProfile.pixName, userProfile.city || "BRASIL", totalRemaining, "VND"), className: "w-full text-[10px] p-3 pr-12 border border-emerald-200 rounded-lg bg-white outline-none text-slate-500 font-mono" }),
                                     React.createElement('button', { onClick: () => { navigator.clipboard.writeText(generatePixPayload(userProfile.pixKey, userProfile.pixType, userProfile.pixName, userProfile.city || "BRASIL", totalRemaining, "VND")); alert("Código PIX Copiado!"); }, className: "absolute right-2 top-2 p-1.5 bg-emerald-100 text-emerald-600 rounded hover:bg-emerald-200 transition-colors", title: "Copiar" }, React.createElement(Copy, { size: 14 }))
                                 )
-                            ) : React.createElement('div', { className: "bg-yellow-50 p-3 rounded-xl border border-yellow-100 text-xs text-yellow-700 text-center" }, "Configure sua Chave PIX no seu Perfil para gerar o QR Code aqui automaticamente."))
+                            ) : React.createElement('div', { className: "bg-yellow-50 p-3 rounded-xl border border-yellow-100 text-xs text-yellow-700 text-center" }, "Configure sua Chave PIX no seu Perfil para gerar o QR Code aqui automaticamente.")
                         ),
 
                         (directMethod === 'credit' || directMethod === 'debit') && React.createElement('div', { className: "space-y-4 pt-4 border-t border-slate-100" },
@@ -919,13 +907,12 @@ export const NewSaleScreen = ({ mode: initialMode, onClose, customers, products,
                 ),
                 React.createElement('button', {
                     onClick: handleFinish,
-                    disabled: savingSale || mode === 'direct' && directMethod === 'pix' && asaasSelected && !asaasReady,
+                    disabled: savingSale,
                     className: `flex-1 py-4 text-white font-bold text-lg rounded-xl shadow-lg transition-transform active:scale-95 flex justify-center items-center gap-2 disabled:opacity-60 disabled:cursor-wait ${mode === 'prazo' ? 'bg-yellow-500 hover:bg-yellow-600 text-slate-900 shadow-yellow-200' : 'bg-emerald-500 hover:bg-emerald-600 shadow-emerald-200'}`
-                }, React.createElement(CheckCircle, { size: 20 }), savingSale ? "Salvando..." : mode === 'direct' && directMethod === 'pix' && asaasSelected ? 'Gerar Pix de teste' : "Finalizar Venda")
+                }, React.createElement(CheckCircle, { size: 20 }), savingSale ? "Salvando..." : "Finalizar Venda")
             )
         ),
 
-        asaasRequest && asaasSandbox?.Modal && React.createElement(asaasSandbox.Modal, { startRequest: asaasRequest, onClose: data => { setAsaasRequest(null); if (['cancelled', 'refunded'].includes(data?.state)) asaasIntent.current = null; } }),
         isAnalyzingCredit && React.createElement('div', {
             className: "app-modal-overlay credit-analysis-modal-overlay fixed inset-0 z-[110] flex items-center justify-center p-4 backdrop-blur-sm",
             role: "dialog",

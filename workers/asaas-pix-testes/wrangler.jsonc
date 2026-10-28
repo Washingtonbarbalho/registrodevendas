@@ -1,9 +1,0 @@
-{
-  "name": "registro-vendas-pix-testes",
-  "main": "worker.js",
-  "compatibility_date": "2026-10-26",
-  "workers_dev": true,
-  "vars": {
-    "ASAAS_BASE_URL": "https://api-sandbox.asaas.com/v3"
-  }
-}

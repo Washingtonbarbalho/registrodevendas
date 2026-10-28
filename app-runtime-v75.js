@@ -1,45 +1,44 @@
-// Aplicação consolidada v105 — código-fonte principal do sistema.
+// Aplicação consolidada v106 — código-fonte principal do sistema.
 import React, { useState, useEffect, useMemo } from 'https://esm.sh/react@18.2.0';
 import { createRoot } from 'https://esm.sh/react-dom@18.2.0/client';
 import { Users, User, LogOut, Lock, LayoutDashboard, Receipt, WalletCards, Package, Contact, Store, ShieldCheck, BadgePercent, Banknote, MoreHorizontal, Plus } from 'https://esm.sh/lucide-react@0.292.0';
 
 // Firebase
-import { app, db, auth, APP_ID } from './firebase-config.js?v=105';
-import { collection, onSnapshot, query, doc, getDoc, updateDoc, deleteDoc, addDoc, serverTimestamp, setDoc, runTransaction, writeBatch } from './firestore-runtime-v94.js?v=105';
+import { app, db, auth, APP_ID } from './firebase-config.js?v=106';
+import { collection, onSnapshot, query, doc, getDoc, updateDoc, deleteDoc, addDoc, serverTimestamp, setDoc, runTransaction, writeBatch } from './firestore-runtime-v94.js?v=106';
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js";
 
 // Utils
-import { getCurrentMonthStart, getCurrentMonthEnd, getBrazilDateString, addDays, formatCurrency, formatDate } from './utils.js?v=105';
-import { aggregateSaleItems, buildSaleInventoryPlan } from './inventory-reliability-v69.js?v=105';
-import { applyInstallmentPayment, buildFinancialLedger, calculatePurchaseReturnFinancialSplit, fromCents, getHistoryCashAmount, getInstallmentFaceAmount, getRealizedSalesProfit, getSalesAccrualSummary, isTermSale, money, normalizeSaleMoney, reverseInstallmentPayment, sumMoney, summarizeFinancialLedger, toCents } from './financial-core-v70.js?v=105';
+import { getCurrentMonthStart, getCurrentMonthEnd, getBrazilDateString, addDays, formatCurrency, formatDate } from './utils.js?v=106';
+import { aggregateSaleItems, buildSaleInventoryPlan } from './inventory-reliability-v69.js?v=106';
+import { applyInstallmentPayment, buildFinancialLedger, calculatePurchaseReturnFinancialSplit, fromCents, getHistoryCashAmount, getInstallmentFaceAmount, getRealizedSalesProfit, getSalesAccrualSummary, isTermSale, money, normalizeSaleMoney, reverseInstallmentPayment, sumMoney, summarizeFinancialLedger, toCents } from './financial-core-v70.js?v=106';
 
 // Modais
 import { 
     UserProfileModal, CustomerFormModal, ProductDetailsModal, EditInstallmentModal, 
     SaleDetailsModal, PixCodeModal, InstallmentListModal, PaymentConfirmationModal, 
     ConfirmModal, WhatsAppChooserModal, ProductModal
-} from './modals-runtime-v75.js?v=105';
-import { StockMovementModal } from './stock-movement-modal-v68.js?v=105';
+} from './modals-runtime-v75.js?v=106';
+import { StockMovementModal } from './stock-movement-modal-v68.js?v=106';
 
 // Telas Secundárias
-import { AdminUsersPanel } from './auth-admin.js?v=105';
-import { AuthScreen } from './auth-screen-v71.js?v=105';
-import { NewSaleScreen } from './nova-venda-runtime-v75.js?v=105';
+import { AdminUsersPanel } from './auth-admin.js?v=106';
+import { AuthScreen } from './auth-screen-v71.js?v=106';
+import { NewSaleScreen } from './nova-venda-runtime-v75.js?v=106';
 
 // Abas do Dashboard
-import { AbaVisaoGeral } from './aba-visao-geral-fixed.js?v=105';
-import { AbaVendas } from './aba-vendas-v71.js?v=105';
-import { AbaProdutos } from './aba-produtos-v67.js?v=105';
-import { AbaClientes } from './aba-clientes-runtime-v75.js?v=105';
-import { AbaTaxas } from './aba-taxas.js?v=105';
-import { AbaFinanceiro } from './aba-financeiro-v68.js?v=105';
-import { BatchStockModal } from './batch-stock-modal-v68.js?v=105';
-import { AbaRelatorios } from './aba-relatorios-v73.js?v=105';
-import { AbaComercial } from './aba-comercial-v74.js?v=105';
-import { normalizePaymentSettings } from './payment-settings.js?v=105';
-import { shareInstallmentBookletPdf, shareSalePdf } from './sale-pdf-v65.js?v=105';
-import { readSharedAnalysisPeriod, resolveAnalysisPeriod, writeSharedAnalysisPeriod } from './analysis-period-v79.js?v=105';
-import { asaasCheckout, AsaasFlowModal, AsaasInstallmentButton } from './integrations/asaas-flow-ui.js?v=105';
+import { AbaVisaoGeral } from './aba-visao-geral-fixed.js?v=106';
+import { AbaVendas } from './aba-vendas-v71.js?v=106';
+import { AbaProdutos } from './aba-produtos-v67.js?v=106';
+import { AbaClientes } from './aba-clientes-runtime-v75.js?v=106';
+import { AbaTaxas } from './aba-taxas.js?v=106';
+import { AbaFinanceiro } from './aba-financeiro-v68.js?v=106';
+import { BatchStockModal } from './batch-stock-modal-v68.js?v=106';
+import { AbaRelatorios } from './aba-relatorios-v73.js?v=106';
+import { AbaComercial } from './aba-comercial-v74.js?v=106';
+import { normalizePaymentSettings } from './payment-settings.js?v=106';
+import { shareInstallmentBookletPdf, shareSalePdf } from './sale-pdf-v65.js?v=106';
+import { readSharedAnalysisPeriod, resolveAnalysisPeriod, writeSharedAnalysisPeriod } from './analysis-period-v79.js?v=106';
 
 const Dashboard = ({ user, userProfile, onLogout }) => {
     const [view, setView] = useState('dashboard');
@@ -104,7 +103,6 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
     
     const [waChooserModal, setWaChooserModal] = useState({ open: false, phone: '', message: '', pdfData: null, title: '', description: '' });
     const [pixModalData, setPixModalData] = useState({ open: false, amount: 0, txid: '', saleId: null, installmentIndex: null, source: null });
-    const [asaasParcelRequest, setAsaasParcelRequest] = useState(null);
 
     useEffect(() => {
         const customersRef = collection(db, 'artifacts', APP_ID, 'users', user.uid, 'customers');
@@ -956,8 +954,7 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
             onSaveSale: handleAddSale, 
             userProfile: userProfile,
             user: user,
-            paymentSettings: paymentSettings,
-            asaasSandbox: asaasCheckout
+            paymentSettings: paymentSettings
         });
     }
 
@@ -1218,9 +1215,7 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
 
         React.createElement(PixCodeModal, { isOpen: pixModalData.open, onClose: () => setPixModalData({ open: false, amount: 0, txid: '', saleId: null, installmentIndex: null, source: null }), userProfile: userProfile, amount: pixModalData.amount, txid: pixModalData.txid, onRegisterPayment: pixModalData.source === 'dashboard' ? handleRegisterPixPayment : null }),
         React.createElement(InstallmentListModal, { isOpen: installmentListModal.open, onClose: () => setInstallmentListModal({ open: false, type: null, data: [] }), title: installmentListModal.type === 'overdue' ? 'Parcelas em atraso' : installmentListModal.type === 'today' ? 'Parcelas vencendo hoje' : 'Parcelas a vencer nos próximos 7 dias', items: installmentListModal.data, onPay: handlePayFromList, onOpenWA: handleOpenWA, onPix: handlePixFromList, hasPixSetup: !!userProfile?.pixKey }),
-        React.createElement(PaymentConfirmationModal, { isOpen: paymentModal.open, onClose: () => setPaymentModal({ open: false, saleId: null, index: null, item: null, isLast: false, source: null }), onConfirm: handleConfirmPayment, installment: paymentModal.item, isLast: paymentModal.isLast,
-            asaasAction: paymentModal.open && React.createElement(AsaasInstallmentButton, { onStart: () => setAsaasParcelRequest({ kind: 'installment', saleId: paymentModal.saleId, installmentIndex: paymentModal.index }) }) }),
-        asaasParcelRequest && React.createElement(AsaasFlowModal, { startRequest: asaasParcelRequest, onClose: () => setAsaasParcelRequest(null) }),
+        React.createElement(PaymentConfirmationModal, { isOpen: paymentModal.open, onClose: () => setPaymentModal({ open: false, saleId: null, index: null, item: null, isLast: false, source: null }), onConfirm: handleConfirmPayment, installment: paymentModal.item, isLast: paymentModal.isLast }),
         React.createElement(ConfirmModal, { isOpen: deletePaymentModal.open, title: "Estornar pagamento?", message: "O valor será devolvido para a parcela e ela ficará em aberto novamente.", onClose: () => setDeletePaymentModal({ open: false, saleId: null, instIndex: null, histIndex: null, historyItem: null }), onConfirm: handleDeletePayment }),
         React.createElement(ConfirmModal, { isOpen: cancelModal.open, title: "Cancelar venda?", message: "Esta ação irá devolver os produtos ao estoque e invalidar os pagamentos.", isCancel: true, reasonValue: cancelModal.reason, onReasonChange: value => setCancelModal(previous => ({...previous, reason: value})), onClose: () => setCancelModal({ open: false, saleId: null, reason: '' }), onConfirm: confirmCancelSale }),
         React.createElement(ConfirmModal, { isOpen: deleteModal.open, title: "Tem certeza?", message: "O registro será apagado permanentemente.", onClose: () => { setDeleteModal({ open: false, id: null, type: null }); setSelectedSaleDetail(null); }, onConfirm: confirmDelete }),
