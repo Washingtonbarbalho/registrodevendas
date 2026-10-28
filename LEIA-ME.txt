@@ -1,4 +1,4 @@
-REGISTRO DE VENDAS — VERSÃO 100
+REGISTRO DE VENDAS — VERSÃO 106
 
 ARQUITETURA ATIVA
 - app-runtime-v75.js é o código principal oficial, já consolidado e editado diretamente.
