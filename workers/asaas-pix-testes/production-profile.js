@@ -4,6 +4,21 @@ export const PRODUCTION_PROFILE_PATH = '/api/integrations/asaas-production';
 const API_URL = 'https://api.asaas.com/v3/pix/addressKeys?status=ACTIVE&limit=1';
 const collection = '_asaas_production_integrations/';
 
+export async function decryptProductionKey(env, uid, document, deps) {
+  const { IntegrationError, encryptionKey, decodeBase64url } = deps;
+  if (document?.fields?.environment?.stringValue !== 'production' || document.fields.version?.integerValue !== '1') throw new IntegrationError('production_format_invalid', 'Não foi possível conferir a conexão de Produção salva.');
+  try {
+    const iv = decodeBase64url(document.fields.iv?.stringValue);
+    if (iv.length !== 12) throw new Error('invalid_iv');
+    const additionalData = new TextEncoder().encode('vendas-aura:asaas:production:v1:' + uid);
+    const value = await crypto.subtle.decrypt({ name: 'AES-GCM', iv, additionalData }, await encryptionKey(env), decodeBase64url(document.fields.cipher?.stringValue));
+    return new TextDecoder('utf-8', { fatal: true }).decode(value);
+  } catch (error) {
+    if (error instanceof IntegrationError) throw error;
+    throw new IntegrationError('production_key_unreadable', 'Não foi possível abrir a chave real salva. Confira a configuração de proteção antes de substituir a conexão.');
+  }
+}
+
 export function createProductionProfileHandler(deps) {
   const { IntegrationError, json, authenticatedUser, checkFirebase, loadPrivateDocument, encryptionKey, base64url, decodeBase64url, integrationBody, DEFAULT_APP_ORIGIN, FIRESTORE_DOCUMENTS } = deps;
   const fail = (code, message, status = 503) => { throw new IntegrationError(code, message, status); };
@@ -13,18 +28,7 @@ export function createProductionProfileHandler(deps) {
     const cipher = await crypto.subtle.encrypt({ name: 'AES-GCM', iv, additionalData: additionalData(uid) }, await encryptionKey(env), new TextEncoder().encode(key));
     return { cipher: base64url(new Uint8Array(cipher)), iv: base64url(iv) };
   };
-  const decrypt = async (env, uid, document) => {
-    if (document.fields.environment?.stringValue !== 'production' || document.fields.version?.integerValue !== '1') fail('production_format_invalid', 'Não foi possível conferir a conexão de Produção salva.');
-    try {
-      const iv = decodeBase64url(document.fields.iv?.stringValue);
-      if (iv.length !== 12) throw new Error('invalid_iv');
-      const value = await crypto.subtle.decrypt({ name: 'AES-GCM', iv, additionalData: additionalData(uid) }, await encryptionKey(env), decodeBase64url(document.fields.cipher?.stringValue));
-      return new TextDecoder('utf-8', { fatal: true }).decode(value);
-    } catch (error) {
-      if (error instanceof IntegrationError) throw error;
-      fail('production_key_unreadable', 'Não foi possível abrir a chave real salva. Confira a configuração de proteção antes de substituir a conexão.');
-    }
-  };
+  const decrypt = (env, uid, document) => decryptProductionKey(env, uid, document, deps);
   const status = document => ({
     configured: !!document,
     environment: 'production',

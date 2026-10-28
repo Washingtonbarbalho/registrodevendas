@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState } from 'https://esm.sh/react@18.2.0';
-import { auth } from '../firebase-config.js?v=104';
-import { formatCurrency } from '../utils.js?v=104';
-import { createAsaasProfileClient } from './asaas-profile-client.js?v=104';
-import { createAsaasFlowClient, createCheckoutTestRequest } from './asaas-flow-client.js?v=104';
+import { auth } from '../firebase-config.js?v=105';
+import { formatCurrency } from '../utils.js?v=105';
+import { createAsaasProfileClient } from './asaas-profile-client.js?v=105';
+import { createAsaasFlowClient, createCheckoutTestRequest } from './asaas-flow-client.js?v=105';
 
 const getIdToken = force => auth.currentUser?.getIdToken(force);
 const profile = createAsaasProfileClient({ getIdToken });
@@ -35,7 +35,7 @@ export const AsaasCheckoutOption = ({ selected, onChange, onAvailability }) => {
             'Testar Pix automático do Asaas (Sandbox)'
         ),
         h('p', { className: 'text-xs text-amber-900' }, selected ? 'Esta compra será testada em uma cópia separada. Nenhuma venda, recebimento ou baixa de estoque real será registrada. Não pague pelo banco.' : 'Marque para testar o carrinho com a conta Asaas Sandbox conectada no perfil.'),
-        !available && !loading && h('a', { href: './integrations/atualizar-worker.html?v=104', target: '_blank', rel: 'noopener noreferrer', className: 'text-xs underline text-amber-900' }, 'Conecte o Asaas e atualize o Worker para liberar o teste.')
+        !available && !loading && h('a', { href: './integrations/atualizar-worker.html?v=105', target: '_blank', rel: 'noopener noreferrer', className: 'text-xs underline text-amber-900' }, 'Conecte o Asaas e atualize o Worker para liberar o teste.')
     );
 };
 

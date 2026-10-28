@@ -1,4 +1,4 @@
-// Registro de Vendas - Worker 104 completo. Gerado por build.mjs.
+// Registro de Vendas - Worker 105 completo. Gerado por build.mjs.
 
 // ../../financial-core-v70.js
 var finiteNumber = (value) => Number.isFinite(Number(value)) ? Number(value) : 0;
@@ -15,7 +15,7 @@ var toCents = (value) => {
   const correction = Math.sign(amount || 1) * Number.EPSILON * Math.max(1, Math.abs(amount));
   return Math.round((amount + correction) * 100);
 };
-var fromCents = (cents) => Math.round(finiteNumber(cents)) / 100;
+var fromCents = (cents2) => Math.round(finiteNumber(cents2)) / 100;
 var money = (value) => fromCents(toCents(value));
 var sumMoney = (items = [], getter = (value) => value) => fromCents(
   (Array.isArray(items) ? items : []).reduce((total, item, index) => total + toCents(getter(item, index)), 0)
@@ -45,9 +45,9 @@ var applyInstallmentPayment = (installments, selectedIndex, amountPaid, datePaid
   const rows = cloneInstallments(installments);
   const selected = rows[index];
   const paymentCents = toCents(amountPaid);
-  const date = cleanFinancialDate(datePaid);
+  const date2 = cleanFinancialDate(datePaid);
   if (!selected || selected.paid || toCents(selected.amount) <= 0) throw new FinancialCalculationError("invalid-installment", "A parcela selecionada não está mais disponível para pagamento.");
-  if (paymentCents <= 0 || !date) throw new FinancialCalculationError("invalid-payment", "Informe um valor e uma data de pagamento válidos.");
+  if (paymentCents <= 0 || !date2) throw new FinancialCalculationError("invalid-payment", "Informe um valor e uma data de pagamento válidos.");
   const available = rows.slice(index).reduce((total, item) => total + (!item.paid ? Math.max(0, toCents(item.amount)) : 0), 0);
   if (paymentCents > available) {
     throw new FinancialCalculationError("payment-exceeds-balance", `O pagamento informado é maior que o saldo restante do contrato (${fromCents(available).toFixed(2).replace(".", ",")}).`);
@@ -65,10 +65,10 @@ var applyInstallmentPayment = (installments, selectedIndex, amountPaid, datePaid
     const remaining = open - applied;
     target.amount = fromCents(remaining);
     target.paid = remaining === 0;
-    target.paidAt = target.paid ? date : null;
+    target.paidAt = target.paid ? date2 : null;
     target.paidAtDateTime = target.paid ? timestamp : null;
     target.history.push({
-      date,
+      date: date2,
       amount: fromCents(applied),
       type: "abatement",
       fromInstallment: index,
@@ -80,7 +80,7 @@ var applyInstallmentPayment = (installments, selectedIndex, amountPaid, datePaid
   }
   const remainingSelected = selectedOpen - appliedToSelected;
   const historyItem = {
-    date,
+    date: date2,
     amount: fromCents(appliedToSelected),
     type: paymentCents < selectedOpen ? "partial" : paymentCents === selectedOpen ? "full" : "full_surplus",
     timestamp
@@ -92,7 +92,7 @@ var applyInstallmentPayment = (installments, selectedIndex, amountPaid, datePaid
   selected.history.push(historyItem);
   selected.amount = fromCents(remainingSelected);
   selected.paid = remainingSelected === 0;
-  selected.paidAt = selected.paid ? date : null;
+  selected.paidAt = selected.paid ? date2 : null;
   selected.paidAtDateTime = selected.paid ? timestamp : null;
   return {
     installments: rows,
@@ -265,9 +265,9 @@ function createSandboxFlowHandlers(deps) {
   const releaseWrites = async (ctx, document) => {
     const integration = await ctx.load("_asaas_integrations/" + ctx.user.uid);
     const pending = await ctx.load(pendingPath(ctx.user.uid, text(document, "id")));
-    const count = number(integration, "pendingCharges");
-    if (!integration || !pending || !Number.isSafeInteger(count) || count < 1) fail("flow_state_conflict", "O andamento do teste precisa ser conferido antes de confirmar.", 503);
-    const writes = [update("_asaas_integrations/" + ctx.user.uid, integration, { pendingCharges: int(count - 1) }), remove(pendingPath(ctx.user.uid, text(document, "id")), pending)];
+    const count2 = number(integration, "pendingCharges");
+    if (!integration || !pending || !Number.isSafeInteger(count2) || count2 < 1) fail("flow_state_conflict", "O andamento do teste precisa ser conferido antes de confirmar.", 503);
+    const writes = [update("_asaas_integrations/" + ctx.user.uid, integration, { pendingCharges: int(count2 - 1) }), remove(pendingPath(ctx.user.uid, text(document, "id")), pending)];
     if (text(document, "sourceSlot")) {
       const path = root(ctx.user.uid) + "/slots/" + text(document, "sourceSlot");
       const slot = await ctx.load(path);
@@ -391,10 +391,10 @@ function createSandboxFlowHandlers(deps) {
         const original = await ctx.load("artifacts/vendas-aura-main/users/" + ctx.user.uid + "/sales/" + snapshot.saleId);
         if (!original || await sourceMarker(ctx.env, decodeDocument(original)) !== snapshot.sourceMarker) nextState = "review";
         else {
-          const now = (/* @__PURE__ */ new Date()).toISOString();
+          const now2 = (/* @__PURE__ */ new Date()).toISOString();
           const dateParts = new Intl.DateTimeFormat("en-US", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(/* @__PURE__ */ new Date());
-          const date = ["year", "month", "day"].map((type) => dateParts.find((part) => part.type === type)?.value).join("-");
-          const applied = applyInstallmentPayment(snapshot.installments, snapshot.installmentIndex, fromCents(number(document, "amountCents")), date, now);
+          const date2 = ["year", "month", "day"].map((type) => dateParts.find((part) => part.type === type)?.value).join("-");
+          const applied = applyInstallmentPayment(snapshot.installments, snapshot.installmentIndex, fromCents(number(document, "amountCents")), date2, now2);
           applied.historyItem.provider = "asaas-sandbox";
           applied.historyItem.providerPaymentId = payment.id;
           result = { receivedCents: number(document, "amountCents"), remainingCents: toCents(applied.remainingBalance), installmentPaid: applied.installments[snapshot.installmentIndex].paid, installments: applied.installments, saleStatus: applied.allPaid ? "completed" : "active" };
@@ -455,10 +455,10 @@ function createSandboxFlowHandlers(deps) {
         if (new TextEncoder().encode(snapshotJson).length > 64e3) fail("flow_snapshot_large", "Este contrato é muito grande para o teste. Escolha outra parcela.", 400);
         const integration = await ctx.load("_asaas_integrations/" + ctx.user.uid);
         if (!integration?.fields?.enabled?.booleanValue || await sandboxTag2(ctx.env, "aura:sandbox-key:v1:" + await decryptAsaasKey2(ctx.env, ctx.user.uid, integration.fields)) !== ctx.keyTag) fail("flow_credential_changed", "A conexão mudou. Reabra o perfil antes de gerar o teste.");
-        const count = number(integration, "pendingCharges");
-        if (!Number.isInteger(count) || count < 0 || count >= 5) fail("flow_pending_limit", "Conclua ou cancele os testes pendentes no perfil antes de criar outro.");
+        const count2 = number(integration, "pendingCharges");
+        if (!Number.isInteger(count2) || count2 < 0 || count2 >= 5) fail("flow_pending_limit", "Conclua ou cancele os testes pendentes no perfil antes de criar outro.");
         const fields = { id: str(id), kind: str(input.kind), state: str("creating"), amountCents: int(prepared.amountCents), snapshotJson: str(snapshotJson), requestHash: str(await sandboxTag2(ctx.env, "aura:flow-request:v1:" + canonical(prepared.request))), keyTag: str(ctx.keyTag), reference: str("aura-flow-" + id), simulationOnly: bool(true), flowVersion: int(1), sourceSlot: str(prepared.sourceSlot || ""), createdAt: stamp((/* @__PURE__ */ new Date()).toISOString()), leaseUntil: stamp((/* @__PURE__ */ new Date(0)).toISOString()) };
-        const writes = [update(orderPath(ctx.user.uid, id), null, fields), update(pendingPath(ctx.user.uid, id), null, { id: str(id), kind: str(input.kind), amountCents: int(prepared.amountCents) }), update("_asaas_integrations/" + ctx.user.uid, integration, { pendingCharges: int(count + 1) })];
+        const writes = [update(orderPath(ctx.user.uid, id), null, fields), update(pendingPath(ctx.user.uid, id), null, { id: str(id), kind: str(input.kind), amountCents: int(prepared.amountCents) }), update("_asaas_integrations/" + ctx.user.uid, integration, { pendingCharges: int(count2 + 1) })];
         if (prepared.sourceSlot) writes.push(update(root(ctx.user.uid) + "/slots/" + prepared.sourceSlot, null, { orderId: str(id) }));
         await commit(ctx, writes);
         document = await ctx.load(orderPath(ctx.user.uid, id));
@@ -545,6 +545,20 @@ function createSandboxFlowHandlers(deps) {
 var PRODUCTION_PROFILE_PATH = "/api/integrations/asaas-production";
 var API_URL = "https://api.asaas.com/v3/pix/addressKeys?status=ACTIVE&limit=1";
 var collection = "_asaas_production_integrations/";
+async function decryptProductionKey(env, uid, document, deps) {
+  const { IntegrationError: IntegrationError2, encryptionKey: encryptionKey2, decodeBase64url: decodeBase64url2 } = deps;
+  if (document?.fields?.environment?.stringValue !== "production" || document.fields.version?.integerValue !== "1") throw new IntegrationError2("production_format_invalid", "Não foi possível conferir a conexão de Produção salva.");
+  try {
+    const iv = decodeBase64url2(document.fields.iv?.stringValue);
+    if (iv.length !== 12) throw new Error("invalid_iv");
+    const additionalData = new TextEncoder().encode("vendas-aura:asaas:production:v1:" + uid);
+    const value = await crypto.subtle.decrypt({ name: "AES-GCM", iv, additionalData }, await encryptionKey2(env), decodeBase64url2(document.fields.cipher?.stringValue));
+    return new TextDecoder("utf-8", { fatal: true }).decode(value);
+  } catch (error) {
+    if (error instanceof IntegrationError2) throw error;
+    throw new IntegrationError2("production_key_unreadable", "Não foi possível abrir a chave real salva. Confira a configuração de proteção antes de substituir a conexão.");
+  }
+}
 function createProductionProfileHandler(deps) {
   const { IntegrationError: IntegrationError2, json: json2, authenticatedUser: authenticatedUser2, checkFirebase: checkFirebase2, loadPrivateDocument: loadPrivateDocument2, encryptionKey: encryptionKey2, base64url: base64url2, decodeBase64url: decodeBase64url2, integrationBody: integrationBody2, DEFAULT_APP_ORIGIN: DEFAULT_APP_ORIGIN2, FIRESTORE_DOCUMENTS: FIRESTORE_DOCUMENTS2 } = deps;
   const fail = (code, message, status2 = 503) => {
@@ -556,18 +570,7 @@ function createProductionProfileHandler(deps) {
     const cipher = await crypto.subtle.encrypt({ name: "AES-GCM", iv, additionalData: additionalData(uid) }, await encryptionKey2(env), new TextEncoder().encode(key));
     return { cipher: base64url2(new Uint8Array(cipher)), iv: base64url2(iv) };
   };
-  const decrypt = async (env, uid, document) => {
-    if (document.fields.environment?.stringValue !== "production" || document.fields.version?.integerValue !== "1") fail("production_format_invalid", "Não foi possível conferir a conexão de Produção salva.");
-    try {
-      const iv = decodeBase64url2(document.fields.iv?.stringValue);
-      if (iv.length !== 12) throw new Error("invalid_iv");
-      const value = await crypto.subtle.decrypt({ name: "AES-GCM", iv, additionalData: additionalData(uid) }, await encryptionKey2(env), decodeBase64url2(document.fields.cipher?.stringValue));
-      return new TextDecoder("utf-8", { fatal: true }).decode(value);
-    } catch (error) {
-      if (error instanceof IntegrationError2) throw error;
-      fail("production_key_unreadable", "Não foi possível abrir a chave real salva. Confira a configuração de proteção antes de substituir a conexão.");
-    }
-  };
+  const decrypt = (env, uid, document) => decryptProductionKey(env, uid, document, deps);
   const status = (document) => ({
     configured: !!document,
     environment: "production",
@@ -659,8 +662,8 @@ function createProductionProfileHandler(deps) {
         const apiKey = input ? input.apiKey.trim() : current ? await decrypt(env, user.uid, current) : "";
         if (!apiKey) fail("production_key_required", "Informe a chave da API da sua conta real do Asaas.", 400);
         const hasActivePixKey = await testKey(apiKey, fetchAsaas, signal);
-        const now = (/* @__PURE__ */ new Date()).toISOString();
-        const fields = { hasActivePixKey: { booleanValue: hasActivePixKey }, checkedAt: { timestampValue: now }, updatedAt: { timestampValue: now } };
+        const now2 = (/* @__PURE__ */ new Date()).toISOString();
+        const fields = { hasActivePixKey: { booleanValue: hasActivePixKey }, checkedAt: { timestampValue: now2 }, updatedAt: { timestampValue: now2 } };
         if (input) {
           const protectedKey = await encrypt(env, user.uid, apiKey);
           Object.assign(fields, { environment: { stringValue: "production" }, version: { integerValue: "1" }, cipher: { stringValue: protectedKey.cipher }, iv: { stringValue: protectedKey.iv }, enabled: { booleanValue: false } });
@@ -684,6 +687,398 @@ function createProductionProfileHandler(deps) {
       return withCors(json2({ code: error instanceof IntegrationError2 ? error.code : "production_unavailable", message: error instanceof IntegrationError2 ? error.message : "Não foi possível concluir a consulta da conta real. Tente novamente." }, error instanceof IntegrationError2 ? error.status : 503));
     }
   };
+}
+
+// production-check.js
+var PRODUCTION_CHECK_PATH = PRODUCTION_PROFILE_PATH + "/receipt-check";
+var PRODUCTION_WEBHOOK_PATH = "/api/webhooks/asaas/production/";
+var EVENTS = ["PAYMENT_CONFIRMED", "PAYMENT_RECEIVED", "PAYMENT_REFUNDED", "PAYMENT_PARTIALLY_REFUNDED", "PAYMENT_DELETED", "PAYMENT_OVERDUE", "PAYMENT_RESTORED", "PAYMENT_UPDATED", "PAYMENT_REFUND_IN_PROGRESS"];
+var apiRoot = "https://api.asaas.com/v3";
+var str2 = (value) => ({ stringValue: value });
+var stamp2 = (value) => ({ timestampValue: value });
+var bool2 = (value) => ({ booleanValue: value });
+var int2 = (value) => ({ integerValue: String(value) });
+var text2 = (doc, field) => doc?.fields?.[field]?.stringValue || "";
+var count = (doc, field) => Number(doc?.fields?.[field]?.integerValue || 0);
+var validId = (value) => typeof value === "string" && /^[A-Za-z0-9_-]{5,128}$/.test(value);
+var now = () => (/* @__PURE__ */ new Date()).toISOString();
+var epoch = () => (/* @__PURE__ */ new Date(0)).toISOString();
+var date = () => {
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(/* @__PURE__ */ new Date());
+  return ["year", "month", "day"].map((type) => parts.find((part) => part.type === type).value).join("-");
+};
+var cents = (value) => typeof value === "number" && Number.isFinite(value) && Math.abs(value * 100 - Math.round(value * 100)) < 1e-5 ? Math.round(value * 100) : null;
+var validPayerCpf = (value) => {
+  if (typeof value !== "string" || !/^\d{3}\.?\d{3}\.?\d{3}-?\d{2}$/.test(value)) return false;
+  const digits = value.replace(/\D/g, "");
+  if (/^(\d)\1+$/.test(digits)) return false;
+  for (const length of [9, 10]) {
+    const total = [...digits.slice(0, length)].reduce((sum, digit2, index) => sum + Number(digit2) * (length + 1 - index), 0);
+    const digit = total * 10 % 11 % 10;
+    if (digit !== Number(digits[length])) return false;
+  }
+  return true;
+};
+function createProductionCheckHandlers(deps) {
+  const { IntegrationError: IntegrationError2, json: json2, authenticatedUser: authenticatedUser2, checkFirebase: checkFirebase2, loadPrivateDocument: loadPrivateDocument2, sandboxTag: sandboxTag2, equalToken: equalToken2, DEFAULT_APP_ORIGIN: DEFAULT_APP_ORIGIN2, FIRESTORE_DOCUMENTS: FIRESTORE_DOCUMENTS2, PUBLIC_WORKER_URL: PUBLIC_WORKER_URL2 } = deps;
+  const fail = (code, message, status = 409) => {
+    throw new IntegrationError2(code, message, status);
+  };
+  const docPath = (uid) => "_asaas_production_checks/" + uid;
+  const integrationPath = (uid) => "_asaas_production_integrations/" + uid;
+  const name = (path) => "projects/vendas-aura/databases/(default)/documents/" + path;
+  const update = (path, doc, fields) => ({ update: { name: name(path), fields }, updateMask: { fieldPaths: Object.keys(fields) }, currentDocument: doc ? { updateTime: doc.updateTime } : { exists: false } });
+  const readJson = async (request, limit, allowEmpty = false) => {
+    if (!request.body) {
+      if (allowEmpty) return null;
+      fail("invalid_body", "Informe os dados do pagador do teste real.", 400);
+    }
+    if (!(request.headers.get("Content-Type") || "").toLowerCase().startsWith("application/json")) fail("invalid_body", "Envie os dados do teste em JSON.", 400);
+    const reader = request.body.getReader();
+    const chunks = [];
+    let length = 0;
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      length += value.length;
+      if (length > limit) {
+        await reader.cancel();
+        fail("invalid_body", "Os dados excedem o tamanho permitido.", 413);
+      }
+      chunks.push(value);
+    }
+    if (!length && allowEmpty) return null;
+    const bytes = new Uint8Array(length);
+    let offset = 0;
+    for (const chunk of chunks) {
+      bytes.set(chunk, offset);
+      offset += chunk.length;
+    }
+    try {
+      const parsed = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
+      if (allowEmpty && (!parsed || typeof parsed !== "object" || Array.isArray(parsed))) fail("invalid_body", "Confira os dados do pagador.", 400);
+      return parsed;
+    } catch {
+      fail("invalid_body", "Não foi possível conferir os dados enviados.", 400);
+    }
+  };
+  const emptyBody = async (request) => {
+    const reader = request.body?.getReader();
+    if (!reader) return;
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) return;
+      if (value.length) {
+        await reader.cancel();
+        fail("invalid_body", "Esta ação usa somente a cobrança real salva.", 400);
+      }
+    }
+  };
+  const payer = (input) => {
+    if (!input || typeof input !== "object" || Array.isArray(input) || Object.keys(input).length !== 2 || Object.keys(input).some((key) => !["payerName", "payerCpf"].includes(key)) || typeof input.payerName !== "string" || input.payerName.trim().length < 2 || input.payerName.length > 160 || /[\x00-\x1f\x7f]/.test(input.payerName) || !validPayerCpf(input.payerCpf)) fail("payer_required", "Informe seu nome completo e um CPF válido para gerar o Pix real de R$ 5,00.", 400);
+    return { name: input.payerName.normalize("NFC").trim().replace(/\s+/g, " ").toUpperCase(), cpfCnpj: input.payerCpf.replace(/\D/g, "") };
+  };
+  const view = (document) => {
+    const status = text2(document, "providerStatus") || "NOT_CREATED";
+    const ready = document?.fields?.setupComplete?.booleanValue === true;
+    const verified = !!document?.fields?.receivedWebhookAt?.timestampValue;
+    const messages = {
+      NOT_CREATED: "Gere um Pix real de R$ 5,00 para validar a conta oficial e o retorno automático.",
+      PENDING: "Pix real pronto. Pague pelo aplicativo do seu banco e aguarde a confirmação automática.",
+      OVERDUE: "A cobrança real está vencida. Confira o andamento antes de pagar ou cancelar.",
+      CONFIRMED: "O Asaas ainda está processando o pagamento real. Aguarde o recebimento.",
+      RECEIVED: verified ? "Pagamento real recebido. Retorno automático da conta oficial validado." : "Pagamento localizado na conta real. Aguardando o retorno automático autenticado.",
+      DELETED: "Cobrança real cancelada. Ela não registrou venda, parcela ou baixa de estoque.",
+      REFUNDED: "O Asaas informa que a cobrança foi estornada. Confira os valores na conta oficial.",
+      REVIEW: "A cobrança foi alterada fora do sistema. Confira o estado na conta oficial do Asaas."
+    };
+    const activeQr = ready && ["PENDING", "OVERDUE"].includes(status);
+    return {
+      environment: "production",
+      diagnosticOnly: true,
+      amountCents: 500,
+      started: !!text2(document, "reference"),
+      created: !!text2(document, "paymentId"),
+      ready,
+      status,
+      testComplete: verified,
+      webhookVerified: verified,
+      netCents: document?.fields?.netCents?.integerValue !== void 0 ? count(document, "netCents") : null,
+      refundedCents: count(document, "refundedCents"),
+      payload: activeQr ? text2(document, "payload") : "",
+      encodedImage: activeQr ? text2(document, "encodedImage") : "",
+      message: text2(document, "reference") && !ready && !["DELETED", "REFUNDED"].includes(status) ? "A preparação foi iniciada. Retome este teste antes de gerar outra cobrança." : messages[status] || "Confira o andamento do teste na conta real do Asaas."
+    };
+  };
+  const commit = async (ctx, writes) => {
+    for (const write of writes) {
+      const path = write.update?.name;
+      if (!path || !(path === name(docPath(ctx.user.uid)) || path.startsWith(name(docPath(ctx.user.uid) + "/history/")) || path === name(integrationPath(ctx.user.uid)))) throw new Error("unsafe_production_check_write");
+    }
+    const response = await ctx.fetchGoogle(FIRESTORE_DOCUMENTS2.slice(0, -1) + ":commit", { method: "POST", headers: ctx.headers, signal: ctx.signal, redirect: "manual", body: JSON.stringify({ writes }) });
+    if ([409, 412].includes(response.status)) fail("production_check_changed", "O teste mudou durante a operação. Atualize o andamento antes de repetir.");
+    if (!response.ok) fail("production_check_save_failed", "Não foi possível confirmar a gravação. Confira o andamento do teste antes de repetir.", 503);
+    const data = JSON.parse(await response.text());
+    if (!Array.isArray(data.writeResults) || data.writeResults.length !== writes.length) fail("production_check_save_failed", "A gravação não foi confirmada. Confira o andamento do teste antes de repetir.", 503);
+  };
+  const credentials = async (ctx) => {
+    const integration = await ctx.load(integrationPath(ctx.user.uid));
+    if (!integration) fail("production_connection_required", "Conecte e confira a chave da sua conta real no perfil antes deste teste.");
+    const key = await decryptProductionKey(ctx.env, ctx.user.uid, integration, deps);
+    const keyTag = await sandboxTag2(ctx.env, "aura:production-key:v1:" + key);
+    const api = async (path, method = "GET", body) => {
+      let response;
+      try {
+        response = await ctx.fetchAsaas(apiRoot + path, { method, redirect: "manual", signal: ctx.signal, headers: { accept: "application/json", access_token: key, "User-Agent": "RegistroDeVendas-Pix-Production-Check/1.0", ...body === void 0 ? {} : { "Content-Type": "application/json" } }, ...body === void 0 ? {} : { body: JSON.stringify(body) } });
+      } catch {
+        fail("production_check_connection_failed", "Não foi possível concluir a chamada à conta real. Confira o andamento antes de repetir.", 503);
+      }
+      if (!response.ok) {
+        const error = new IntegrationError2("production_check_provider_failed", [401, 403].includes(response.status) ? "O Asaas recusou o teste. Confira as permissões da chave real para clientes, cobranças e Webhooks." : response.status === 400 ? "O Asaas recusou os dados do teste real. Confira seu nome, CPF e as permissões da conta." : "O Asaas não concluiu o teste real. Confira o andamento antes de repetir.", 502);
+        error.definitive = [400, 401, 403, 404, 422, 429].includes(response.status);
+        throw error;
+      }
+      try {
+        return JSON.parse(await response.text());
+      } catch {
+        fail("production_check_response_invalid", "O Asaas respondeu em um formato inesperado. Confira o andamento antes de repetir.", 503);
+      }
+    };
+    return { integration, keyTag, api };
+  };
+  const verifyPayment = (payment, doc) => {
+    if (!validId(payment?.id) || text2(doc, "paymentId") && payment.id !== text2(doc, "paymentId") || payment.customer !== text2(doc, "customerId") || payment.externalReference !== text2(doc, "reference") || payment.billingType !== "PIX" || cents(payment.value) !== 500 || typeof payment.status !== "string" || !/^[A-Z_]{3,64}$/.test(payment.status)) fail("production_check_payment_mismatch", "A cobrança real não corresponde a este teste. Nenhuma confirmação foi registrada.");
+  };
+  const settle = async (ctx, doc, payment, eventId = "") => {
+    verifyPayment(payment, doc);
+    if (eventId && text2(doc, "lastEventId") === eventId) return doc;
+    const received = payment.deleted !== true && payment.status === "RECEIVED";
+    const net = cents(payment.netValue);
+    if (received && (net === null || net < 0 || net > 500)) fail("production_check_net_invalid", "Não foi possível conferir o valor líquido do teste real.", 503);
+    const refunds = Array.isArray(payment.refunds) ? payment.refunds.filter((item) => item.status === "DONE") : [];
+    if (refunds.some((item) => cents(item.value) === null || cents(item.value) < 0)) fail("production_check_refund_invalid", "Não foi possível conferir o estorno do teste real.", 503);
+    const refunded = refunds.reduce((sum, item) => sum + cents(item.value), 0);
+    if (refunded > 500) fail("production_check_refund_invalid", "O valor do estorno não corresponde ao teste real.", 503);
+    let status = payment.deleted === true ? "DELETED" : payment.status;
+    if (!doc.fields.pendingCounted?.booleanValue && !doc.fields.receivedWebhookAt?.timestampValue && ["PENDING", "OVERDUE", "CONFIRMED"].includes(status)) status = "REVIEW";
+    const fields = { providerStatus: str2(status), refundedCents: int2(refunded), updatedAt: stamp2(now()), leaseUntil: stamp2(epoch()), ...net !== null && net >= 0 && net <= 500 ? { netCents: int2(net) } : {}, ...eventId ? { lastEventId: str2(eventId), webhookAt: stamp2(now()) } : {} };
+    if (received && eventId && !doc.fields.receivedWebhookAt?.timestampValue) fields.receivedWebhookAt = stamp2(now());
+    const writes = [];
+    if (doc.fields.pendingCounted?.booleanValue && (received || ["DELETED", "REFUNDED"].includes(status))) {
+      const integration = await ctx.load(integrationPath(ctx.user.uid));
+      const pending = count(integration, "pendingCharges");
+      if (!integration || !Number.isSafeInteger(pending) || pending < 1) fail("production_check_state_conflict", "O teste precisa ser conferido antes de concluir.", 503);
+      fields.pendingCounted = bool2(false);
+      writes.push(update(integrationPath(ctx.user.uid), integration, { pendingCharges: int2(pending - 1) }));
+    }
+    writes.unshift(update(docPath(ctx.user.uid), doc, fields));
+    await commit(ctx, writes);
+    return ctx.load(docPath(ctx.user.uid));
+  };
+  const prepare = async (ctx, input) => {
+    let document = await ctx.load(docPath(ctx.user.uid));
+    const sameKey = text2(document, "keyTag") === ctx.keyTag;
+    const supplied = input ? payer(input) : null;
+    const suppliedTag = supplied ? await sandboxTag2(ctx.env, "aura:production-payer:v1:" + supplied.name + ":" + supplied.cpfCnpj) : "";
+    const restart = sameKey && text2(document, "providerStatus") === "DELETED" && !document.fields.receivedWebhookAt?.timestampValue && supplied;
+    if (!sameKey || restart) {
+      if (!supplied) fail("payer_required", "Informe seu nome e CPF para gerar o Pix real de R$ 5,00.", 400);
+      const integration = await ctx.load(integrationPath(ctx.user.uid));
+      if (!integration || await sandboxTag2(ctx.env, "aura:production-key:v1:" + await decryptProductionKey(ctx.env, ctx.user.uid, integration, deps)) !== ctx.keyTag) fail("production_check_key_changed", "A conexão real mudou. Reabra o perfil antes de gerar o teste.");
+      const pending = count(integration, "pendingCharges");
+      if (pending !== 0) fail("production_check_pending", "Conclua ou cancele o teste real pendente antes de gerar outro.");
+      const fields = { keyTag: str2(ctx.keyTag), reference: str2("aura-prodcheck-" + crypto.randomUUID()), payerTag: str2(suppliedTag), customerId: str2(""), paymentId: str2(""), webhookId: str2(""), pendingCreate: str2(""), providerStatus: str2(""), payload: str2(""), encodedImage: str2(""), setupComplete: bool2(false), pendingCounted: bool2(true), webhookAt: { nullValue: null }, receivedWebhookAt: { nullValue: null }, lastEventId: str2(""), netCents: { nullValue: null }, refundedCents: int2(0), leaseUntil: stamp2(epoch()), createdAt: stamp2(now()) };
+      const writes = [update(docPath(ctx.user.uid), document, fields), update(integrationPath(ctx.user.uid), integration, { pendingCharges: int2(1) })];
+      if (document && text2(document, "reference")) writes.push(update(docPath(ctx.user.uid) + "/history/" + text2(document, "reference"), null, document.fields));
+      await commit(ctx, writes);
+      document = await ctx.load(docPath(ctx.user.uid));
+    } else if (supplied && suppliedTag !== text2(document, "payerTag")) fail("production_check_other_payer", "Já existe um teste real com outro pagador. Retome ou cancele essa cobrança antes de gerar outra.");
+    if (document.fields.setupComplete?.booleanValue) return view(document);
+    if (Date.parse(document.fields.leaseUntil?.timestampValue || "") > Date.now()) fail("production_check_busy", "A preparação já está em andamento. Aguarde um minuto e confira o teste.");
+    const save = async (fields) => {
+      await commit(ctx, [update(docPath(ctx.user.uid), document, fields)]);
+      document = await ctx.load(docPath(ctx.user.uid));
+    };
+    await save({ leaseUntil: stamp2(new Date(Date.now() + 9e4).toISOString()) });
+    try {
+      const reference = text2(document, "reference");
+      const find = async (kind) => {
+        const data = await ctx.api("/" + kind + "?externalReference=" + encodeURIComponent(reference) + "&limit=2");
+        if (!Array.isArray(data?.data) || data.hasMore === true || data.data.length > 1 || data.data.some((item) => item.externalReference !== reference)) fail("production_check_duplicates", "Não foi possível identificar um único registro do teste na conta real. Confira o painel Asaas.");
+        return data.data[0] || null;
+      };
+      const create = async (kind, path, body2, recover, validate, fields) => {
+        const found = await recover();
+        if (found) {
+          validate(found);
+          await save({ ...fields(found), pendingCreate: str2("") });
+          return;
+        }
+        if (text2(document, "pendingCreate") === kind) fail("production_check_creation_unknown", "Uma criação anterior ficou sem confirmação. A cobrança não será repetida. Confira o painel Asaas e envie esta mensagem.");
+        await save({ pendingCreate: str2(kind) });
+        let created;
+        try {
+          created = await ctx.api(path, "POST", body2);
+        } catch (error) {
+          if (error.definitive) await save({ pendingCreate: str2("") });
+          throw error;
+        }
+        validate(created);
+        await save({ ...fields(created), pendingCreate: str2("") });
+      };
+      if (!ctx.user.email) fail("production_check_email_required", "Sua conta precisa ter e-mail válido para configurar o retorno automático.");
+      const webhookUrl = PUBLIC_WORKER_URL2 + PRODUCTION_WEBHOOK_PATH + ctx.user.uid;
+      const hooks = await ctx.api("/webhooks?limit=100");
+      if (!Array.isArray(hooks?.data) || hooks.hasMore === true) fail("production_check_webhook_invalid", "Não foi possível conferir os Webhooks da conta real.");
+      const own = hooks.data.filter((hook) => hook.url === webhookUrl);
+      if (own.length > 1 || own.length && !validId(own[0].id)) fail("production_check_webhook_invalid", "Existe mais de um retorno para este teste real. Confira a conta Asaas.");
+      const body = { name: "Registro de Vendas - validacao real", url: webhookUrl, email: ctx.user.email, enabled: true, interrupted: false, authToken: await sandboxTag2(ctx.env, "aura:production-webhook:v1:" + ctx.user.uid), events: EVENTS, sendType: "SEQUENTIALLY", apiVersion: 3 };
+      const checkHook = (hook) => {
+        if (!validId(hook?.id) || hook.url !== webhookUrl) fail("production_check_webhook_invalid", "Não foi possível conferir o retorno automático real.");
+      };
+      if (own.length) {
+        const hook = await ctx.api("/webhooks/" + own[0].id, "PUT", body);
+        checkHook(hook);
+        if (hook.id !== own[0].id) fail("production_check_webhook_invalid", "O retorno real não corresponde à configuração salva.");
+        await save({ webhookId: str2(hook.id), ...text2(document, "pendingCreate") === "webhook" ? { pendingCreate: str2("") } : {} });
+      } else await create("webhook", "/webhooks", body, async () => null, checkHook, (hook) => ({ webhookId: str2(hook.id) }));
+      if (!text2(document, "customerId")) {
+        const recovered = await find("customers");
+        const validate = (customer) => {
+          if (!validId(customer?.id) || customer.externalReference !== reference || customer.deleted === true || supplied && customer.cpfCnpj && customer.cpfCnpj.replace(/\D/g, "") !== supplied.cpfCnpj) fail("production_check_customer_invalid", "Não foi possível conferir o pagador do teste real.");
+        };
+        if (recovered) {
+          validate(recovered);
+          await save({ customerId: str2(recovered.id), pendingCreate: str2("") });
+        } else {
+          if (text2(document, "pendingCreate") === "customer") fail("production_check_creation_unknown", "O cadastro anterior ficou sem confirmação. Confira a conta Asaas antes de repetir.");
+          if (!supplied) fail("payer_required", "Preencha novamente seu nome e CPF para retomar o cadastro do pagador.", 400);
+          await create("customer", "/customers", { ...supplied, externalReference: reference, notificationDisabled: true }, async () => null, validate, (customer) => ({ customerId: str2(customer.id) }));
+        }
+      }
+      if (!text2(document, "paymentId")) await create("payment", "/payments", { customer: text2(document, "customerId"), billingType: "PIX", value: 5, dueDate: date(), description: "Validacao real da integracao Pix - Registro de Vendas", externalReference: reference, interest: { value: 0 }, fine: { value: 0 }, discount: { value: 0 } }, () => find("payments"), (payment2) => verifyPayment(payment2, document), (payment2) => ({ paymentId: str2(payment2.id), providerStatus: str2(payment2.status) }));
+      const payment = await ctx.api("/payments/" + text2(document, "paymentId"));
+      verifyPayment(payment, document);
+      if (payment.deleted === true) fail("production_check_deleted", "A cobrança real foi excluída no Asaas. Confira o teste antes de repetir.");
+      const qr = await ctx.api("/payments/" + payment.id + "/pixQrCode");
+      if (typeof qr?.payload !== "string" || qr.payload.length < 30 || qr.payload.length > 8192 || typeof qr.encodedImage !== "string" || !/^iVBORw0KGgo[A-Za-z0-9+/]*={0,2}$/.test(qr.encodedImage) || qr.encodedImage.length > 2e5) fail("production_check_qr_invalid", "A cobrança real existe, mas o QR Code ainda não ficou disponível. Retome o teste.");
+      await save({ payload: str2(qr.payload), encodedImage: str2(qr.encodedImage), setupComplete: bool2(true), providerStatus: str2(payment.status), leaseUntil: stamp2(epoch()) });
+      return view(document);
+    } catch (error) {
+      try {
+        await save({ leaseUntil: stamp2(epoch()) });
+      } catch {
+      }
+      throw error;
+    }
+  };
+  const operate = async (ctx, action, input) => {
+    Object.assign(ctx, await credentials(ctx));
+    let doc = await ctx.load(docPath(ctx.user.uid));
+    if (action === "get") return json2(view(text2(doc, "keyTag") === ctx.keyTag ? doc : null));
+    if (action === "prepare") return json2(await prepare(ctx, input));
+    if (!doc || text2(doc, "keyTag") !== ctx.keyTag) fail("production_check_not_found", "Não foi encontrado um teste para esta conexão real.", 404);
+    if (Date.parse(doc.fields.leaseUntil?.timestampValue || "") > Date.now()) fail("production_check_busy", "A preparação está em andamento. Aguarde antes de conferir ou cancelar.");
+    if (!text2(doc, "paymentId")) {
+      if (action !== "cancel" || text2(doc, "pendingCreate") === "payment") fail("production_check_not_prepared", "Retome a preparação antes de conferir ou cancelar a cobrança real.");
+      const integration = await ctx.load(integrationPath(ctx.user.uid));
+      const pending = count(integration, "pendingCharges");
+      if (!doc.fields.pendingCounted?.booleanValue || !Number.isSafeInteger(pending) || pending < 1) fail("production_check_state_conflict", "Não foi possível conferir o cancelamento da preparação.", 503);
+      await commit(ctx, [update(docPath(ctx.user.uid), doc, { providerStatus: str2("DELETED"), pendingCounted: bool2(false), leaseUntil: stamp2(epoch()) }), update(integrationPath(ctx.user.uid), integration, { pendingCharges: int2(pending - 1) })]);
+      return json2(view(await ctx.load(docPath(ctx.user.uid))));
+    }
+    let payment = await ctx.api("/payments/" + text2(doc, "paymentId"));
+    verifyPayment(payment, doc);
+    if (action === "cancel" && payment.deleted !== true && ["PENDING", "OVERDUE"].includes(payment.status)) {
+      await commit(ctx, [update(docPath(ctx.user.uid), doc, { leaseUntil: stamp2(new Date(Date.now() + 9e4).toISOString()) })]);
+      doc = await ctx.load(docPath(ctx.user.uid));
+      try {
+        await ctx.api("/payments/" + payment.id, "DELETE");
+        payment = await ctx.api("/payments/" + payment.id);
+      } catch (error) {
+        try {
+          await commit(ctx, [update(docPath(ctx.user.uid), doc, { leaseUntil: stamp2(epoch()) })]);
+        } catch {
+        }
+        throw error;
+      }
+      verifyPayment(payment, doc);
+      if (payment.deleted !== true && !["RECEIVED", "REFUNDED"].includes(payment.status)) fail("production_check_cancel_unknown", "O Asaas ainda não confirmou o cancelamento. Confira o andamento antes de repetir.");
+    } else if (action === "cancel" && payment.deleted !== true && !["RECEIVED", "REFUNDED"].includes(payment.status)) fail("production_check_cancel_blocked", "O Asaas ainda está processando a cobrança. Aguarde antes de cancelar.");
+    const settled = await settle(ctx, doc, payment);
+    return json2(view(settled));
+  };
+  const handleRequest = async (request, env, fetchGoogle, fetchAsaas) => {
+    const origin = request.headers.get("Origin");
+    const allowed = typeof env.APP_ORIGIN === "string" && env.APP_ORIGIN.trim() ? env.APP_ORIGIN.trim() : DEFAULT_APP_ORIGIN2;
+    if (!origin || origin !== allowed) return json2({ code: "origin_denied", message: "Abra o teste real pelo perfil do sistema." }, 403);
+    const withCors = (response) => {
+      response.headers.set("Access-Control-Allow-Origin", origin);
+      response.headers.set("Vary", "Origin");
+      return response;
+    };
+    const path = new URL(request.url).pathname;
+    const action = path === PRODUCTION_CHECK_PATH ? request.method === "GET" ? "get" : "prepare" : path === PRODUCTION_CHECK_PATH + "/reconcile" ? "reconcile" : path === PRODUCTION_CHECK_PATH + "/cancel" ? "cancel" : "";
+    const methods = path === PRODUCTION_CHECK_PATH ? ["GET", "POST"] : action ? ["POST"] : [];
+    if (!methods.length) return withCors(json2({ code: "not_found", message: "Rota não encontrada." }, 404));
+    if (request.method === "OPTIONS") {
+      if (!methods.includes(request.headers.get("Access-Control-Request-Method") || "")) return withCors(json2({ code: "method_not_allowed" }, 405));
+      const response = withCors(json2(null));
+      response.headers.set("Access-Control-Allow-Methods", methods.join(", "));
+      response.headers.set("Access-Control-Allow-Headers", "Authorization, Content-Type");
+      return new Response(null, { status: 204, headers: response.headers });
+    }
+    if (!methods.includes(request.method)) return withCors(json2({ code: "method_not_allowed", message: "Método não permitido." }, 405));
+    try {
+      const user = await authenticatedUser2(request, fetchGoogle);
+      const input = action === "prepare" ? await readJson(request, 4096, true) : (await emptyBody(request), null);
+      const result = await checkFirebase2(env, fetchGoogle, false, async (accessToken, signal) => {
+        const headers = { accept: "application/json", "Content-Type": "application/json", Authorization: "Bearer " + accessToken };
+        const load = (path2) => loadPrivateDocument2(fetchGoogle, headers, signal, path2);
+        const profile = await load("artifacts/vendas-aura-main/users/" + user.uid + "/profile/info");
+        if (profile?.fields?.approved?.booleanValue !== true || !["", "active"].includes(profile.fields.status?.stringValue || "")) fail("account_not_approved", "Sua conta precisa estar aprovada e ativa para testar o Asaas real.", 403);
+        return operate({ request, user, env, fetchGoogle, fetchAsaas, signal, headers, load }, action, input);
+      });
+      return withCors(result);
+    } catch (error) {
+      return withCors(json2({ code: error instanceof IntegrationError2 ? error.code : "production_check_unavailable", message: error instanceof IntegrationError2 ? error.message : "Não foi possível concluir o teste real. Confira o andamento antes de repetir." }, error instanceof IntegrationError2 ? error.status : 503));
+    }
+  };
+  const handleWebhook = async (request, env, uid, fetchGoogle, fetchAsaas) => {
+    if (!/^[A-Za-z0-9_-]{1,128}$/.test(uid)) return json2({ code: "not_found" }, 404);
+    if (request.method !== "POST") return json2({ code: "method_not_allowed" }, 405);
+    try {
+      const token = request.headers.get("asaas-access-token") || "";
+      if (!/^[a-f0-9]{64}$/.test(token) || !equalToken2(token, await sandboxTag2(env, "aura:production-webhook:v1:" + uid))) return json2({ code: "unauthorized" }, 401);
+      const event = await readJson(request, 131072);
+      if (typeof event?.id !== "string" || !event.id || event.id.length > 200 || !validId(event.payment?.id)) return json2({ code: "invalid_event" }, 400);
+      if (!EVENTS.includes(event.event)) return json2({ accepted: true });
+      return await checkFirebase2(env, fetchGoogle, false, async (accessToken, signal) => {
+        const headers = { accept: "application/json", "Content-Type": "application/json", Authorization: "Bearer " + accessToken };
+        const load = (path) => loadPrivateDocument2(fetchGoogle, headers, signal, path);
+        const doc = await load(docPath(uid));
+        if (doc && !text2(doc, "paymentId") && event.payment.externalReference === text2(doc, "reference")) fail("production_check_webhook_retry", "A cobrança real ainda está sendo registrada. Repetir entrega.", 503);
+        if (!doc || text2(doc, "paymentId") !== event.payment.id || text2(doc, "lastEventId") === event.id) return json2({ accepted: true });
+        if (!doc.fields.setupComplete?.booleanValue) fail("production_check_webhook_retry", "A cobrança real ainda está sendo preparada. Repetir entrega.", 503);
+        const profile = await load("artifacts/vendas-aura-main/users/" + uid + "/profile/info");
+        if (profile?.fields?.approved?.booleanValue !== true || !["", "active"].includes(profile.fields.status?.stringValue || "")) return json2({ accepted: true });
+        const ctx = { user: { uid }, env, headers, signal, load, fetchGoogle, fetchAsaas };
+        Object.assign(ctx, await credentials(ctx));
+        if (ctx.keyTag !== text2(doc, "keyTag")) return json2({ accepted: true });
+        const payment = await ctx.api("/payments/" + event.payment.id);
+        try {
+          await settle(ctx, doc, payment, event.id);
+        } catch (error) {
+          if (error.code === "production_check_changed") fail("production_check_webhook_retry", "O teste mudou. Repetir entrega.", 503);
+          throw error;
+        }
+        return json2({ accepted: true });
+      });
+    } catch (error) {
+      return json2({ code: error instanceof IntegrationError2 ? error.code : "production_check_webhook_retry" }, error instanceof IntegrationError2 ? error.status : 503);
+    }
+  };
+  return { handleRequest, handleWebhook };
 }
 
 // worker.entry.js
@@ -737,9 +1132,9 @@ function setupPage() {
 </head>
 <body>
 <main>
-  <span class="tag">Etapa 7 · Conexão real e testes Sandbox</span>
+  <span class="tag">Etapa 8 · Conexão real e testes Sandbox</span>
   <h1>Teste de conexão com o Asaas e Firebase</h1>
-  <p>Em <strong>Meu Perfil</strong>, conecte a conta real do Asaas por consulta e mantenha os testes Sandbox disponíveis. Esta etapa ainda não ativa recebimentos reais. Os diagnósticos anteriores continuam disponíveis abaixo. Use o mesmo código <code>SETUP_TOKEN</code>.</p>
+  <p>Em <strong>Meu Perfil</strong>, valide um Pix real isolado de R$ 5,00 na conta oficial e mantenha os testes Sandbox disponíveis. Esta etapa ainda não ativa baixas em vendas ou parcelas reais. Os diagnósticos anteriores continuam disponíveis abaixo. Use o mesmo código <code>SETUP_TOKEN</code>.</p>
   <p>O teste de gravação cria um registro temporário de diagnóstico, atualiza, lê e apaga esse registro. Não acessa vendas, clientes ou parcelas. Os botões anteriores continuam disponíveis.</p>
   <form id="setup-form" autocomplete="off">
     <label for="setup-token">Código de configuração</label>
@@ -922,8 +1317,8 @@ async function authenticatedUser(request, fetchGoogle) {
     if (parts.length !== 3) throw unauthorized();
     const header = JSON.parse(new TextDecoder().decode(decodeBase64url(parts[0])));
     claims = JSON.parse(new TextDecoder().decode(decodeBase64url(parts[1])));
-    const now = Date.now() / 1e3;
-    if (header.alg !== "RS256" || claims.aud !== FIREBASE_PROJECT || claims.iss !== "https://securetoken.google.com/vendas-aura" || typeof claims.sub !== "string" || !/^[A-Za-z0-9_-]{1,128}$/.test(claims.sub) || !Number.isFinite(claims.exp) || claims.exp <= now || !Number.isFinite(claims.iat) || claims.iat > now + 60 || !Number.isFinite(claims.auth_time) || claims.auth_time > now + 60) throw unauthorized();
+    const now2 = Date.now() / 1e3;
+    if (header.alg !== "RS256" || claims.aud !== FIREBASE_PROJECT || claims.iss !== "https://securetoken.google.com/vendas-aura" || typeof claims.sub !== "string" || !/^[A-Za-z0-9_-]{1,128}$/.test(claims.sub) || !Number.isFinite(claims.exp) || claims.exp <= now2 || !Number.isFinite(claims.iat) || claims.iat > now2 + 60 || !Number.isFinite(claims.auth_time) || claims.auth_time > now2 + 60) throw unauthorized();
   } catch {
     throw unauthorized();
   }
@@ -1315,16 +1710,16 @@ async function handleAsaasProfile(request, env, fetchGoogle, fetchAsaas, flow) {
         if (current) await decryptAsaasKey(env, uid, current.fields);
         return json(integrationStatus(current));
       }
-      const now = (/* @__PURE__ */ new Date()).toISOString();
+      const now2 = (/* @__PURE__ */ new Date()).toISOString();
       if (request.method === "PUT" && input.enabled === false && input.apiKey === void 0) {
         if (!current) return json({ ...integrationStatus(null), message: "Pix manual selecionado." });
-        await save({ enabled: { booleanValue: false }, updatedAt: { timestampValue: now } });
+        await save({ enabled: { booleanValue: false }, updatedAt: { timestampValue: now2 } });
         return json({ ...integrationStatus(current), enabled: false, message: "Pix manual selecionado. A chave da integração permanece protegida." });
       }
       const apiKey = input?.apiKey !== void 0 ? input.apiKey.trim() : current ? await decryptAsaasKey(env, uid, current.fields) : "";
       if (!apiKey) throw new IntegrationError("asaas_key_required", "Informe a chave da API do Asaas Sandbox para conectar.", 400);
       const hasActivePixKey = await testUserAsaasKey(apiKey, fetchAsaas, signal);
-      const fields = { hasActivePixKey: { booleanValue: hasActivePixKey }, checkedAt: { timestampValue: now }, updatedAt: { timestampValue: now } };
+      const fields = { hasActivePixKey: { booleanValue: hasActivePixKey }, checkedAt: { timestampValue: now2 }, updatedAt: { timestampValue: now2 } };
       if (request.method === "PUT") {
         const encrypted = await encryptAsaasKey(env, uid, apiKey);
         Object.assign(fields, { environment: { stringValue: "sandbox" }, version: { integerValue: "1" }, cipher: { stringValue: encrypted.cipher }, iv: { stringValue: encrypted.iv }, enabled: { booleanValue: input.enabled !== false } });
@@ -1440,9 +1835,9 @@ async function checkFirebase(env, fetchGoogle, writeCheck = false, operation = n
     const der = Uint8Array.from(atob(pem.replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----|\s/g, "")), (char) => char.charCodeAt(0));
     const privateKey = await crypto.subtle.importKey("pkcs8", der, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["sign"]);
     const encoder = new TextEncoder();
-    const now = Math.floor(Date.now() / 1e3);
+    const now2 = Math.floor(Date.now() / 1e3);
     const header = { alg: "RS256", typ: "JWT", ...typeof account.private_key_id === "string" ? { kid: account.private_key_id } : {} };
-    const claims = { iss: account.client_email, scope: "https://www.googleapis.com/auth/datastore", aud: GOOGLE_TOKEN_URL, iat: now - 30, exp: now + 3300 };
+    const claims = { iss: account.client_email, scope: "https://www.googleapis.com/auth/datastore", aud: GOOGLE_TOKEN_URL, iat: now2 - 30, exp: now2 + 3300 };
     const unsigned = base64url(encoder.encode(JSON.stringify(header))) + "." + base64url(encoder.encode(JSON.stringify(claims)));
     const signature = await crypto.subtle.sign("RSASSA-PKCS1-v1_5", privateKey, encoder.encode(unsigned));
     assertion = unsigned + "." + base64url(new Uint8Array(signature));
@@ -1510,10 +1905,13 @@ function createWorker(options = {}) {
   const fetchGoogle = options.fetchGoogle || defaultAsaasFetch;
   const flow = createSandboxFlowHandlers({ IntegrationError, json, sandboxTag, decryptAsaasKey, sandboxApi, handleSandboxCheck, FIRESTORE_DOCUMENTS });
   const productionProfile = createProductionProfileHandler({ IntegrationError, json, authenticatedUser, checkFirebase, loadPrivateDocument, encryptionKey, base64url, decodeBase64url, integrationBody, DEFAULT_APP_ORIGIN, FIRESTORE_DOCUMENTS });
+  const productionCheck = createProductionCheckHandlers({ IntegrationError, json, authenticatedUser, checkFirebase, loadPrivateDocument, encryptionKey, decodeBase64url, sandboxTag, equalToken, DEFAULT_APP_ORIGIN, FIRESTORE_DOCUMENTS, PUBLIC_WORKER_URL });
   return {
     /** @param {Request} request @param {WorkerEnv} [env] */
     async fetch(request, env = {}) {
       const url = new URL(request.url);
+      if (url.pathname.startsWith(PRODUCTION_WEBHOOK_PATH)) return productionCheck.handleWebhook(request, env, url.pathname.slice(PRODUCTION_WEBHOOK_PATH.length), fetchGoogle, fetchAsaas);
+      if (url.pathname === PRODUCTION_CHECK_PATH || url.pathname.startsWith(PRODUCTION_CHECK_PATH + "/")) return productionCheck.handleRequest(request, env, fetchGoogle, fetchAsaas);
       if (url.pathname === PRODUCTION_PROFILE_PATH || url.pathname.startsWith(PRODUCTION_PROFILE_PATH + "/")) return productionProfile(request, env, fetchGoogle, fetchAsaas);
       if (url.pathname.startsWith(WEBHOOK_PATH)) return handleSandboxWebhook(request, env, url.pathname.slice(WEBHOOK_PATH.length), fetchGoogle, fetchAsaas, flow);
       if (url.pathname === INTEGRATION_PATH || url.pathname.startsWith(INTEGRATION_PATH + "/")) return handleAsaasProfile(request, env, fetchGoogle, fetchAsaas, flow);

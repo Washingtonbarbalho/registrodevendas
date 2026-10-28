@@ -377,3 +377,35 @@ test('workerd valida a chave real somente por GET e grava cifra de Produção se
   assert.ok(f.store.get('_asaas_production_integrations/userA').fields.cipher.stringValue);
   fetchMock.assertNoPendingInterceptors();
 });
+
+test('workerd prepara o Pix real isolado e valida o Webhook sem acessar vendas ou estoque', async t => {
+  const { checkFixture, checkRequest, payer, env, webhook, result } = await import('./production-check-fixture.mjs');
+  const f = checkFixture(); await f.connect();
+  const fetchMock = createFetchMock(); fetchMock.disableNetConnect();
+  fetchMock.get('https://firestore.googleapis.com').intercept({ path: '/v1/projects/vendas-aura/databases/(default)/documents/_asaas_production_checks/userA', method: 'GET' }).reply(404, '{}').times(2);
+  const proxy = (host, method, handler) => fetchMock.get(host).intercept({ path: () => true, method }).reply(200, async options => {
+    const incoming = new Headers(options.headers);
+    const headers = { Authorization: incoming.get('authorization'), access_token: incoming.get('access_token') };
+    const body = options.body ? await new Response(options.body).text() : undefined;
+    const response = await handler(host + options.path, { method, headers, body: body || undefined, redirect: 'manual' });
+    const raw = await response.text(); assert.equal(response.status, 200, raw); return raw;
+  }).persist();
+  proxy('https://identitytoolkit.googleapis.com', 'POST', f.fetchGoogle);
+  proxy('https://oauth2.googleapis.com', 'POST', f.fetchGoogle);
+  for (const method of ['GET', 'POST']) proxy('https://firestore.googleapis.com', method, f.fetchGoogle);
+  for (const method of ['GET', 'POST']) proxy('https://api.asaas.com', method, f.fetchAsaas);
+  const mf = new Miniflare({ modules: true, script: source, compatibilityDate: '2026-07-30', fetchMock, bindings: env });
+  t.after(() => mf.dispose());
+  const dispatch = async incoming => {
+    const body = incoming.body ? await incoming.text() : undefined;
+    return result(await mf.dispatchFetch(incoming.url, { method: incoming.method, headers: Object.fromEntries(incoming.headers), ...(body ? { body } : {}) }));
+  };
+  assert.equal((await dispatch(checkRequest('POST', payer))).ready, true);
+  assert.equal((await dispatch(checkRequest())).testComplete, false);
+  f.payments[0].status = 'RECEIVED';
+  await dispatch(webhook(f.payments[0]));
+  const data = await dispatch(checkRequest()); assert.equal(data.testComplete, true); assert.equal(data.netCents, 450);
+  assert.equal(f.payments.length, 1); assert.equal(f.docs.get('_asaas_production_integrations/userA').fields.pendingCharges.integerValue, '0');
+  assert.ok([...f.docs.keys()].every(path => path.startsWith('_asaas_production_')));
+  fetchMock.assertNoPendingInterceptors();
+});

@@ -1,10 +1,10 @@
 import React, { useEffect, useRef, useState } from 'https://esm.sh/react@18.2.0';
-import { auth } from '../firebase-config.js?v=104';
-import { showAppConfirm } from '../ui-interactions-v81.js?v=104';
-import { createAsaasProfileClient } from './asaas-profile-client.js?v=104';
-import { AsaasSandboxCheck } from './asaas-sandbox-check.js?v=104';
-import { AsaasPendingCharges } from './asaas-flow-ui.js?v=104';
-import { AsaasProductionSettings } from './asaas-production-settings.js?v=104';
+import { auth } from '../firebase-config.js?v=105';
+import { showAppConfirm } from '../ui-interactions-v81.js?v=105';
+import { createAsaasProfileClient } from './asaas-profile-client.js?v=105';
+import { AsaasSandboxCheck } from './asaas-sandbox-check.js?v=105';
+import { AsaasPendingCharges } from './asaas-flow-ui.js?v=105';
+import { AsaasProductionSettings } from './asaas-production-settings.js?v=105';
 
 const client = createAsaasProfileClient({
     getIdToken: async forceRefresh => {

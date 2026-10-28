@@ -1,7 +1,8 @@
-// Etapa 7: conexão real por consulta; cobranças e cópias continuam no Sandbox.
+// Etapa 8: teste isolado real de R$ 5,00; dados de vendas e parcelas preservados.
 // Fonte de manutenção. build.mjs gera os arquivos independentes para publicação.
 import { createSandboxFlowHandlers } from './flow.js';
 import { createProductionProfileHandler, PRODUCTION_PROFILE_PATH } from './production-profile.js';
+import { createProductionCheckHandlers, PRODUCTION_CHECK_PATH, PRODUCTION_WEBHOOK_PATH } from './production-check.js';
 const SANDBOX_URL = 'https://api-sandbox.asaas.com/v3';
 const TOKEN_PATTERN = /^[a-f0-9]{64}$/i;
 const FIREBASE_PROJECT = 'vendas-aura';
@@ -84,9 +85,9 @@ function setupPage() {
 </head>
 <body>
 <main>
-  <span class="tag">Etapa 7 · Conexão real e testes Sandbox</span>
+  <span class="tag">Etapa 8 · Conexão real e testes Sandbox</span>
   <h1>Teste de conexão com o Asaas e Firebase</h1>
-  <p>Em <strong>Meu Perfil</strong>, conecte a conta real do Asaas por consulta e mantenha os testes Sandbox disponíveis. Esta etapa ainda não ativa recebimentos reais. Os diagnósticos anteriores continuam disponíveis abaixo. Use o mesmo código <code>SETUP_TOKEN</code>.</p>
+  <p>Em <strong>Meu Perfil</strong>, valide um Pix real isolado de R$ 5,00 na conta oficial e mantenha os testes Sandbox disponíveis. Esta etapa ainda não ativa baixas em vendas ou parcelas reais. Os diagnósticos anteriores continuam disponíveis abaixo. Use o mesmo código <code>SETUP_TOKEN</code>.</p>
   <p>O teste de gravação cria um registro temporário de diagnóstico, atualiza, lê e apaga esse registro. Não acessa vendas, clientes ou parcelas. Os botões anteriores continuam disponíveis.</p>
   <form id="setup-form" autocomplete="off">
     <label for="setup-token">Código de configuração</label>
@@ -207,7 +208,7 @@ function setupPage() {
 }
 
 function compactHome() {
-  return new Response('<!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Registro de Vendas · Asaas Sandbox</title><main style="max-width:560px;margin:40px auto;padding:24px;font:16px/1.5 system-ui"><h1>Conexão Asaas · Etapa 7</h1><p>Abra Meu Perfil para conectar a conta real do Asaas por consulta e retomar os testes Sandbox. A conexão de Produção ainda não cria cobranças reais.</p><p>Os testes usam cópias separadas. Vendas, parcelas e estoque reais não são alterados.</p><a href="https://washingtonbarbalho.github.io/registrodevendas/?v=104">Abrir o sistema</a></main></html>', { headers: { ...SECURITY_HEADERS, 'Content-Type': 'text/html; charset=utf-8', 'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'" } });
+  return new Response('<!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Registro de Vendas · Asaas Sandbox</title><main style="max-width:560px;margin:40px auto;padding:24px;font:16px/1.5 system-ui"><h1>Conexão Asaas · Etapa 8</h1><p>Abra Meu Perfil para validar uma cobrança real isolada de R$ 5,00 na conta oficial. Os recebimentos nas vendas e parcelas originais ainda aguardam ativação.</p><p>Os testes usam cópias separadas. Vendas, parcelas e estoque reais não são alterados.</p><a href="https://washingtonbarbalho.github.io/registrodevendas/?v=105">Abrir o sistema</a></main></html>', { headers: { ...SECURITY_HEADERS, 'Content-Type': 'text/html; charset=utf-8', 'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'" } });
 }
 
 /** @param {Uint8Array} bytes */
@@ -829,10 +830,13 @@ export function createWorker(options = {}) {
   const fetchGoogle = options.fetchGoogle || defaultAsaasFetch;
   const flow = createSandboxFlowHandlers({ IntegrationError, json, sandboxTag, decryptAsaasKey, sandboxApi, handleSandboxCheck, FIRESTORE_DOCUMENTS });
   const productionProfile = createProductionProfileHandler({ IntegrationError, json, authenticatedUser, checkFirebase, loadPrivateDocument, encryptionKey, base64url, decodeBase64url, integrationBody, DEFAULT_APP_ORIGIN, FIRESTORE_DOCUMENTS });
+  const productionCheck = createProductionCheckHandlers({ IntegrationError, json, authenticatedUser, checkFirebase, loadPrivateDocument, encryptionKey, decodeBase64url, sandboxTag, equalToken, DEFAULT_APP_ORIGIN, FIRESTORE_DOCUMENTS, PUBLIC_WORKER_URL });
   return {
     /** @param {Request} request @param {WorkerEnv} [env] */
     async fetch(request, env = {}) {
       const url = new URL(request.url);
+      if (url.pathname.startsWith(PRODUCTION_WEBHOOK_PATH)) return productionCheck.handleWebhook(request, env, url.pathname.slice(PRODUCTION_WEBHOOK_PATH.length), fetchGoogle, fetchAsaas);
+      if (url.pathname === PRODUCTION_CHECK_PATH || url.pathname.startsWith(PRODUCTION_CHECK_PATH + '/')) return productionCheck.handleRequest(request, env, fetchGoogle, fetchAsaas);
       if (url.pathname === PRODUCTION_PROFILE_PATH || url.pathname.startsWith(PRODUCTION_PROFILE_PATH + '/')) return productionProfile(request, env, fetchGoogle, fetchAsaas);
       if (url.pathname.startsWith(WEBHOOK_PATH)) return handleSandboxWebhook(request, env, url.pathname.slice(WEBHOOK_PATH.length), fetchGoogle, fetchAsaas, flow);
       if (url.pathname === INTEGRATION_PATH || url.pathname.startsWith(INTEGRATION_PATH + '/')) return handleAsaasProfile(request, env, fetchGoogle, fetchAsaas, flow);
