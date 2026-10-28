@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'https://esm.sh/react@18.2.0';
-import { auth } from '../firebase-config.js?v=104';
-import { showAppConfirm } from '../ui-interactions-v81.js?v=104';
-import { createAsaasProductionClient } from './asaas-production-client.js?v=104';
+import { auth } from '../firebase-config.js?v=105';
+import { showAppConfirm } from '../ui-interactions-v81.js?v=105';
+import { createAsaasProductionClient } from './asaas-production-client.js?v=105';
+import { AsaasProductionCheck } from './asaas-production-check.js?v=105';
 
 const h = React.createElement;
 const client = createAsaasProductionClient({ getIdToken: force => auth.currentUser?.getIdToken(force) });
@@ -72,7 +73,8 @@ export const AsaasProductionSettings = () => {
             error && h('button', { type: 'button', disabled: busy || loading, onClick: () => setReload(value => value + 1), className: 'p-3 bg-white border border-slate-200 font-bold rounded-lg text-xs disabled:opacity-50' }, 'Conferir novamente')
         ),
         error && h('p', { className: 'text-xs text-red-700 p-3 bg-red-50 rounded-lg', role: 'alert' }, error),
-        error && h('a', { href: './integrations/atualizar-worker.html?v=104-partes', target: '_blank', rel: 'noopener noreferrer', className: 'inline-block text-xs underline text-sky-900' }, 'Abrir atualização do Worker em duas partes'),
-        message && h('p', { className: 'text-xs text-emerald-900 bg-white p-3 rounded-lg', role: 'status', 'aria-live': 'polite' }, message)
+        error && h('a', { href: './integrations/atualizar-worker.html?v=105-partes', target: '_blank', rel: 'noopener noreferrer', className: 'inline-block text-xs underline text-sky-900' }, 'Abrir atualização do Worker em duas partes'),
+        message && h('p', { className: 'text-xs text-emerald-900 bg-white p-3 rounded-lg', role: 'status', 'aria-live': 'polite' }, message),
+        status?.configured && status.hasActivePixKey && !busy && h(AsaasProductionCheck)
     );
 };

@@ -1,8 +1,25 @@
 # Asaas Pix: conexão de Produção e testes Sandbox
 
+## Etapa 8 · Validar o recebimento real no sistema v105
+
+A chave real já pode ser validada no perfil. A versão 105 acrescenta **Validar recebimento na conta real**, um teste isolado de **R$ 5,00**. A geração depende do clique explícito em **Gerar Pix real de R$ 5,00**, com nome e CPF do próprio pagador. A tela informa que o valor é real e está sujeito às tarifas da conta. Não existe botão nem rota de simulação em Produção.
+
+1. Atualize o Worker com `integrations/atualizar-worker.html?v=105-partes`, colando as duas partes e preservando os Secrets existentes.
+2. Abra o sistema v105, entre em **Meu Perfil → Conta real do Asaas (Produção) → Validar recebimento na conta real**.
+3. Informe seu nome completo e CPF no formulário e gere o Pix real de R$ 5,00. O Asaas exige esses dados para cadastrar o pagador. O Worker envia somente nome, CPF, referência interna e `notificationDisabled: true`, sem e-mail ou telefone do pagador. O CPF e o nome não são gravados no Firestore nem retornados pela API: o teste guarda somente um HMAC do pagador e os IDs do provedor. Os campos da tela são limpos ao iniciar a operação.
+4. Pague pelo aplicativo do seu banco. Retorne ao perfil e aguarde a mensagem **Recebimento real e retorno automático validados.** Ao voltar do banco, use **Verificar retorno real** para consultar o estado salvo. **Conferir na conta Asaas** consulta o pagamento pela API, mas não declara o Webhook validado.
+
+As rotas são `GET/POST /api/integrations/asaas-production/receipt-check`, `POST .../reconcile` e `POST .../cancel`. Exigem identidade Firebase, perfil aprovado/ativo e origem exata do sistema. O valor de R$ 5,00 é fixo no servidor; o cliente não informa UID, ambiente, valor, URL nem status. A mesma credencial de Produção é recuperada da coleção privada existente; a chave Sandbox e as variáveis globais de diagnóstico não são usadas.
+
+O Webhook usa `/api/webhooks/asaas/production/{uid}`, com token HMAC específico de Produção, diferente do Sandbox e do SETUP_TOKEN. O Worker configura somente seu próprio URL e preserva outros Webhooks da conta. Após validar token, formato e evento, consulta a cobrança na API real e confere ID, cliente, referência, Pix, valor e líquido. Somente `RECEIVED` recebido por Webhook autenticado conclui a validação. A resposta da criação e a conciliação manual não substituem essa prova. Estornos são apenas consultados: somam-se itens `DONE`, e o teste não solicita reembolso nem transferência pela API.
+
+Os metadados ficam em `_asaas_production_checks/{uid}`, com arquivo de tentativas encerradas sob `history/`. A criação inicial e o contador de pendências da credencial são gravados juntos em commit com precondições. Checkpoints, lease, referência externa e recuperação após resposta inconclusiva evitam cobranças repetidas. Enquanto houver teste pendente, a chave não pode ser trocada ou removida. O cancelamento só remove cobrança pendente após conferir o resultado na API; cobranças em análise são bloqueadas, e pagamentos já recebidos são conciliados. Falhas e callbacks simultâneos não liberam a pendência duas vezes.
+
+Não há leitura ou escrita em vendas, parcelas, produtos, clientes do sistema ou saldo do aplicativo. O teste cria um cliente e uma cobrança na conta Asaas real. A baixa automática nas vendas e parcelas originais continua aguardando implementação e ativação. Os testes automatizados executam apenas provedores simulados; o pagamento real e a validação na conta do usuário serão feitos pelo próprio usuário no perfil após o Deploy.
+
 ## Etapa 7 · Conectar a conta real no sistema v104
 
-A versão 104 permite cadastrar e conferir a chave API da conta real pelo perfil, em **Conta real do Asaas (Produção)**. Essa é uma etapa de conexão, não de ativação financeira: `receivingEnabled` é sempre `false`. Não há rotas para criar cobranças, clientes, Webhooks, simular, pagar, transferir ou estornar em Produção. Os testes de caixa e parcelas continuam no Sandbox, em cópias.
+A versão 104 introduziu o cadastro e a conferência da chave API da conta real pelo perfil, em **Conta real do Asaas (Produção)**. A conexão continua sem ativação de baixas financeiras: `receivingEnabled` é sempre `false`. A partir da versão 105 há somente o teste real isolado descrito acima; pagamentos, transferências e solicitações de estorno não são executados pela integração. Os testes de caixa e parcelas continuam no Sandbox, em cópias.
 
 1. Atualize o mesmo Worker pela página `integrations/atualizar-worker.html?v=104-partes`, copiando a primeira e a segunda parte do arquivo completo na ordem indicada. Preserve todos os Secrets e as configurações existentes.
 2. Abra o sistema v104, entre em **Meu Perfil → Conta real do Asaas (Produção)** e cole a chave API da conta real no campo identificado como Produção. Use **Conectar conta de produção**.

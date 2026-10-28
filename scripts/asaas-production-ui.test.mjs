@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import fs from 'node:fs';
 const source = fs.readFileSync(new URL('../integrations/asaas-production-settings.js', import.meta.url), 'utf8').replace(/^import .*;\n/gm, '').replace('const h = React.createElement;', '').replace(/^const client = .*;\n/m, '').replace('export const AsaasProductionSettings', 'const AsaasProductionSettings');
-const create = new Function('React', 'useState', 'useEffect', 'useRef', 'h', 'client', 'showAppConfirm', source + '\nreturn AsaasProductionSettings;');
+const create = new Function('React', 'useState', 'useEffect', 'useRef', 'h', 'client', 'showAppConfirm', "const AsaasProductionCheck = 'ProductionCheck';\n" + source + '\nreturn AsaasProductionSettings;');
 const flatten = node => Array.isArray(node) ? node.flatMap(flatten) : !node || typeof node !== 'object' ? [] : [node, ...flatten(node.props.children)];
 const text = node => Array.isArray(node) ? node.map(text).join('') : node && typeof node === 'object' ? text(node.props.children) : node == null || node === false ? '' : String(node);
 function harness({ failure = false } = {}) {

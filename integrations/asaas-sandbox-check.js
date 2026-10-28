@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'https://esm.sh/react@18.2.0';
-import { auth } from '../firebase-config.js?v=104';
-import { createAsaasSandboxClient } from './asaas-sandbox-client.js?v=104';
+import { auth } from '../firebase-config.js?v=105';
+import { createAsaasSandboxClient } from './asaas-sandbox-client.js?v=105';
 
 const client = createAsaasSandboxClient({ getIdToken: force => auth.currentUser?.getIdToken(force) });
 
@@ -70,6 +70,6 @@ export const AsaasSandboxCheck = () => {
         message && React.createElement('p', { className: 'text-xs text-emerald-900', role: 'status', 'aria-live': 'polite' }, message),
         error && React.createElement('p', { className: 'text-xs text-red-700', role: 'alert' }, error),
         check?.ready && !check.testComplete && watchUntil > Date.now() && React.createElement('p', { className: 'text-xs text-slate-500' }, 'Aguardando o retorno automático por até dois minutos. Você também pode tocar em Verificar retorno.'),
-        React.createElement('a', { href: './integrations/atualizar-worker.html?v=104', target: '_blank', rel: 'noopener noreferrer', className: 'inline-block text-xs underline text-slate-600' }, 'Copiar atualização do Worker')
+        React.createElement('a', { href: './integrations/atualizar-worker.html?v=105', target: '_blank', rel: 'noopener noreferrer', className: 'inline-block text-xs underline text-slate-600' }, 'Copiar atualização do Worker')
     );
 };
