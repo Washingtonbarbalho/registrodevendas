@@ -11,7 +11,7 @@
 </head>
 <body>
 <main>
-  <span class="tag">Versão 103 · Asaas Sandbox</span>
+  <span class="tag">Versão 104 · Conectar conta real do Asaas</span>
   <h1>Código completo em duas partes</h1>
   <p>Copie uma parte por vez e cole as duas no mesmo arquivo do Worker, nesta ordem. É a versão normal, sem compactação.</p>
   <p class="note"><strong>Toque em Deploy somente depois de colar as duas partes.</strong> Mantenha os Secrets já cadastrados, incluindo <code>PIX_ENCRYPTION_KEY</code>.</p>
@@ -21,6 +21,7 @@
     <li>Volte aqui e copie a <strong>segunda parte</strong>. No Worker, posicione o cursor no final da primeira parte e cole a continuação, <strong>sem apagar nem selecionar a primeira parte</strong>.</li>
     <li>Com as duas partes juntas, toque em <strong>Deploy / Implantar</strong>.</li>
   </ol>
+  <p>Depois de publicar, abra <strong>Meu Perfil → Conta real do Asaas (Produção)</strong> no sistema. Esta atualização permite apenas conectar e consultar a conta real; os recebimentos reais aguardam ativação.</p>
   <p id="status" class="status" role="status" aria-live="polite">Carregando e conferindo as duas partes…</p>
   <section class="part" aria-labelledby="heading-1">
     <h2 id="heading-1">1. Início do código</h2>
@@ -42,8 +43,8 @@
   </section>
   <p class="small">As partes são conferidas antes de liberar os botões. O código só aparece na tela se for necessária a cópia manual.</p>
   <footer>
-    <p><a href="../workers/asaas-pix-testes/worker.js?v=103-partes" download="worker.js">Baixar o arquivo completo</a></p>
-    <p><a href="../?v=103">Voltar ao sistema</a></p>
+    <p><a href="../workers/asaas-pix-testes/worker.js?v=104-partes" download="worker.js">Baixar o arquivo completo</a></p>
+    <p><a href="../?v=104">Voltar ao sistema</a></p>
   </footer>
 </main>
 <script type="module">
@@ -62,17 +63,17 @@
   try {
     const options = { cache: 'no-store', credentials: 'omit', redirect: 'error' };
     const [response, manifestResponse] = await Promise.all([
-      fetch('../workers/asaas-pix-testes/worker.js?v=103-partes', options),
-      fetch('../workers/asaas-pix-testes/worker-full-manifest.json?v=103-partes', options)
+      fetch('../workers/asaas-pix-testes/worker.js?v=104-partes', options),
+      fetch('../workers/asaas-pix-testes/worker-full-manifest.json?v=104-partes', options)
     ]);
     if (!response.ok || !manifestResponse.ok) throw new Error('code_unavailable');
     const bytes = await response.arrayBuffer();
     const manifest = await manifestResponse.json();
-    if (manifest.version !== '103' || manifest.format !== 'full-two-parts-v1' || manifest.bytes !== bytes.byteLength || manifest.sha256 !== await sha256(bytes)) throw new Error('code_invalid');
+    if (manifest.version !== '104' || manifest.format !== 'full-two-parts-v1' || manifest.bytes !== bytes.byteLength || manifest.sha256 !== await sha256(bytes)) throw new Error('code_invalid');
     const source = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
     const lines = source.match(/[^\n]*\n|[^\n]+$/g) || [];
     const boundary = manifest.splitAfterLine;
-    if (!source.startsWith('// Etapa 6: caixa e parcelas em copias Sandbox.') || lines.length !== manifest.lines || !Number.isInteger(boundary) || boundary < 1 || boundary >= lines.length || !Array.isArray(manifest.parts) || manifest.parts.length !== 2) throw new Error('split_invalid');
+    if (!source.startsWith('// Registro de Vendas - Worker 104 completo.') || lines.length !== manifest.lines || !Number.isInteger(boundary) || boundary < 1 || boundary >= lines.length || !Array.isArray(manifest.parts) || manifest.parts.length !== 2) throw new Error('split_invalid');
     const candidates = [lines.slice(0, boundary).join(''), lines.slice(boundary).join('')];
     if (candidates.join('') !== source) throw new Error('split_invalid');
     for (let index = 0; index < 2; index += 1) {

@@ -1,14 +1,30 @@
-# Asaas Pix: testes do caixa e das parcelas no Sandbox
+# Asaas Pix: conexão de Produção e testes Sandbox
 
-Este Worker prepara a integração Pix do Registro de Vendas. **A etapa 6 permite gerar uma cobrança de homologação a partir do carrinho do caixa ou do saldo atual de uma parcela.** O pagamento confirmado gera uma venda ou parcela em uma cópia privada de teste, com recibo único e baixa de estoque simulada. A aplicação v103 mantém a escolha manual como padrão e identifica o Sandbox em todos os pontos de entrada. Nenhum desses testes grava vendas, parcelas, saldo ou estoque reais.
+## Etapa 7 · Conectar a conta real no sistema v104
+
+A versão 104 permite cadastrar e conferir a chave API da conta real pelo perfil, em **Conta real do Asaas (Produção)**. Essa é uma etapa de conexão, não de ativação financeira: `receivingEnabled` é sempre `false`. Não há rotas para criar cobranças, clientes, Webhooks, simular, pagar, transferir ou estornar em Produção. Os testes de caixa e parcelas continuam no Sandbox, em cópias.
+
+1. Atualize o mesmo Worker pela página `integrations/atualizar-worker.html?v=104-partes`, copiando a primeira e a segunda parte do arquivo completo na ordem indicada. Preserve todos os Secrets e as configurações existentes.
+2. Abra o sistema v104, entre em **Meu Perfil → Conta real do Asaas (Produção)** e cole a chave API da conta real no campo identificado como Produção. Use **Conectar conta de produção**.
+3. A única chamada externa dessa conexão é um `GET` fixo para `https://api.asaas.com/v3/pix/addressKeys?status=ACTIVE&limit=1`, sem redirecionamentos. Ela confere o acesso à chave Pix, não comprova capacidade de criar cobranças nem movimenta valores. A mensagem de sucesso mantém explícito que os recebimentos reais aguardam ativação.
+
+As APIs privadas são `GET/PUT/DELETE /api/integrations/asaas-production` e `POST /api/integrations/asaas-production/test`. Usam as mesmas validações de ID token Firebase, aprovação e status ativo e a origem exata da aplicação. O corpo de cadastro aceita somente `apiKey`, sem UID, ambiente, URL ou flag de ativação. A chave é cifrada com AES-GCM e AAD `vendas-aura:asaas:production:v1:{uid}`, em `_asaas_production_integrations/{uid}`. A chave do Sandbox permanece em sua coleção anterior. O campo da chave real é limpo ao iniciar a consulta; somente metadados seguros retornam ao navegador.
+
+O fechamento atual das regras do Firestore já bloqueia leitura e escrita dessas coleções pelo aplicativo. Não há mudança nas regras ou nos Secrets. GET de estado não chama o Asaas; conferir a chave salva faz novamente apenas a consulta de chaves Pix. Alterações e exclusão usam precondições de versão. Uma pendência financeira futura impede substituição ou remoção da credencial. Os testes executam os dois pacotes, completo e compacto, inclusive no runtime workerd, com provedores simulados. A chave real e a consulta na conta do usuário serão validadas pelo próprio perfil após o Deploy.
+
+O próximo módulo financeiro depende dessa conexão validada e precisa integrar reservas de estoque, gravação idempotente da venda/parcela original, bloqueio contra pagamentos manuais concorrentes, tarifas e conciliação de cancelamentos e reembolsos. Nenhum desses efeitos de Produção é ativado por esta etapa.
+
+## Etapa 6 · Testes já homologados
+
+Este Worker prepara a integração Pix do Registro de Vendas. **A etapa 6 permite gerar uma cobrança de homologação a partir do carrinho do caixa ou do saldo atual de uma parcela.** O pagamento confirmado gera uma venda ou parcela em uma cópia privada de teste, com recibo único e baixa de estoque simulada. A aplicação v104 mantém a escolha manual como padrão e identifica o Sandbox em todos os pontos de entrada. Nenhum desses testes grava vendas, parcelas, saldo ou estoque reais.
 
 O teste inicial de R$ 5,00 e seu retorno automático já devem estar concluídos para a chave conectada antes desses novos testes. As credenciais existentes, o endereço do Worker, o Webhook autenticado e as regras do Firestore continuam válidos. Não há ativação de Produção nesta versão.
 
 Os diagnósticos Firebase acessam somente a coleção `_pix_connection_check`. O teste de gravação cria, atualiza, lê e exclui um documento temporário. A configuração por usuário usa `_asaas_integrations`; a cobrança inicial fica em `_asaas_sandbox_checks/{uid}`. As novas cópias, intenções pendentes, vínculos e recibos ficam sob `_asaas_flow_sandbox/{uid}`. Todas são coleções privadas, bloqueadas pelo fechamento das regras atuais. Não há chaves no perfil comum nem no diretório público de usuários.
 
-## Testar no sistema v103
+## Testar o Sandbox no sistema v104
 
-1. Abra `integrations/atualizar-worker.html?v=103-partes`. A página oferece **Copiar primeira parte** e **Copiar segunda parte** do código completo, sem compactação, divididas em quantidades de linhas aproximadamente iguais. Confere o tamanho e o SHA-256 do arquivo e de cada parte antes de liberar os botões. Só renderiza uma parte em uma caixa de texto se a cópia automática falhar.
+1. Abra `integrations/atualizar-worker.html?v=104-partes`. A página oferece **Copiar primeira parte** e **Copiar segunda parte** do código completo, sem compactação, divididas em quantidades de linhas aproximadamente iguais. Confere o tamanho e o SHA-256 do arquivo e de cada parte antes de liberar os botões. Só renderiza uma parte em uma caixa de texto se a cópia automática falhar.
 2. No editor Cloudflare do Worker existente, apague o código antigo e cole a primeira parte. Depois cole a segunda no final da primeira, sem apagá-la. Publique com Deploy somente com as duas partes juntas. Preserve todos os Secrets, especialmente `PIX_ENCRYPTION_KEY`. Não há novos Secrets.
 3. No caixa, adicione produtos normalmente, selecione Pix e marque **Testar Pix automático do Asaas (Sandbox)**. O botão passa a **Gerar Pix de teste**. A opção de teste começa desmarcada; não há mudança automática para recebimento manual se o Asaas estiver indisponível.
 4. Gere o Pix e use **Simular pagamento no Sandbox**. A resposta da simulação não conclui o pedido. A confirmação vem do Webhook autenticado, após conferir a cobrança na API. **Conferir no Asaas** permite conciliar uma entrega que atrasou; a interface identifica a origem da confirmação.
@@ -32,7 +48,7 @@ O cálculo da parcela e o plano de estoque usam as mesmas funções puras do apl
 
 Ambos contêm as APIs e todas as funções de integração. O compacto usa uma página inicial resumida, sem o formulário antigo de diagnóstico; os diagnósticos continuam disponíveis pelas rotas protegidas. `worker-mobile-manifest.json` registra o tamanho e o SHA-256 do pacote. Nenhum pacote busca ou executa código remoto em tempo de execução.
 
-O build também gera `worker-full-manifest.json`, com as linhas de divisão e o tamanho e SHA-256 das duas metades de `worker.js`. A página de cópia usa exclusivamente esse pacote completo e preserva todos os seus bytes ao juntar as partes. A divisão ocorre junto a uma declaração de nível superior perto da metade das linhas. As partes isoladas não são um Worker publicável.
+O build também gera `worker-full-manifest.json`, com as linhas de divisão e o tamanho e SHA-256 das duas metades de `worker.js`. A página de cópia usa exclusivamente esse pacote completo e preserva todos os seus bytes ao juntar as partes. A divisão favorece uma declaração de nível superior quando ela fica perto da metade; caso contrário usa exatamente a metade das linhas. As partes isoladas não são um Worker publicável.
 
 Endereço informado para o Worker de testes:
 

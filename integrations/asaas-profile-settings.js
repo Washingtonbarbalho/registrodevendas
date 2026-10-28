@@ -1,9 +1,10 @@
 import React, { useEffect, useRef, useState } from 'https://esm.sh/react@18.2.0';
-import { auth } from '../firebase-config.js?v=103';
-import { showAppConfirm } from '../ui-interactions-v81.js?v=103';
-import { createAsaasProfileClient } from './asaas-profile-client.js?v=103';
-import { AsaasSandboxCheck } from './asaas-sandbox-check.js?v=103';
-import { AsaasPendingCharges } from './asaas-flow-ui.js?v=103';
+import { auth } from '../firebase-config.js?v=104';
+import { showAppConfirm } from '../ui-interactions-v81.js?v=104';
+import { createAsaasProfileClient } from './asaas-profile-client.js?v=104';
+import { AsaasSandboxCheck } from './asaas-sandbox-check.js?v=104';
+import { AsaasPendingCharges } from './asaas-flow-ui.js?v=104';
+import { AsaasProductionSettings } from './asaas-production-settings.js?v=104';
 
 const client = createAsaasProfileClient({
     getIdToken: async forceRefresh => {
@@ -95,6 +96,7 @@ export const AsaasProfileSettings = () => {
         ),
         error && React.createElement('p', { className: 'text-xs text-red-700 bg-red-50 p-3 rounded-lg', role: 'alert' }, error),
         message && React.createElement('p', { className: 'text-xs text-emerald-800 bg-white p-3 rounded-lg', role: 'status', 'aria-live': 'polite' }, message),
+        React.createElement(AsaasProductionSettings),
         status?.enabled && mode === 'asaas' && !busy && React.createElement(AsaasSandboxCheck),
         status?.enabled && !busy && React.createElement(AsaasPendingCharges)
     );
