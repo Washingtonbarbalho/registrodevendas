@@ -262,11 +262,11 @@ for (const [label, validator] of [
   ['melhorias financeiras e sincronização', 'scripts/validate-v94.mjs'],
   ['parcelamento detalhado e PDF legível', 'scripts/validate-v95.mjs'],
   ['carnê compacto no detalhamento da venda', 'scripts/validate-v100.mjs'],
-  ['exclusão temporária de vendas sem cancelamento', 'scripts/validate-sale-deletion-v107.mjs']
+  ['exclusão de vendas após cancelamento', 'scripts/validate-sale-deletion-v107.mjs']
 ]) {
   const result = spawnSync(process.execPath, [validator], { cwd: root, encoding: 'utf8' });
   if (result.status !== 0) throw new Error(`Falha em ${label}:\n${result.stderr || result.stdout}`);
   process.stdout.write(result.stdout);
 }
 
-console.log(`Aplicação v${version} validada: exclusão temporária de vendas, financeiro, estoque e carnês.`);
+console.log(`Aplicação v${version} validada: exclusão após cancelamento, financeiro, estoque e carnês.`);
