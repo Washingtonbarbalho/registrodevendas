@@ -1,6 +1,7 @@
-// Etapa 6: testes do caixa e de parcelas, somente em cópias Sandbox.
+// Etapa 7: conexão real por consulta; cobranças e cópias continuam no Sandbox.
 // Fonte de manutenção. build.mjs gera os arquivos independentes para publicação.
 import { createSandboxFlowHandlers } from './flow.js';
+import { createProductionProfileHandler, PRODUCTION_PROFILE_PATH } from './production-profile.js';
 const SANDBOX_URL = 'https://api-sandbox.asaas.com/v3';
 const TOKEN_PATTERN = /^[a-f0-9]{64}$/i;
 const FIREBASE_PROJECT = 'vendas-aura';
@@ -83,9 +84,9 @@ function setupPage() {
 </head>
 <body>
 <main>
-  <span class="tag">Etapa 5 · Cobrança isolada Sandbox</span>
+  <span class="tag">Etapa 7 · Conexão real e testes Sandbox</span>
   <h1>Teste de conexão com o Asaas e Firebase</h1>
-  <p>As conexões e a proteção já foram validadas. O teste de cobrança e retorno automático está em <strong>Meu Perfil</strong> no sistema. Os diagnósticos anteriores continuam disponíveis abaixo. Use o mesmo código <code>SETUP_TOKEN</code>.</p>
+  <p>Em <strong>Meu Perfil</strong>, conecte a conta real do Asaas por consulta e mantenha os testes Sandbox disponíveis. Esta etapa ainda não ativa recebimentos reais. Os diagnósticos anteriores continuam disponíveis abaixo. Use o mesmo código <code>SETUP_TOKEN</code>.</p>
   <p>O teste de gravação cria um registro temporário de diagnóstico, atualiza, lê e apaga esse registro. Não acessa vendas, clientes ou parcelas. Os botões anteriores continuam disponíveis.</p>
   <form id="setup-form" autocomplete="off">
     <label for="setup-token">Código de configuração</label>
@@ -206,7 +207,7 @@ function setupPage() {
 }
 
 function compactHome() {
-  return new Response('<!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Registro de Vendas · Asaas Sandbox</title><main style="max-width:560px;margin:40px auto;padding:24px;font:16px/1.5 system-ui"><h1>Asaas Sandbox · Etapa 6</h1><p>Worker de testes atualizado. Abra Meu Perfil no sistema para conferir a conexão e retomar cobranças do caixa ou das parcelas.</p><p>Os testes usam cópias separadas. Vendas, parcelas e estoque reais não são alterados.</p><a href="https://washingtonbarbalho.github.io/registrodevendas/?v=103">Abrir o sistema</a></main></html>', { headers: { ...SECURITY_HEADERS, 'Content-Type': 'text/html; charset=utf-8', 'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'" } });
+  return new Response('<!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Registro de Vendas · Asaas Sandbox</title><main style="max-width:560px;margin:40px auto;padding:24px;font:16px/1.5 system-ui"><h1>Conexão Asaas · Etapa 7</h1><p>Abra Meu Perfil para conectar a conta real do Asaas por consulta e retomar os testes Sandbox. A conexão de Produção ainda não cria cobranças reais.</p><p>Os testes usam cópias separadas. Vendas, parcelas e estoque reais não são alterados.</p><a href="https://washingtonbarbalho.github.io/registrodevendas/?v=104">Abrir o sistema</a></main></html>', { headers: { ...SECURITY_HEADERS, 'Content-Type': 'text/html; charset=utf-8', 'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'" } });
 }
 
 /** @param {Uint8Array} bytes */
@@ -827,10 +828,12 @@ export function createWorker(options = {}) {
   const fetchAsaas = options.fetchAsaas || defaultAsaasFetch;
   const fetchGoogle = options.fetchGoogle || defaultAsaasFetch;
   const flow = createSandboxFlowHandlers({ IntegrationError, json, sandboxTag, decryptAsaasKey, sandboxApi, handleSandboxCheck, FIRESTORE_DOCUMENTS });
+  const productionProfile = createProductionProfileHandler({ IntegrationError, json, authenticatedUser, checkFirebase, loadPrivateDocument, encryptionKey, base64url, decodeBase64url, integrationBody, DEFAULT_APP_ORIGIN, FIRESTORE_DOCUMENTS });
   return {
     /** @param {Request} request @param {WorkerEnv} [env] */
     async fetch(request, env = {}) {
       const url = new URL(request.url);
+      if (url.pathname === PRODUCTION_PROFILE_PATH || url.pathname.startsWith(PRODUCTION_PROFILE_PATH + '/')) return productionProfile(request, env, fetchGoogle, fetchAsaas);
       if (url.pathname.startsWith(WEBHOOK_PATH)) return handleSandboxWebhook(request, env, url.pathname.slice(WEBHOOK_PATH.length), fetchGoogle, fetchAsaas, flow);
       if (url.pathname === INTEGRATION_PATH || url.pathname.startsWith(INTEGRATION_PATH + '/')) return handleAsaasProfile(request, env, fetchGoogle, fetchAsaas, flow);
       if (request.method === 'GET' && url.pathname === '/') return __MOBILE_BUILD__ ? compactHome() : setupPage();

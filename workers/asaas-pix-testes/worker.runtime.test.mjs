@@ -342,3 +342,38 @@ for (const kind of ['checkout', 'installment']) test('workerd confirma ' + kind 
   assert.deepEqual([...f.sources], before);
   fetchMock.assertNoPendingInterceptors();
 });
+
+test('workerd valida a chave real somente por GET e grava cifra de Produção separada', async t => {
+  const { productionFixture, env, key, request, result } = await import('./production-fixture.mjs');
+  const f = productionFixture();
+  const fetchMock = createFetchMock();
+  fetchMock.disableNetConnect();
+  const privatePath = '/v1/projects/vendas-aura/databases/(default)/documents/_asaas_production_integrations/userA';
+  fetchMock.get('https://firestore.googleapis.com').intercept({ path: privatePath, method: 'GET' }).reply(404, '{}');
+  const proxy = (host, method, handler) => fetchMock.get(host).intercept({ path: () => true, method }).reply(200, async options => {
+    const incoming = new Headers(options.headers);
+    const headers = { Authorization: incoming.get('authorization'), access_token: incoming.get('access_token') };
+    const body = options.body ? await new Response(options.body).text() : undefined;
+    const response = await handler(host + options.path, { method, headers, body: body || undefined, redirect: 'manual' });
+    const raw = await response.text();
+    assert.equal(response.status, 200, raw);
+    return raw;
+  }).persist();
+  proxy('https://identitytoolkit.googleapis.com', 'POST', f.fetchGoogle);
+  proxy('https://oauth2.googleapis.com', 'POST', f.fetchGoogle);
+  for (const method of ['GET', 'PATCH']) proxy('https://firestore.googleapis.com', method, f.fetchGoogle);
+  proxy('https://api.asaas.com', 'GET', f.fetchAsaas);
+  const mf = new Miniflare({ modules: true, script: source, compatibilityDate: '2026-07-30', fetchMock, bindings: env });
+  t.after(() => mf.dispose());
+  for (const incoming of [request('PUT', { apiKey: key }), request('GET'), request('POST', undefined, '/test')]) {
+    const body = incoming.body ? await incoming.text() : undefined;
+    const response = await mf.dispatchFetch(incoming.url, { method: incoming.method, headers: Object.fromEntries(incoming.headers), ...(body ? { body } : {}) });
+    const data = await result(response);
+    assert.equal(data.configured, true);
+    assert.equal(data.environment, 'production');
+    assert.equal(data.receivingEnabled, false);
+  }
+  assert.equal(f.providerCalls.length, 2);
+  assert.ok(f.store.get('_asaas_production_integrations/userA').fields.cipher.stringValue);
+  fetchMock.assertNoPendingInterceptors();
+});

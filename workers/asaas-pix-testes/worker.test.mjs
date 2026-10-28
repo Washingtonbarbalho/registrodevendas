@@ -233,7 +233,7 @@ test('a página oferece o teste Firebase e seu JavaScript tem sintaxe válida', 
   const response = await worker.fetch(request('/', { method: 'GET' }), firebaseEnv);
   const html = await privateFirebase(response);
   if (process.env.PIX_WORKER_VARIANT === 'mobile') {
-    assert.match(html, /Etapa 6/);
+    assert.match(html, /Etapa 7/);
     assert.doesNotMatch(html, /<script/);
     return;
   }

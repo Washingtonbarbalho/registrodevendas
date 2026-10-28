@@ -9,6 +9,7 @@
     "test:pix-profile": "node --test workers/asaas-pix-testes/profile.test.mjs scripts/asaas-profile-client.test.mjs",
     "test:pix-sandbox": "node --test workers/asaas-pix-testes/sandbox.test.mjs scripts/asaas-sandbox-client.test.mjs",
     "test:pix-flow": "node --test workers/asaas-pix-testes/flow.test.mjs scripts/asaas-flow-client.test.mjs",
-    "check": "npm run build && npm test && npm run test:pix-profile && npm run test:pix-sandbox && npm run test:pix-flow"
+    "check": "npm run build && npm test && npm run test:pix-profile && npm run test:pix-sandbox && npm run test:pix-flow && npm run test:pix-production",
+    "test:pix-production": "node --test workers/asaas-pix-testes/production-profile.test.mjs scripts/asaas-production-client.test.mjs scripts/asaas-production-ui.test.mjs"
   }
 }

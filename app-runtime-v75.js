@@ -1,45 +1,45 @@
-// Aplicação consolidada v103 — código-fonte principal do sistema.
+// Aplicação consolidada v104 — código-fonte principal do sistema.
 import React, { useState, useEffect, useMemo } from 'https://esm.sh/react@18.2.0';
 import { createRoot } from 'https://esm.sh/react-dom@18.2.0/client';
 import { Users, User, LogOut, Lock, LayoutDashboard, Receipt, WalletCards, Package, Contact, Store, ShieldCheck, BadgePercent, Banknote, MoreHorizontal, Plus } from 'https://esm.sh/lucide-react@0.292.0';
 
 // Firebase
-import { app, db, auth, APP_ID } from './firebase-config.js?v=103';
-import { collection, onSnapshot, query, doc, getDoc, updateDoc, deleteDoc, addDoc, serverTimestamp, setDoc, runTransaction, writeBatch } from './firestore-runtime-v94.js?v=103';
+import { app, db, auth, APP_ID } from './firebase-config.js?v=104';
+import { collection, onSnapshot, query, doc, getDoc, updateDoc, deleteDoc, addDoc, serverTimestamp, setDoc, runTransaction, writeBatch } from './firestore-runtime-v94.js?v=104';
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js";
 
 // Utils
-import { getCurrentMonthStart, getCurrentMonthEnd, getBrazilDateString, addDays, formatCurrency, formatDate } from './utils.js?v=103';
-import { aggregateSaleItems, buildSaleInventoryPlan } from './inventory-reliability-v69.js?v=103';
-import { applyInstallmentPayment, buildFinancialLedger, calculatePurchaseReturnFinancialSplit, fromCents, getHistoryCashAmount, getInstallmentFaceAmount, getRealizedSalesProfit, getSalesAccrualSummary, isTermSale, money, normalizeSaleMoney, reverseInstallmentPayment, sumMoney, summarizeFinancialLedger, toCents } from './financial-core-v70.js?v=103';
+import { getCurrentMonthStart, getCurrentMonthEnd, getBrazilDateString, addDays, formatCurrency, formatDate } from './utils.js?v=104';
+import { aggregateSaleItems, buildSaleInventoryPlan } from './inventory-reliability-v69.js?v=104';
+import { applyInstallmentPayment, buildFinancialLedger, calculatePurchaseReturnFinancialSplit, fromCents, getHistoryCashAmount, getInstallmentFaceAmount, getRealizedSalesProfit, getSalesAccrualSummary, isTermSale, money, normalizeSaleMoney, reverseInstallmentPayment, sumMoney, summarizeFinancialLedger, toCents } from './financial-core-v70.js?v=104';
 
 // Modais
 import { 
     UserProfileModal, CustomerFormModal, ProductDetailsModal, EditInstallmentModal, 
     SaleDetailsModal, PixCodeModal, InstallmentListModal, PaymentConfirmationModal, 
     ConfirmModal, WhatsAppChooserModal, ProductModal
-} from './modals-runtime-v75.js?v=103';
-import { StockMovementModal } from './stock-movement-modal-v68.js?v=103';
+} from './modals-runtime-v75.js?v=104';
+import { StockMovementModal } from './stock-movement-modal-v68.js?v=104';
 
 // Telas Secundárias
-import { AdminUsersPanel } from './auth-admin.js?v=103';
-import { AuthScreen } from './auth-screen-v71.js?v=103';
-import { NewSaleScreen } from './nova-venda-runtime-v75.js?v=103';
+import { AdminUsersPanel } from './auth-admin.js?v=104';
+import { AuthScreen } from './auth-screen-v71.js?v=104';
+import { NewSaleScreen } from './nova-venda-runtime-v75.js?v=104';
 
 // Abas do Dashboard
-import { AbaVisaoGeral } from './aba-visao-geral-fixed.js?v=103';
-import { AbaVendas } from './aba-vendas-v71.js?v=103';
-import { AbaProdutos } from './aba-produtos-v67.js?v=103';
-import { AbaClientes } from './aba-clientes-runtime-v75.js?v=103';
-import { AbaTaxas } from './aba-taxas.js?v=103';
-import { AbaFinanceiro } from './aba-financeiro-v68.js?v=103';
-import { BatchStockModal } from './batch-stock-modal-v68.js?v=103';
-import { AbaRelatorios } from './aba-relatorios-v73.js?v=103';
-import { AbaComercial } from './aba-comercial-v74.js?v=103';
-import { normalizePaymentSettings } from './payment-settings.js?v=103';
-import { shareInstallmentBookletPdf, shareSalePdf } from './sale-pdf-v65.js?v=103';
-import { readSharedAnalysisPeriod, resolveAnalysisPeriod, writeSharedAnalysisPeriod } from './analysis-period-v79.js?v=103';
-import { asaasCheckout, AsaasFlowModal, AsaasInstallmentButton } from './integrations/asaas-flow-ui.js?v=103';
+import { AbaVisaoGeral } from './aba-visao-geral-fixed.js?v=104';
+import { AbaVendas } from './aba-vendas-v71.js?v=104';
+import { AbaProdutos } from './aba-produtos-v67.js?v=104';
+import { AbaClientes } from './aba-clientes-runtime-v75.js?v=104';
+import { AbaTaxas } from './aba-taxas.js?v=104';
+import { AbaFinanceiro } from './aba-financeiro-v68.js?v=104';
+import { BatchStockModal } from './batch-stock-modal-v68.js?v=104';
+import { AbaRelatorios } from './aba-relatorios-v73.js?v=104';
+import { AbaComercial } from './aba-comercial-v74.js?v=104';
+import { normalizePaymentSettings } from './payment-settings.js?v=104';
+import { shareInstallmentBookletPdf, shareSalePdf } from './sale-pdf-v65.js?v=104';
+import { readSharedAnalysisPeriod, resolveAnalysisPeriod, writeSharedAnalysisPeriod } from './analysis-period-v79.js?v=104';
+import { asaasCheckout, AsaasFlowModal, AsaasInstallmentButton } from './integrations/asaas-flow-ui.js?v=104';
 
 const Dashboard = ({ user, userProfile, onLogout }) => {
     const [view, setView] = useState('dashboard');
