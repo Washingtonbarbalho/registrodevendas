@@ -464,7 +464,7 @@ for (const marker of [
   'historyItem ? getHistoryCashAmount(historyItem)',
   'buildSaleInventoryPlan(requestedItems, inventoryRecords)',
   "setAccessDenied('deleted')",
-  'Vendas não podem ser excluídas permanentemente'
+  'TEMPORARY_SALE_DELETION_ENABLED'
 ]) assert.ok(source.includes(marker), `Proteção ou integração ausente na aplicação final: ${marker}`);
 for (const marker of [
   'calculatePurchaseReturnFinancialSplit',

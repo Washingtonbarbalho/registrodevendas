@@ -1,4 +1,4 @@
-REGISTRO DE VENDAS — VERSÃO 106
+REGISTRO DE VENDAS — VERSÃO 107
 
 ARQUITETURA ATIVA
 - app-runtime-v75.js é o código principal oficial, já consolidado e editado diretamente.
@@ -6,6 +6,14 @@ ARQUITETURA ATIVA
 - styles-runtime-v75.css é a única folha de estilo local necessária ao sistema.
 - bootstrap-v75.js abre o runtime consolidado e restaura a última aba utilizada.
 - Correções intermediárias, versões anteriores, carregadores dinâmicos e folhas de estilo duplicadas foram removidos.
+
+EXCLUSÃO TEMPORÁRIA DE VENDAS
+- Liberação solicitada em 28/10/2026, sem prazo automático: desativar quando o proprietário pedir.
+- Nos detalhes, Excluir Registro Permanentemente permite excluir vendas ativas, quitadas ou canceladas, após confirmação.
+- Excluir remove os dados da venda, suas parcelas e pagamentos de todas as telas e relatórios, sem devolver produtos ao estoque nem registrar um cancelamento.
+- A transação substitui integralmente o documento por deleted, deletedAt e deletedBy; os dados comerciais são removidos e apenas esse marcador técnico permanece. As regras do Firebase continuam bloqueando delete físico.
+- A assinatura central de vendas filtra deleted === true, inclusive após recarregar ou desativar a liberação temporária.
+- TEMPORARY_SALE_DELETION_ENABLED em app-runtime-v75.js controla o botão e as duas etapas de exclusão. Definir false desativa novas exclusões; manter o filtro e a proteção das transações contra registros já excluídos.
 
 DESENVOLVIMENTO E TESTES
 1. Execute: npm run build
