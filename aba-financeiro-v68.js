@@ -4,14 +4,14 @@ import {
   ArrowDown, ArrowUp, Banknote, CreditCard, Edit3, Eye,
   Package, Plus, Receipt, Search, Trash2, Wallet, X
 } from 'https://esm.sh/lucide-react@0.292.0';
-import { db, APP_ID } from './firebase-config.js?v=108';
-import { doc, onSnapshot, runTransaction, serverTimestamp, setDoc } from './firestore-runtime-v94.js?v=108';
-import { DateRangePicker, MoneyInput } from './components.js?v=108';
+import { db, APP_ID } from './firebase-config.js?v=109';
+import { doc, onSnapshot, runTransaction, serverTimestamp, setDoc } from './firestore-runtime-v94.js?v=109';
+import { DateRangePicker, MoneyInput } from './components.js?v=109';
 import { formatCurrency, formatDate, getBrazilDateString, getCurrentMonthEnd, getCurrentMonthStart, parseMoney } from './utils.js';
 import { buildPaymentInstallments, clampInstallments, normalizePaymentInstallments } from './purchase-payment-v68.js';
 import { buildFinancialLedger, getInstallmentFaceAmount, getPurchaseGroups, money, sumMoney, summarizeFinancialLedger, toCents } from './financial-core-v70.js';
-import { buildFinancialAccountDetails, buildPurchaseTransactionDetails, filterFinancialAccounts, summarizeFinancialAccounts } from './financial-account-details-v80.js?v=108';
-import { showAppConfirm } from './ui-interactions-v81.js?v=108';
+import { buildFinancialAccountDetails, buildPurchaseTransactionDetails, filterFinancialAccounts, summarizeFinancialAccounts } from './financial-account-details-v80.js?v=109';
+import { showAppConfirm } from './ui-interactions-v81.js?v=109';
 
 const h = React.createElement;
 const EMPTY_DATA = { entries: [], accounts: [] };
@@ -333,7 +333,7 @@ const AccountDetailsModal = ({ item, products, onClose, onOpenSale, onOpenProduc
         h('article', { key: `${entry.type}-${entry.dateTime}-${index}`, className: 'finance80-detail-list-item' },
           h('div', null,
             h('strong', null, entry.label),
-            h('span', null, entry.date ? formatDateTime(entry.date, entry.dateTime) : 'Data não informada')),
+            h('span', null, `${entry.date ? formatDateTime(entry.date, entry.dateTime) : 'Data não informada'}${Number(entry.discount) > 0 ? ` · Desconto ${formatCurrency(entry.discount)}` : ''}`)),
           h('strong', { className: entry.type === 'cancellation' ? 'finance80-history-canceled' : '' }, formatCurrency(entry.amount)))))
       : h('p', { className: 'finance80-empty-history' }, 'Nenhum pagamento registrado para esta conta.')));
 

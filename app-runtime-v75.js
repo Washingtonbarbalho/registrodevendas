@@ -1,48 +1,64 @@
-// Aplicação consolidada v108 — código-fonte principal do sistema.
+// Aplicação consolidada v109 — código-fonte principal do sistema.
 import React, { useState, useEffect, useMemo } from 'https://esm.sh/react@18.2.0';
 import { createRoot } from 'https://esm.sh/react-dom@18.2.0/client';
 import { Users, User, LogOut, Lock, LayoutDashboard, Receipt, WalletCards, Package, Contact, Store, ShieldCheck, BadgePercent, Banknote, MoreHorizontal, Plus } from 'https://esm.sh/lucide-react@0.292.0';
 
 // Firebase
-import { app, db, auth, APP_ID } from './firebase-config.js?v=108';
-import { collection, onSnapshot, query, doc, getDoc, updateDoc, deleteDoc, addDoc, serverTimestamp, setDoc, runTransaction, writeBatch } from './firestore-runtime-v94.js?v=108';
+import { app, db, auth, APP_ID } from './firebase-config.js?v=109';
+import { collection, onSnapshot, query, doc, getDoc, updateDoc, deleteDoc, addDoc, serverTimestamp, setDoc, runTransaction, writeBatch } from './firestore-runtime-v94.js?v=109';
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js";
 
 // Utils
-import { getCurrentMonthStart, getCurrentMonthEnd, getBrazilDateString, addDays, formatCurrency, formatDate } from './utils.js?v=108';
-import { aggregateSaleItems, buildSaleInventoryPlan } from './inventory-reliability-v69.js?v=108';
-import { applyInstallmentPayment, buildFinancialLedger, calculatePurchaseReturnFinancialSplit, fromCents, getHistoryCashAmount, getInstallmentFaceAmount, getRealizedSalesProfit, getSalesAccrualSummary, isTermSale, money, normalizeSaleMoney, reverseInstallmentPayment, sumMoney, summarizeFinancialLedger, toCents } from './financial-core-v70.js?v=108';
+import { getCurrentMonthStart, getCurrentMonthEnd, getBrazilDateString, addDays, formatCurrency, formatDate } from './utils.js?v=109';
+import { aggregateSaleItems, buildSaleInventoryPlan } from './inventory-reliability-v69.js?v=109';
+import { applyInstallmentPayment, applySelectedInstallmentsPayment, buildFinancialLedger, calculatePurchaseReturnFinancialSplit, fromCents, getHistoryCashAmount, getInstallmentFaceAmount, getRealizedSalesProfit, getSalesAccrualSummary, isTermSale, money, normalizeSaleMoney, reverseInstallmentPayment, sumMoney, summarizeFinancialLedger, toCents } from './financial-core-v70.js?v=109';
 
 // Modais
 import { 
     UserProfileModal, CustomerFormModal, ProductDetailsModal, EditInstallmentModal, 
-    SaleDetailsModal, PixCodeModal, InstallmentListModal, PaymentConfirmationModal, 
+    SaleDetailsModal, InstallmentListModal, PaymentConfirmationModal,
     ConfirmModal, WhatsAppChooserModal, ProductModal
-} from './modals-runtime-v75.js?v=108';
-import { StockMovementModal } from './stock-movement-modal-v68.js?v=108';
+} from './modals-runtime-v75.js?v=109';
+import { StockMovementModal } from './stock-movement-modal-v68.js?v=109';
 
 // Telas Secundárias
-import { AdminUsersPanel } from './auth-admin.js?v=108';
-import { AuthScreen } from './auth-screen-v71.js?v=108';
-import { NewSaleScreen } from './nova-venda-runtime-v75.js?v=108';
+import { AdminUsersPanel } from './auth-admin.js?v=109';
+import { AuthScreen } from './auth-screen-v71.js?v=109';
+import { NewSaleScreen } from './nova-venda-runtime-v75.js?v=109';
 
 // Abas do Dashboard
-import { AbaVisaoGeral } from './aba-visao-geral-fixed.js?v=108';
-import { AbaVendas } from './aba-vendas-v71.js?v=108';
-import { AbaProdutos } from './aba-produtos-v67.js?v=108';
-import { AbaClientes } from './aba-clientes-runtime-v75.js?v=108';
-import { AbaTaxas } from './aba-taxas.js?v=108';
-import { AbaFinanceiro } from './aba-financeiro-v68.js?v=108';
-import { BatchStockModal } from './batch-stock-modal-v68.js?v=108';
-import { AbaRelatorios } from './aba-relatorios-v73.js?v=108';
-import { AbaComercial } from './aba-comercial-v74.js?v=108';
-import { normalizePaymentSettings } from './payment-settings.js?v=108';
-import { shareInstallmentBookletPdf, shareSalePdf } from './sale-pdf-v65.js?v=108';
-import { readSharedAnalysisPeriod, resolveAnalysisPeriod, writeSharedAnalysisPeriod } from './analysis-period-v79.js?v=108';
+import { AbaVisaoGeral } from './aba-visao-geral-fixed.js?v=109';
+import { AbaVendas } from './aba-vendas-v71.js?v=109';
+import { AbaProdutos } from './aba-produtos-v67.js?v=109';
+import { AbaClientes } from './aba-clientes-runtime-v75.js?v=109';
+import { AbaTaxas } from './aba-taxas.js?v=109';
+import { AbaFinanceiro } from './aba-financeiro-v68.js?v=109';
+import { BatchStockModal } from './batch-stock-modal-v68.js?v=109';
+import { AbaRelatorios } from './aba-relatorios-v73.js?v=109';
+import { AbaComercial } from './aba-comercial-v74.js?v=109';
+import { normalizePaymentSettings } from './payment-settings.js?v=109';
+import { shareInstallmentBookletPdf, shareSalePdf } from './sale-pdf-v65.js?v=109';
+import { readSharedAnalysisPeriod, resolveAnalysisPeriod, writeSharedAnalysisPeriod } from './analysis-period-v79.js?v=109';
 
 // Exceção temporária desativada: somente vendas canceladas podem ser excluídas.
 // O filtro de registros excluídos deve continuar ativo ao desativar esta opção.
 const TEMPORARY_SALE_DELETION_ENABLED = false;
+const EMPTY_PAYMENT_MODAL = Object.freeze({
+    open: false,
+    saleId: null,
+    index: null,
+    indices: [],
+    item: null,
+    items: [],
+    isLast: false,
+    source: null,
+    txid: ''
+});
+
+const buildReceiptPixTxid = (sale, suffix = '') => {
+    const contract = sale?.id ? `VP${String(sale.id).slice(-5).toUpperCase()}` : 'VP00000';
+    return `${contract}${suffix}`.replace(/[^A-Z0-9]/gi, '').slice(0, 25);
+};
 
 const Dashboard = ({ user, userProfile, onLogout }) => {
     const [view, setView] = useState('dashboard');
@@ -102,12 +118,10 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
     
     const [editInstallmentModal, setEditInstallmentModal] = useState({ open: false, saleId: null, installmentIndex: null, data: null });
     const [installmentListModal, setInstallmentListModal] = useState({ open: false, type: null, data: [] });
-    const [paymentModal, setPaymentModal] = useState({ open: false, saleId: null, index: null, item: null, isLast: false, source: null });
+    const [paymentModal, setPaymentModal] = useState({ ...EMPTY_PAYMENT_MODAL });
     const [deletePaymentModal, setDeletePaymentModal] = useState({ open: false, saleId: null, instIndex: null, histIndex: null, historyItem: null });
     
     const [waChooserModal, setWaChooserModal] = useState({ open: false, phone: '', message: '', pdfData: null, title: '', description: '' });
-    const [pixModalData, setPixModalData] = useState({ open: false, amount: 0, txid: '', saleId: null, installmentIndex: null, source: null });
-
     useEffect(() => {
         const customersRef = collection(db, 'artifacts', APP_ID, 'users', user.uid, 'customers');
         const productsRef = collection(db, 'artifacts', APP_ID, 'users', user.uid, 'products');
@@ -655,14 +669,45 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         if (item.paid) return; 
         const isLast = index === sale.installments.length - 1;
         if (source === 'dashboard') setInstallmentListModal({ open: false, type: null, data: [] });
-        setPaymentModal({ open: true, saleId: sale.id, index, item, isLast, source });
+        setPaymentModal({
+            open: true,
+            saleId: sale.id,
+            index,
+            indices: [index],
+            item,
+            items: [item],
+            isLast,
+            source,
+            txid: buildReceiptPixTxid(sale, `P${item.number || index + 1}`)
+        });
     };
 
-    const handleConfirmPayment = async (amountPaid, datePaid) => {
-        const { saleId, index, source } = paymentModal;
+    const handleClickSelectedPayments = (sale, selectedIndices) => {
+        const indices = [...new Set((Array.isArray(selectedIndices) ? selectedIndices : [])
+            .map(value => parseInt(value, 10))
+            .filter(index => Number.isInteger(index) && sale?.installments?.[index] && !sale.installments[index].paid))]
+            .sort((left, right) => left - right);
+        if (indices.length < 2) return alert('Selecione pelo menos duas parcelas em aberto.');
+        const items = indices.map(index => sale.installments[index]);
+        setPaymentModal({
+            open: true,
+            saleId: sale.id,
+            index: null,
+            indices,
+            item: null,
+            items,
+            isLast: false,
+            source: 'sale',
+            txid: buildReceiptPixTxid(sale, `M${items.length}`)
+        });
+    };
+
+    const handleConfirmPayment = async (amountPaid, datePaid, paymentMethod = 'money', options = {}) => {
+        const { saleId, index, indices, source } = paymentModal;
         if (!saleId) return;
         const saleRef = doc(db, 'artifacts', APP_ID, 'users', user.uid, 'sales', saleId);
         const timestamp = new Date().toISOString();
+        const isGroupPayment = Array.isArray(indices) && indices.length > 1;
 
         try {
             const completed = await runTransaction(db, async transaction => {
@@ -671,24 +716,56 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
                 const latestSale = snapshot.data();
                 if (latestSale.status === 'canceled') throw new Error('Não é possível receber uma venda cancelada.');
 
-                const payment = applyInstallmentPayment(latestSale.installments, index, amountPaid, datePaid, timestamp);
-                transaction.update(saleRef, {
+                const payment = isGroupPayment
+                    ? applySelectedInstallmentsPayment(
+                        latestSale.installments,
+                        indices,
+                        options.discountAmount || 0,
+                        datePaid,
+                        timestamp,
+                        { paymentMethod }
+                    )
+                    : applyInstallmentPayment(
+                        latestSale.installments,
+                        index,
+                        amountPaid,
+                        datePaid,
+                        timestamp,
+                        { paymentMethod }
+                    );
+                const discountCents = toCents(payment.discountAmount || 0);
+                const nextTotalPrice = fromCents(Math.max(0, toCents(latestSale.totalPrice) - discountCents));
+                const nextSettlementDiscount = fromCents(toCents(latestSale.settlementDiscountTotal) + discountCents);
+                const saleUpdate = {
                     installments: payment.installments,
                     status: payment.allPaid ? 'completed' : 'active',
                     financialUpdatedAt: serverTimestamp()
-                });
+                };
+                if (discountCents > 0) {
+                    saleUpdate.totalPrice = nextTotalPrice;
+                    saleUpdate.originalTotalPrice = Number.isFinite(Number(latestSale.originalTotalPrice))
+                        ? Number(latestSale.originalTotalPrice)
+                        : Number(latestSale.totalPrice) || 0;
+                    saleUpdate.settlementDiscountTotal = nextSettlementDiscount;
+                }
+                transaction.update(saleRef, saleUpdate);
                 return {
                     sale: {
                         ...latestSale,
                         id: saleId,
                         installments: payment.installments,
+                        totalPrice: discountCents > 0 ? nextTotalPrice : latestSale.totalPrice,
+                        originalTotalPrice: discountCents > 0
+                            ? (Number.isFinite(Number(latestSale.originalTotalPrice)) ? Number(latestSale.originalTotalPrice) : Number(latestSale.totalPrice) || 0)
+                            : latestSale.originalTotalPrice,
+                        settlementDiscountTotal: discountCents > 0 ? nextSettlementDiscount : latestSale.settlementDiscountTotal,
                         status: payment.allPaid ? 'completed' : 'active'
                     },
                     payment
                 };
             });
 
-            setPaymentModal({ open: false, saleId: null, index: null, item: null, isLast: false, source: null });
+            setPaymentModal({ ...EMPTY_PAYMENT_MODAL });
             if (source === 'dashboard' && completed?.sale && completed?.payment) {
                 const paidInstallment = completed.sale.installments?.[index];
                 handleOpenWA('recibo', completed.sale, paidInstallment, completed.payment.historyItem);
@@ -712,11 +789,17 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
                 if (latestSale.status === 'canceled') throw new Error('Não é possível alterar pagamentos de uma venda cancelada.');
 
                 const reversed = reverseInstallmentPayment(latestSale.installments, instIndex, histIndex, historyItem?.timestamp);
-                transaction.update(saleRef, {
+                const restoredDiscountCents = toCents(reversed.reversedDiscount || 0);
+                const saleUpdate = {
                     installments: reversed.installments,
                     status: reversed.allPaid ? 'completed' : 'active',
                     financialUpdatedAt: serverTimestamp()
-                });
+                };
+                if (restoredDiscountCents > 0) {
+                    saleUpdate.totalPrice = fromCents(toCents(latestSale.totalPrice) + restoredDiscountCents);
+                    saleUpdate.settlementDiscountTotal = fromCents(Math.max(0, toCents(latestSale.settlementDiscountTotal) - restoredDiscountCents));
+                }
+                transaction.update(saleRef, saleUpdate);
             });
 
             setDeletePaymentModal({ open: false, saleId: null, instIndex: null, histIndex: null, historyItem: null });
@@ -783,39 +866,6 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
             console.error('Parcela não atualizada:', error);
             alert(error?.message || 'Não foi possível atualizar a parcela.');
         }
-    };
-
-    const handleShowPixCode = (sale, installment, context = {}) => {
-        if (!userProfile?.pixKey) return alert("Configure sua chave PIX no seu Perfil primeiro para gerar esse código!");
-        const contractId = sale.id ? `VP-${sale.id.slice(-5).toUpperCase()}` : '00000';
-        const installmentSuffix = installment?.number ? `P${installment.number}` : '';
-        setPixModalData({
-            open: true,
-            amount: installment.amount,
-            txid: `${contractId.replace("-", "")}${installmentSuffix}`.replace(/[^A-Z0-9]/gi, '').slice(0, 25),
-            saleId: context.saleId || sale.id || null,
-            installmentIndex: Number.isInteger(context.installmentIndex) ? context.installmentIndex : null,
-            source: context.source || null
-        });
-    };
-
-    const handlePixFromList = item => {
-        const sale = sales.find(current => current.id === item.saleId) || item.sale;
-        const installment = sale?.installments?.[item.installmentIndex];
-        if (!sale || !installment || installment.paid) return alert('Esta parcela não está mais disponível.');
-        handleShowPixCode(sale, installment, {
-            source: 'dashboard',
-            saleId: sale.id,
-            installmentIndex: item.installmentIndex
-        });
-    };
-
-    const handleRegisterPixPayment = () => {
-        const sale = sales.find(current => current.id === pixModalData.saleId);
-        const index = pixModalData.installmentIndex;
-        if (!sale || !Number.isInteger(index)) return alert('Não foi possível localizar a parcela deste PIX.');
-        setPixModalData({ open: false, amount: 0, txid: '', saleId: null, installmentIndex: null, source: null });
-        handleClickPay(sale, index, 'dashboard');
     };
 
     const handleGenerateSalePdf = async (pdfData) => {
@@ -934,6 +984,7 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         }
         else if (type === 'recibo' && installment) {
             const paidValue = historyItem ? getHistoryCashAmount(historyItem) : installment.originalAmount || installment.amount;
+            const receiptDiscount = Number(historyItem?.discount) || 0;
             const paidDate = historyItem ? historyItem.date : installment.paidAt;
             const totalInst = sale.installmentsCount || sale.installments?.length || 1;
             
@@ -943,7 +994,12 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
             msg += `👤 *Cliente:* ${sale.customerName}\n`;
             if (phoneToUse) msg += `📱 *Telefone:* ${phoneToUse}\n`;
             msg += `\n`;
-            msg += `💵 *Valor Pago:* ${formatCurrency(paidValue)}\n`;
+            msg += `💵 *Valor Recebido:* ${formatCurrency(paidValue)}\n`;
+            if (receiptDiscount > 0) {
+                msg += `🏷️ *Desconto:* ${formatCurrency(receiptDiscount)}\n`;
+                msg += `✅ *Valor Quitado:* ${formatCurrency(paidValue + receiptDiscount)}\n`;
+            }
+            if (historyItem?.paymentMethod) msg += `💳 *Forma:* ${historyItem.paymentMethod === 'pix' ? 'PIX' : 'Dinheiro'}\n`;
             msg += `📊 *Parcela:* ${installment.number}/${totalInst}\n`;
             msg += `📆 *Data:* ${formatDate(paidDate)}\n\n`;
             
@@ -1233,17 +1289,16 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
 
         React.createElement(SaleDetailsModal, {
             isOpen: !!activeSaleDetails, onClose: () => setSelectedSaleDetail(null), sale: activeSaleDetails,
-            onPay: handleClickPay, onEdit: setEditInstallmentModal, onDeletePayment: confirmDeletePayment,
+            onPay: handleClickPay, onReceiveSelected: handleClickSelectedPayments, onEdit: setEditInstallmentModal, onDeletePayment: confirmDeletePayment,
             onCancelSale: saleId => setCancelModal({ open: true, saleId, reason: '' }), onDeleteSale: requestDelete, allowDeleteSale: TEMPORARY_SALE_DELETION_ENABLED || activeSaleDetails?.status === 'canceled',
-            onOpenWA: handleOpenWA, onShowPixCode: handleShowPixCode, hasPixSetup: !!(userProfile?.pixKey),
+            onOpenWA: handleOpenWA,
             onGenerateBooklet: () => handleGenerateInstallmentBooklet(activeSaleDetails),
             onGeneratePdf: () => handleGenerateSalePdf({ sale: activeSaleDetails, type: activeSaleDetails?.saleType === 'direct' ? 'comprovante' : (activeSaleDetails?.status === 'completed' ? 'quitacao' : 'registro') })
         }),
 
-        React.createElement(PixCodeModal, { isOpen: pixModalData.open, onClose: () => setPixModalData({ open: false, amount: 0, txid: '', saleId: null, installmentIndex: null, source: null }), userProfile: userProfile, amount: pixModalData.amount, txid: pixModalData.txid, onRegisterPayment: pixModalData.source === 'dashboard' ? handleRegisterPixPayment : null }),
-        React.createElement(InstallmentListModal, { isOpen: installmentListModal.open, onClose: () => setInstallmentListModal({ open: false, type: null, data: [] }), title: installmentListModal.type === 'overdue' ? 'Parcelas em atraso' : installmentListModal.type === 'today' ? 'Parcelas vencendo hoje' : 'Parcelas a vencer nos próximos 7 dias', items: installmentListModal.data, onPay: handlePayFromList, onOpenWA: handleOpenWA, onPix: handlePixFromList, hasPixSetup: !!userProfile?.pixKey }),
-        React.createElement(PaymentConfirmationModal, { isOpen: paymentModal.open, onClose: () => setPaymentModal({ open: false, saleId: null, index: null, item: null, isLast: false, source: null }), onConfirm: handleConfirmPayment, installment: paymentModal.item, isLast: paymentModal.isLast }),
-        React.createElement(ConfirmModal, { isOpen: deletePaymentModal.open, title: "Estornar pagamento?", message: "O valor será devolvido para a parcela e ela ficará em aberto novamente.", onClose: () => setDeletePaymentModal({ open: false, saleId: null, instIndex: null, histIndex: null, historyItem: null }), onConfirm: handleDeletePayment }),
+        React.createElement(InstallmentListModal, { isOpen: installmentListModal.open, onClose: () => setInstallmentListModal({ open: false, type: null, data: [] }), title: installmentListModal.type === 'overdue' ? 'Parcelas em atraso' : installmentListModal.type === 'today' ? 'Parcelas vencendo hoje' : 'Parcelas a vencer nos próximos 7 dias', items: installmentListModal.data, onPay: handlePayFromList, onOpenWA: handleOpenWA }),
+        React.createElement(PaymentConfirmationModal, { isOpen: paymentModal.open, onClose: () => setPaymentModal({ ...EMPTY_PAYMENT_MODAL }), onConfirm: handleConfirmPayment, installment: paymentModal.item, installments: paymentModal.items, selectedIndices: paymentModal.indices, isLast: paymentModal.isLast, userProfile, txid: paymentModal.txid }),
+        React.createElement(ConfirmModal, { isOpen: deletePaymentModal.open, title: "Estornar pagamento?", message: deletePaymentModal.historyItem?.type === 'group_payment' ? "Todas as parcelas deste recebimento serão reabertas e o desconto concedido será removido." : "O valor será devolvido para a parcela e ela ficará em aberto novamente.", onClose: () => setDeletePaymentModal({ open: false, saleId: null, instIndex: null, histIndex: null, historyItem: null }), onConfirm: handleDeletePayment }),
         React.createElement(ConfirmModal, { isOpen: cancelModal.open, title: "Cancelar venda?", message: "Esta ação irá devolver os produtos ao estoque e invalidar os pagamentos.", isCancel: true, reasonValue: cancelModal.reason, onReasonChange: value => setCancelModal(previous => ({...previous, reason: value})), onClose: () => setCancelModal({ open: false, saleId: null, reason: '' }), onConfirm: confirmCancelSale }),
         React.createElement(ConfirmModal, { isOpen: deleteModal.open, title: deleteModal.type === 'sale' ? "Excluir venda?" : "Tem certeza?", message: deleteModal.type === 'sale' ? "A venda, as parcelas e os pagamentos registrados nela serão excluídos. O estoque atual será mantido. Esta ação não pode ser desfeita." : "O registro será apagado permanentemente.", onClose: () => { setDeleteModal({ open: false, id: null, type: null }); setSelectedSaleDetail(null); }, onConfirm: confirmDelete }),
         React.createElement(WhatsAppChooserModal, { isOpen: waChooserModal.open, phone: waChooserModal.phone, message: waChooserModal.message, title: waChooserModal.title, description: waChooserModal.description, onPdf: waChooserModal.pdfData ? () => handleGenerateSalePdf(waChooserModal.pdfData) : null, onClose: () => setWaChooserModal({ open: false, phone: '', message: '', pdfData: null, title: '', description: '' }) })

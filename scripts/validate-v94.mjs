@@ -56,21 +56,21 @@ assert.equal(details?.supplier, 'Fornecedor Teste');
 
 const app = read('app-runtime-v75.js');
 for (const marker of [
-  'handlePixFromList',
-  'handleRegisterPixPayment',
+  'handleClickPay',
+  'buildReceiptPixTxid',
   "handleOpenWA('recibo', completed.sale, paidInstallment, completed.payment.historyItem)",
   "source === 'dashboard'",
-  'onRegisterPayment: pixModalData.source',
-  'hasPixSetup: !!userProfile?.pixKey'
+  'userProfile, txid: paymentModal.txid'
 ]) assert.ok(app.includes(marker), `Fluxo de PIX/comprovante incompleto: ${marker}`);
 
 const modals = read('modals-core-runtime-v75.js');
 for (const marker of [
-  'Gerar PIX desta parcela',
-  'Registrar pagamento',
+  'Gerar PIX de',
+  'Confirmar recebimento',
+  'Forma de recebimento',
   'Compartilhar no WhatsApp',
   'Copiar Mensagem',
-  'onRegisterPayment'
+  'QR Code PIX do recebimento'
 ]) assert.ok(modals.includes(marker), `Ação ausente nos modais: ${marker}`);
 
 const finance = read('aba-financeiro-v68.js');
@@ -93,7 +93,7 @@ for (const consumer of [
   'aba-relatorios-v73.js',
   'aba-financeiro-v68.js',
   'aba-comercial-v74.js'
-]) assert.ok(read(consumer).includes("from './firestore-runtime-v94.js?v=108'"),
+]) assert.ok(read(consumer).includes("from './firestore-runtime-v94.js?v=109'"),
   `${consumer} precisa usar a camada de carregamento do banco.`);
 
 const firestoreRuntime = read('firestore-runtime-v94.js');
@@ -110,8 +110,8 @@ await new Promise(resolve => setTimeout(resolve, 5));
 assert.equal(getActiveDatabaseOperations(), 0);
 
 const styles = read('styles-runtime-v75.css');
-for (const marker of ['.app94-database-loading', '.finance94-purchase-modal', '.installment94-pix-action']) {
+for (const marker of ['.app94-database-loading', '.finance94-purchase-modal', '.payment109-pix-card']) {
   assert.ok(styles.includes(marker), `Estilo v94 ausente: ${marker}`);
 }
 
-console.log('Aplicação v94 validada: compras em lote detalhadas, PIX com comprovante e sincronização visível.');
+console.log('Aplicação v94 validada: compras em lote detalhadas, PIX dentro do recebimento e sincronização visível.');

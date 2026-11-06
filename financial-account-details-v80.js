@@ -20,18 +20,23 @@ const paymentHistoryLabels = {
   partial: 'Pagamento parcial',
   full: 'Pagamento da parcela',
   full_surplus: 'Pagamento com distribuição de excedente',
+  group_payment: 'Recebimento conjunto',
   abatement: 'Valor distribuído de outra parcela'
 };
 
 const normalizedHistory = (entries = []) => entries
-  .filter(entry => entry && toCents(entry.amount) > 0)
-  .map(entry => ({
-    date: cleanFinancialDate(entry.date || entry.timestamp || entry.createdAt),
-    dateTime: entry.timestamp || entry.createdAt || '',
-    amount: money(entry.amount),
-    label: paymentHistoryLabels[entry.type] || 'Pagamento registrado',
-    type: entry.type || 'payment'
-  }))
+  .filter(entry => entry && (toCents(entry.amount) > 0 || toCents(entry.discount) > 0))
+  .map(entry => {
+    const method = paymentNames[entry.paymentMethod] || '';
+    return {
+      date: cleanFinancialDate(entry.date || entry.timestamp || entry.createdAt),
+      dateTime: entry.timestamp || entry.createdAt || '',
+      amount: money(entry.amount),
+      discount: money(entry.discount),
+      label: `${paymentHistoryLabels[entry.type] || 'Pagamento registrado'}${method ? ` · ${method}` : ''}`,
+      type: entry.type || 'payment'
+    };
+  })
   .sort((left, right) => String(left.dateTime || left.date)
     .localeCompare(String(right.dateTime || right.date)));
 

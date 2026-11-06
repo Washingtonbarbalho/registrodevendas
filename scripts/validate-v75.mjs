@@ -56,6 +56,7 @@ const criticalFiles = [
   'scripts/validate-v95.mjs',
   'scripts/validate-v100.mjs',
   'scripts/validate-sale-deletion-v107.mjs',
+  'scripts/validate-v109.mjs',
   'scripts/validate-v75.mjs'
 ];
 criticalFiles.forEach(checkSyntax);
@@ -262,11 +263,12 @@ for (const [label, validator] of [
   ['melhorias financeiras e sincronização', 'scripts/validate-v94.mjs'],
   ['parcelamento detalhado e PDF legível', 'scripts/validate-v95.mjs'],
   ['carnê compacto no detalhamento da venda', 'scripts/validate-v100.mjs'],
-  ['exclusão de vendas após cancelamento', 'scripts/validate-sale-deletion-v107.mjs']
+  ['exclusão de vendas após cancelamento', 'scripts/validate-sale-deletion-v107.mjs'],
+  ['recebimento individual e múltiplo', 'scripts/validate-v109.mjs']
 ]) {
   const result = spawnSync(process.execPath, [validator], { cwd: root, encoding: 'utf8' });
   if (result.status !== 0) throw new Error(`Falha em ${label}:\n${result.stderr || result.stdout}`);
   process.stdout.write(result.stdout);
 }
 
-console.log(`Aplicação v${version} validada: exclusão após cancelamento, financeiro, estoque e carnês.`);
+console.log(`Aplicação v${version} validada: recebimentos individuais e múltiplos, financeiro, estoque e carnês.`);

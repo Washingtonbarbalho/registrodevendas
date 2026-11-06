@@ -603,7 +603,9 @@ const cloneInstallments = installments => (Array.isArray(installments) ? install
   history: Array.isArray(item.history) ? item.history.map(history => ({ ...history })) : []
 }));
 
-export const applyInstallmentPayment = (installments, selectedIndex, amountPaid, datePaid, timestamp = new Date().toISOString()) => {
+const normalizeReceiptMethod = value => value === 'pix' ? 'pix' : value === 'money' ? 'money' : '';
+
+export const applyInstallmentPayment = (installments, selectedIndex, amountPaid, datePaid, timestamp = new Date().toISOString(), metadata = {}) => {
   const index = parseInt(selectedIndex, 10);
   const rows = cloneInstallments(installments);
   const selected = rows[index];
@@ -650,6 +652,7 @@ export const applyInstallmentPayment = (installments, selectedIndex, amountPaid,
     date,
     amount: fromCents(appliedToSelected),
     type: paymentCents < selectedOpen ? 'partial' : paymentCents === selectedOpen ? 'full' : 'full_surplus',
+    paymentMethod: normalizeReceiptMethod(metadata?.paymentMethod),
     timestamp
   };
   if (paymentCents > selectedOpen) {
@@ -671,6 +674,83 @@ export const applyInstallmentPayment = (installments, selectedIndex, amountPaid,
   };
 };
 
+export const applySelectedInstallmentsPayment = (
+  installments,
+  selectedIndices,
+  discountAmount,
+  datePaid,
+  timestamp = new Date().toISOString(),
+  metadata = {}
+) => {
+  const rows = cloneInstallments(installments);
+  const indices = [...new Set((Array.isArray(selectedIndices) ? selectedIndices : [])
+    .map(value => parseInt(value, 10))
+    .filter(index => Number.isInteger(index) && index >= 0 && index < rows.length))]
+    .sort((left, right) => left - right);
+  const date = cleanFinancialDate(datePaid);
+
+  if (indices.length < 2) {
+    throw new FinancialCalculationError('invalid-selection', 'Selecione pelo menos duas parcelas em aberto.');
+  }
+  if (!date) throw new FinancialCalculationError('invalid-payment', 'Informe uma data de pagamento válida.');
+
+  const selectedRows = indices.map(index => rows[index]);
+  if (selectedRows.some(item => !item || item.paid || toCents(item.amount) <= 0)) {
+    throw new FinancialCalculationError('invalid-installment', 'Uma das parcelas selecionadas não está mais disponível para pagamento.');
+  }
+
+  const openAmounts = selectedRows.map(item => fromCents(Math.max(0, toCents(item.amount))));
+  const selectedTotalCents = openAmounts.reduce((total, amount) => total + toCents(amount), 0);
+  const discountCents = Math.max(0, toCents(discountAmount));
+  if (discountCents >= selectedTotalCents) {
+    throw new FinancialCalculationError('invalid-discount', 'O desconto deve ser menor que o total das parcelas selecionadas.');
+  }
+
+  const discountAllocations = allocateMoney(fromCents(discountCents), openAmounts);
+  const paymentMethod = normalizeReceiptMethod(metadata?.paymentMethod);
+  const batchId = String(metadata?.batchId || `receipt-${timestamp}-${indices.join('-')}`);
+  const historyItems = [];
+
+  indices.forEach((installmentIndex, position) => {
+    const item = rows[installmentIndex];
+    const openCents = Math.max(0, toCents(item.amount));
+    const allocatedDiscountCents = Math.max(0, toCents(discountAllocations[position]));
+    const receivedCents = openCents - allocatedDiscountCents;
+    const faceBeforeDiscountCents = Math.max(openCents, toCents(getInstallmentFaceAmount(item)));
+    const historyItem = {
+      date,
+      amount: fromCents(receivedCents),
+      discount: fromCents(allocatedDiscountCents),
+      settledAmount: fromCents(openCents),
+      type: 'group_payment',
+      paymentMethod,
+      batchId,
+      selectedInstallments: [...indices],
+      timestamp
+    };
+
+    item.history.push(historyItem);
+    item.amount = 0;
+    item.originalAmount = fromCents(Math.max(0, faceBeforeDiscountCents - allocatedDiscountCents));
+    item.paid = true;
+    item.paidAt = date;
+    item.paidAtDateTime = timestamp;
+    historyItems.push({ installmentIndex, historyItem });
+  });
+
+  return {
+    installments: rows,
+    historyItems,
+    selectedIndices: indices,
+    batchId,
+    selectedTotal: fromCents(selectedTotalCents),
+    paidAmount: fromCents(selectedTotalCents - discountCents),
+    discountAmount: fromCents(discountCents),
+    remainingBalance: sumMoney(rows.filter(item => !item.paid), item => item.amount),
+    allPaid: rows.every(item => item.paid || toCents(item.amount) <= 0)
+  };
+};
+
 export const reverseInstallmentPayment = (installments, installmentIndex, historyIndex, expectedTimestamp = '') => {
   const rows = cloneInstallments(installments);
   const index = parseInt(installmentIndex, 10);
@@ -682,6 +762,35 @@ export const reverseInstallmentPayment = (installments, installmentIndex, histor
     : requestedIndex;
   const history = selected.history[selectedIndex];
   if (!history || history.type === 'abatement') throw new FinancialCalculationError('invalid-reversal', 'O pagamento já foi alterado ou não pode ser estornado diretamente.');
+
+  if (history.type === 'group_payment' && history.batchId) {
+    let reversedAmountCents = 0;
+    let reversedDiscountCents = 0;
+    rows.forEach(item => {
+      const groupedHistory = item.history.filter(entry => entry?.type === 'group_payment' && entry?.batchId === history.batchId);
+      if (groupedHistory.length === 0) return;
+      const restoredCashCents = groupedHistory.reduce((sum, entry) => sum + Math.max(0, toCents(entry.amount)), 0);
+      const restoredDiscountCents = groupedHistory.reduce((sum, entry) => sum + Math.max(0, toCents(entry.discount)), 0);
+      const restoredOpenCents = restoredCashCents + restoredDiscountCents;
+      item.history = item.history.filter(entry => !(entry?.type === 'group_payment' && entry?.batchId === history.batchId));
+      item.amount = fromCents(toCents(item.amount) + restoredOpenCents);
+      item.originalAmount = fromCents(toCents(item.originalAmount) + restoredDiscountCents);
+      item.paid = toCents(item.amount) <= 0;
+      if (!item.paid) {
+        item.paidAt = null;
+        item.paidAtDateTime = null;
+      }
+      reversedAmountCents += restoredCashCents;
+      reversedDiscountCents += restoredDiscountCents;
+    });
+    return {
+      installments: rows,
+      reversedAmount: fromCents(reversedAmountCents),
+      reversedDiscount: fromCents(reversedDiscountCents),
+      remainingBalance: sumMoney(rows.filter(item => !item.paid), item => item.amount),
+      allPaid: rows.every(item => item.paid || toCents(item.amount) <= 0)
+    };
+  }
 
   selected.history.splice(selectedIndex, 1);
   selected.amount = fromCents(Math.max(0, toCents(selected.amount) + Math.max(0, toCents(history.amount))));
@@ -708,6 +817,7 @@ export const reverseInstallmentPayment = (installments, installmentIndex, histor
   return {
     installments: rows,
     reversedAmount: getHistoryCashAmount(history),
+    reversedDiscount: 0,
     remainingBalance: sumMoney(rows.filter(item => !item.paid), item => item.amount),
     allPaid: rows.every(item => item.paid || toCents(item.amount) <= 0)
   };

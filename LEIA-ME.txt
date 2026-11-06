@@ -1,4 +1,4 @@
-REGISTRO DE VENDAS — VERSÃO 108
+REGISTRO DE VENDAS — VERSÃO 109
 
 ARQUITETURA ATIVA
 - app-runtime-v75.js é o código principal oficial, já consolidado e editado diretamente.
@@ -37,6 +37,10 @@ VENDAS UNIFICADAS
 - Ao abrir o detalhamento de uma venda a prazo, o botão Gerar Carnê PDF cria um canhoto horizontal para cada parcela com os dados do cliente, vencimento, valor e situação.
 - Cada folha A4 comporta cinco canhotos compactos; cada um possui uma via destacável para a loja, com espaço para data e assinatura, e outra via que permanece no carnê do cliente.
 - O número do contrato aparece nas duas partes de cada canhoto: na via da loja e na via do cliente.
+- Cada parcela em aberto possui o botão Receber junto às ações; o antigo check clicável e o botão PIX separado foram removidos.
+- O modal de recebimento permite informar o valor, a data e escolher entre Dinheiro e PIX. Ao escolher PIX, o QR Code e o código copia e cola são gerados exatamente com o valor digitado.
+- As parcelas em aberto possuem caixas de seleção. Ao selecionar duas ou mais, é possível recebê-las juntas e conceder um desconto sobre o total escolhido.
+- O desconto do recebimento conjunto reduz o valor da venda e quita as parcelas, mas não é lançado como entrada de caixa. Ao estornar o grupo, todas as parcelas e o valor original são restaurados.
 - npm test simula a gravação das cinco formas de pagamento e preserva as verificações anteriores.
 
 POSIÇÃO HISTÓRICA DO CREDIÁRIO
@@ -94,7 +98,7 @@ NAVEGAÇÃO NO CELULAR
 PAINEL INICIAL E PERÍODO COMPARTILHADO
 - A visão inicial mantém contas a receber, entradas em caixa, atrasos, vencimentos e indicadores de lucro.
 - Os blocos Acompanhamento do negócio e Ações rápidas foram removidos do dashboard; as funcionalidades da área Comercial e dos Relatórios permanecem disponíveis.
-- As listas abertas pelos cards Em atraso, Vencem hoje e Próximos 7 dias permitem gerar o PIX de cada parcela e registrar o recebimento pelo mesmo fluxo financeiro seguro.
+- As listas abertas pelos cards Em atraso, Vencem hoje e Próximos 7 dias usam o botão Receber; a escolha entre dinheiro e PIX fica dentro do mesmo modal de recebimento.
 - Depois de registrar o pagamento por essas listas, o sistema oferece a mensagem do comprovante para copiar ou compartilhar diretamente no WhatsApp do cliente.
 - Início, Vendas, Financeiro, Comercial e Relatórios compartilham a seleção do período de análise.
 - A última escolha de datas é lembrada por usuário; somente a preferência do filtro fica no navegador, sem armazenar dados comerciais.

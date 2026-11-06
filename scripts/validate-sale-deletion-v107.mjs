@@ -172,10 +172,12 @@ const modalBody = modalSource.slice(modalSource.indexOf('export const SaleDetail
   .split(/\nexport const /)[0].replace('export const ', 'const ');
 const iconNames = modalSource.match(/import \{ ([^}]+) \} from 'https:\/\/esm.sh\/lucide-react/)[1].split(',').map(name => name.trim());
 const React = { createElement: (type, props, ...children) => ({ type, props: { ...props, children } }) };
-const modal = Function('dependencies', `const { React, formatCurrency, formatDate, getHistoryCashAmount, ${iconNames.join(', ')} } = dependencies;
+const useState = value => [value, () => {}];
+const useEffect = callback => callback();
+const modal = Function('dependencies', `const { React, useState, useEffect, formatCurrency, formatDate, getHistoryCashAmount, ${iconNames.join(', ')} } = dependencies;
   ${modalBody}
   return SaleDetailsModal;`)(Object.assign({
-  React, formatCurrency: value => String(value), formatDate: value => String(value), getHistoryCashAmount: item => item.amount
+  React, useState, useEffect, formatCurrency: value => String(value), formatDate: value => String(value), getHistoryCashAmount: item => item.amount
 }, Object.fromEntries(iconNames.map(name => [name, name]))));
 const textOf = node => Array.isArray(node) ? node.map(textOf).join('') : node && typeof node === 'object' ? textOf(node.props.children) : String(node ?? '');
 const nodesOf = node => Array.isArray(node) ? node.flatMap(nodesOf) : node && typeof node === 'object' ? [node, ...nodesOf(node.props.children)] : [];

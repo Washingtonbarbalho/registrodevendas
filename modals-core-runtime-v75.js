@@ -1,10 +1,10 @@
 // Gerado por scripts/consolidate-legacy-runtime-v75.mjs — modais-base consolidados.
 import React, { useState, useEffect, useMemo } from 'https://esm.sh/react@18.2.0';
-import { PackageMinus, AlertTriangle, MessageCircle, Copy, QrCode, X, User, Wallet, Clock, Users, CheckCircle, Edit2, Package, Tag, Info, ShieldAlert, History, XCircle, Receipt, BadgePercent, Calendar, PieChart, Trash2, ArrowUpCircle, ArrowDownCircle } from 'https://esm.sh/lucide-react@0.292.0';
-import { formatCurrency, parseMoney, maskMoney, maskPhone, applyPixMask, generatePixPayload, maskCpfCnpj, maskCep, formatDate, getBrazilDateString } from './utils.js?v=108';
-import { MoneyInput } from './components.js?v=108';
+import { PackageMinus, AlertTriangle, MessageCircle, Copy, QrCode, X, User, Wallet, Banknote, Clock, Users, CheckCircle, Edit2, Package, Tag, Info, ShieldAlert, History, XCircle, Receipt, BadgePercent, Calendar, PieChart, Trash2, ArrowUpCircle, ArrowDownCircle } from 'https://esm.sh/lucide-react@0.292.0';
+import { formatCurrency, parseMoney, maskMoney, maskPhone, applyPixMask, generatePixPayload, maskCpfCnpj, maskCep, formatDate, getBrazilDateString } from './utils.js?v=109';
+import { MoneyInput } from './components.js?v=109';
 import QRCode from 'https://esm.sh/qrcode@1.5.4';
-import { getHistoryCashAmount } from './financial-core-v70.js?v=108';
+import { getHistoryCashAmount } from './financial-core-v70.js?v=109';
 
 const formatDateTime = (dateStr) => {
     if (!dateStr) return '--/--/---- --:--';
@@ -188,56 +188,158 @@ export const UserProfileModal = ({ isOpen, onClose, userProfile, onSave }) => {
     );
 };
 
-export const PaymentConfirmationModal = ({ isOpen, onClose, onConfirm, installment, isLast }) => {
+export const PaymentConfirmationModal = ({ isOpen, onClose, onConfirm, installment, installments = [], selectedIndices = [], isLast, userProfile, txid }) => {
     const [amount, setAmount] = useState('');
+    const [discount, setDiscount] = useState('0,00');
     const [date, setDate] = useState(getBrazilDateString());
+    const [paymentMethod, setPaymentMethod] = useState('money');
     const [error, setError] = useState('');
+    const [pixPayload, setPixPayload] = useState('');
+    const [qrDataUrl, setQrDataUrl] = useState('');
+    const [generatingPix, setGeneratingPix] = useState(false);
+    const selectedItems = useMemo(() => {
+        if (Array.isArray(installments) && installments.length > 0) return installments;
+        return installment ? [installment] : [];
+    }, [installment, installments]);
+    const isMultiple = selectedItems.length > 1;
+    const selectedTotal = useMemo(() => selectedItems.reduce((total, item) => total + (Number(item?.amount) || 0), 0), [selectedItems]);
+    const discountValue = isMultiple ? parseMoney(discount) : 0;
+    const paymentValue = isMultiple ? Math.max(0, selectedTotal - discountValue) : parseMoney(amount);
 
     useEffect(() => {
-        if (isOpen && installment) {
-            setAmount(maskMoney((installment.amount * 100).toFixed(0)));
+        if (isOpen && selectedItems.length > 0) {
+            setAmount(maskMoney(((Number(selectedItems[0]?.amount) || 0) * 100).toFixed(0)));
+            setDiscount('0,00');
             setDate(getBrazilDateString());
+            setPaymentMethod('money');
             setError('');
+            setPixPayload('');
+            setQrDataUrl('');
+            setGeneratingPix(false);
         }
-    }, [isOpen, installment]);
+    }, [isOpen, selectedItems]);
 
-    const handleConfirm = () => {
-        const val = parseMoney(amount);
-        if (val <= 0) { setError('Digite um valor válido.'); return; }
-        const valCents = Math.round(val * 100);
-        const instAmtCents = Math.round(installment.amount * 100);
-        if (isLast && valCents > instAmtCents) { setError('Na última parcela não é permitido pagar valor maior que o restante.'); return; }
-        onConfirm(val, date);
+    useEffect(() => {
+        setPixPayload('');
+        setQrDataUrl('');
+    }, [amount, discount, paymentMethod]);
+
+    const validateValues = () => {
+        const val = paymentValue;
+        if (val <= 0) { setError('Digite um valor válido para o recebimento.'); return null; }
+        if (isMultiple && discountValue < 0) { setError('O desconto não pode ser negativo.'); return null; }
+        if (isMultiple && discountValue >= selectedTotal) { setError('O desconto deve ser menor que o total das parcelas.'); return null; }
+        if (!isMultiple) {
+            const valCents = Math.round(val * 100);
+            const instAmtCents = Math.round((Number(installment?.amount) || 0) * 100);
+            if (isLast && valCents > instAmtCents) { setError('Na última parcela não é permitido pagar valor maior que o restante.'); return null; }
+        }
+        if (!date) { setError('Informe a data do pagamento.'); return null; }
+        setError('');
+        return val;
     };
 
-    if (!isOpen || !installment) return null;
+    const handleGeneratePix = async () => {
+        const val = validateValues();
+        if (!val) return;
+        if (!userProfile?.pixKey) { setError('Configure uma chave PIX no perfil antes de gerar a cobrança.'); return; }
+        setGeneratingPix(true);
+        try {
+            const payload = generatePixPayload(
+                userProfile.pixKey,
+                userProfile.pixType,
+                userProfile.pixName,
+                userProfile.city || 'BRASIL',
+                val,
+                txid || 'RECEBIMENTO'
+            );
+            const dataUrl = await QRCode.toDataURL(payload, { width: 220, margin: 1, errorCorrectionLevel: 'M' });
+            setPixPayload(payload);
+            setQrDataUrl(dataUrl);
+        } catch (pixError) {
+            console.error('Erro ao gerar PIX do recebimento:', pixError);
+            setError('Não foi possível gerar o PIX. Revise a chave cadastrada e tente novamente.');
+        } finally {
+            setGeneratingPix(false);
+        }
+    };
+
+    const handleConfirm = () => {
+        const val = validateValues();
+        if (!val) return;
+        if (paymentMethod === 'pix' && !pixPayload) { setError('Gere o PIX deste valor antes de confirmar o recebimento.'); return; }
+        onConfirm(val, date, paymentMethod, {
+            discountAmount: isMultiple ? discountValue : 0,
+            selectedIndices
+        });
+    };
+
+    const copyPix = async () => {
+        try {
+            await navigator.clipboard.writeText(pixPayload);
+            alert('Código PIX copiado!');
+        } catch (copyError) {
+            console.error('Não foi possível copiar o PIX:', copyError);
+            alert('Não foi possível copiar automaticamente. Tente novamente.');
+        }
+    };
+
+    if (!isOpen || selectedItems.length === 0) return null;
     return React.createElement('div', { className: "app-modal-overlay fixed inset-0 flex items-center justify-center p-4 z-[75] backdrop-blur-sm" },
-        React.createElement('div', { className: "app-modal-panel bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl animate-fade-in" },
+        React.createElement('div', { className: "payment109-modal app-modal-panel bg-white rounded-2xl w-full max-w-md max-h-[92vh] overflow-y-auto p-6 shadow-2xl animate-fade-in" },
             React.createElement('div', { className: "text-center mb-4" },
                 React.createElement('div', { className: "w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-3" }, React.createElement(Wallet, { className: "text-emerald-600", size: 24 })),
-                React.createElement('h3', { className: "text-lg font-bold text-slate-800" }, "Confirmar Pagamento"),
-                React.createElement('p', { className: "text-sm text-slate-500" }, `Parcela ${installment.number} - Restante: ${formatCurrency(installment.amount)}`)
+                React.createElement('h3', { className: "text-lg font-bold text-slate-800" }, isMultiple ? "Receber parcelas selecionadas" : "Receber parcela"),
+                React.createElement('p', { className: "text-sm text-slate-500" }, isMultiple
+                    ? `${selectedItems.length} parcelas · Total ${formatCurrency(selectedTotal)}`
+                    : `Parcela ${installment.number} · Restante ${formatCurrency(installment.amount)}`)
             ),
             error && React.createElement('div', { className: "bg-red-50 text-red-500 text-xs p-3 rounded-lg mb-4 flex items-center gap-2" }, React.createElement(AlertTriangle, { size: 14 }), error),
             React.createElement('div', { className: "space-y-4" },
-                React.createElement('div', null,
+                isMultiple && React.createElement('div', { className: "payment109-selected-list" },
+                    selectedItems.map(item => React.createElement('span', { key: item.number }, `Parcela ${item.number} · ${formatCurrency(item.amount)}`))
+                ),
+                !isMultiple && React.createElement('div', null,
                     React.createElement('label', { className: "block text-xs font-bold text-slate-500 uppercase mb-1" }, "Valor Pago (R$)"),
                     React.createElement(MoneyInput, { autoFocus: true, value: amount, onChange: setAmount, className: "w-full p-3 pl-10 border border-slate-200 rounded-xl text-lg font-bold text-slate-800" })
+                ),
+                isMultiple && React.createElement('div', null,
+                    React.createElement('label', { className: "block text-xs font-bold text-slate-500 uppercase mb-1" }, "Desconto no total (opcional)"),
+                    React.createElement(MoneyInput, { autoFocus: true, value: discount, onChange: setDiscount, className: "w-full p-3 border border-slate-200 rounded-xl text-lg font-bold text-slate-800" })
+                ),
+                isMultiple && React.createElement('div', { className: "payment109-total-card" },
+                    React.createElement('span', null, "Valor a receber"),
+                    React.createElement('strong', null, formatCurrency(paymentValue)),
+                    discountValue > 0 && React.createElement('small', null, `Desconto aplicado: ${formatCurrency(discountValue)}`)
+                ),
+                React.createElement('div', null,
+                    React.createElement('label', { className: "block text-xs font-bold text-slate-500 uppercase mb-2" }, "Forma de recebimento"),
+                    React.createElement('div', { className: "payment109-methods" },
+                        React.createElement('button', { type: 'button', onClick: () => setPaymentMethod('money'), className: `payment109-method ${paymentMethod === 'money' ? 'is-active' : ''}` }, React.createElement(Banknote, { size: 18 }), React.createElement('span', null, "Dinheiro")),
+                        React.createElement('button', { type: 'button', onClick: () => setPaymentMethod('pix'), disabled: !userProfile?.pixKey, className: `payment109-method ${paymentMethod === 'pix' ? 'is-active' : ''}` }, React.createElement(QrCode, { size: 18 }), React.createElement('span', null, userProfile?.pixKey ? "PIX" : "PIX não configurado"))
+                    )
                 ),
                 React.createElement('div', null,
                     React.createElement('label', { className: "block text-xs font-bold text-slate-500 uppercase mb-1" }, "Data do Pagamento"),
                     React.createElement('input', { type: "date", className: "w-full p-3 border border-slate-200 rounded-xl", value: date, onChange: e => setDate(e.target.value) })
+                ),
+                paymentMethod === 'pix' && !pixPayload && React.createElement('button', { type: 'button', onClick: handleGeneratePix, disabled: generatingPix, className: "payment109-generate-pix" }, React.createElement(QrCode, { size: 18 }), generatingPix ? "Gerando PIX..." : `Gerar PIX de ${formatCurrency(paymentValue)}`),
+                paymentMethod === 'pix' && pixPayload && React.createElement('div', { className: "payment109-pix-card" },
+                    React.createElement('img', { src: qrDataUrl, alt: "QR Code PIX do recebimento" }),
+                    React.createElement('strong', null, formatCurrency(paymentValue)),
+                    React.createElement('button', { type: 'button', onClick: copyPix }, React.createElement(Copy, { size: 16 }), "Copiar código PIX"),
+                    React.createElement('small', null, "Depois que o cliente pagar, confirme o recebimento abaixo.")
                 )
             ),
             React.createElement('div', { className: "flex gap-3 mt-6" },
                 React.createElement('button', { onClick: onClose, className: "flex-1 p-3 text-slate-500 font-bold hover:bg-slate-50 rounded-xl" }, "Cancelar"),
-                React.createElement('button', { onClick: handleConfirm, className: "flex-1 p-3 bg-emerald-500 text-white font-bold rounded-xl shadow-lg shadow-emerald-200 hover:bg-emerald-600" }, "Confirmar")
+                React.createElement('button', { onClick: handleConfirm, disabled: paymentMethod === 'pix' && !pixPayload, className: "flex-1 p-3 bg-emerald-500 text-white font-bold rounded-xl shadow-lg shadow-emerald-200 hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed" }, "Confirmar recebimento")
             )
         )
     );
 };
 
-export const InstallmentListModal = ({ isOpen, onClose, title, items, onPay, onOpenWA, onPix, hasPixSetup }) => {
+export const InstallmentListModal = ({ isOpen, onClose, title, items, onPay, onOpenWA }) => {
     if (!isOpen) return null;
     const groupedItems = items.reduce((acc, item) => {
         if (!acc[item.customerName]) acc[item.customerName] = [];
@@ -276,8 +378,7 @@ export const InstallmentListModal = ({ isOpen, onClose, title, items, onPay, onO
                                     React.createElement('p', { className: "installment-record-value font-bold text-slate-800" }, formatCurrency(item.amount)),
                                     React.createElement('div', { className: "installment-record-actions flex gap-2" },
                                         item.customerPhone && React.createElement('button', { onClick: () => onOpenWA('cobranca', item.sale, item, null), className: "p-2 bg-green-500 text-white rounded-lg shadow-sm hover:bg-green-600 transition-colors", title: "Enviar cobrança" }, React.createElement(MessageCircle, { size: 16 })),
-                                        React.createElement('button', { onClick: () => onPix(item), className: `installment94-pix-action p-2 text-white rounded-lg shadow-sm transition-colors ${hasPixSetup ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-slate-400 hover:bg-slate-500'}`, title: hasPixSetup ? "Gerar PIX desta parcela" : "Configure a chave PIX no perfil" }, React.createElement(QrCode, { size: 16 }), React.createElement('span', null, "PIX")),
-                                        React.createElement('button', { onClick: () => onPay(item), className: "p-2 bg-slate-800 text-white rounded-lg shadow-sm hover:bg-slate-700 transition-colors", title: "Registrar pagamento" }, React.createElement(CheckCircle, { size: 16 }))
+                                        React.createElement('button', { onClick: () => onPay(item), className: "payment109-list-receive p-2 bg-slate-800 text-white rounded-lg shadow-sm hover:bg-slate-700 transition-colors", title: "Receber parcela" }, React.createElement(Wallet, { size: 16 }), React.createElement('span', null, "Receber"))
                                     )
                                 )
                             )
@@ -846,13 +947,37 @@ export const CustomerFormModal = ({ isOpen, onClose, onSave, initialData }) => {
     );
 };
 
-export const SaleDetailsModal = ({ isOpen, onClose, sale, onPay, onEdit, onDeletePayment, onCancelSale, onDeleteSale, allowDeleteSale = false, onOpenWA, onShowPixCode, hasPixSetup, onGeneratePdf, onGenerateBooklet }) => {
+export const SaleDetailsModal = ({ isOpen, onClose, sale, onPay, onReceiveSelected, onEdit, onDeletePayment, onCancelSale, onDeleteSale, allowDeleteSale = false, onOpenWA, onGeneratePdf, onGenerateBooklet }) => {
+    const [selectedInstallments, setSelectedInstallments] = useState([]);
+
+    useEffect(() => {
+        if (!isOpen || !sale) {
+            setSelectedInstallments([]);
+            return;
+        }
+        setSelectedInstallments(previous => previous.filter(index => {
+            const installment = sale.installments?.[index];
+            return installment && !installment.paid && sale.status !== 'canceled';
+        }));
+    }, [isOpen, sale?.id, sale?.installments, sale?.status]);
+
     if (!isOpen || !sale) return null;
 
     const pendingAmount = sale.installments ? sale.installments.filter(i => !i.paid).reduce((acc, i) => acc + i.amount, 0) : 0;
     const paidInstallments = sale.installments ? sale.installments.filter(i => i.paid).length : 0;
     const totalInst = sale.installmentsCount || 0;
     const cancellationEvents = Array.isArray(sale.cancellations) ? sale.cancellations : [];
+    const selectedTotal = selectedInstallments.reduce((total, index) => total + (Number(sale.installments?.[index]?.amount) || 0), 0);
+    const toggleInstallmentSelection = index => {
+        setSelectedInstallments(previous => previous.includes(index)
+            ? previous.filter(item => item !== index)
+            : [...previous, index].sort((left, right) => left - right));
+    };
+    const receiveSelected = () => {
+        if (selectedInstallments.length < 2) return;
+        onReceiveSelected?.(sale, selectedInstallments);
+    };
+    const receiptMethodLabel = method => method === 'pix' ? 'PIX' : method === 'money' ? 'Dinheiro' : '';
     const formatDetailedDateTime = (dateValue, timestampValue) => {
         const datePart = String(dateValue || timestampValue || '').split('T')[0];
         let timePart = '';
@@ -877,6 +1002,7 @@ export const SaleDetailsModal = ({ isOpen, onClose, sale, onPay, onEdit, onDelet
         ? savedNetAmount
         : (Number(sale.totalPrice) || 0) - feeAmount;
     const installmentInterestAmount = Number(sale.installmentInterest?.value) || 0;
+    const settlementDiscountAmount = Number(sale.settlementDiscountTotal) || 0;
     const passedCardFee = sale.feeConfig?.type === 'com_juros' ? feeAmount : 0;
     const savedProductsTotal = Number(sale.productsTotal);
     const productsAfterDiscount = Number.isFinite(savedProductsTotal) && sale.productsTotal !== undefined && sale.productsTotal !== null
@@ -1011,6 +1137,7 @@ export const SaleDetailsModal = ({ isOpen, onClose, sale, onPay, onEdit, onDelet
                     React.createElement('p', { className: "text-xs font-bold text-slate-400 uppercase mb-2 flex items-center gap-2" }, React.createElement(PieChart, { size: 14 }), "Resumo Financeiro"),
                     React.createElement('div', { className: "flex justify-between text-sm" }, React.createElement('span', { className: "text-slate-500" }, "Valor dos Produtos:"), React.createElement('span', { className: "text-slate-800 font-bold" }, formatCurrency(productsBeforeDiscount))),
                     sale.totalDiscount > 0 && React.createElement('div', { className: "flex justify-between text-sm text-emerald-600" }, React.createElement('span', null, "Descontos Aplicados:"), React.createElement('span', { className: "font-bold" }, `- ${formatCurrency(sale.totalDiscount)}`)),
+                    settlementDiscountAmount > 0 && React.createElement('div', { className: "flex justify-between text-sm text-amber-700" }, React.createElement('span', null, "Descontos nos Recebimentos:"), React.createElement('span', { className: "font-bold" }, `- ${formatCurrency(settlementDiscountAmount)}`)),
                     sale.feeConfig && React.createElement('div', { className: "flex justify-between text-sm text-orange-600" }, React.createElement('span', null, sale.feeConfig.type === 'sem_juros' ? "Taxa Maquininha (Loja Paga):" : "Taxa Repassada (Cliente Paga):"), React.createElement('span', { className: "font-bold" }, `${sale.feeConfig.type === 'sem_juros' ? '-' : '+'} ${formatCurrency(sale.feeConfig.value)}`)),
                     installmentInterestAmount > 0 && React.createElement('div', { className: "flex justify-between text-sm text-amber-700" }, React.createElement('span', null, `Juros do Carnê (${sale.installmentInterest?.percent || 0}%):`), React.createElement('span', { className: "font-bold" }, `+ ${formatCurrency(installmentInterestAmount)}`)),
                     (sale.saleType === 'prazo' || !sale.saleType) && React.createElement('div', { className: "flex justify-between text-sm" }, React.createElement('span', { className: "text-slate-500" }, "Total Cobrado do Cliente:"), React.createElement('span', { className: "text-slate-800 font-bold" }, formatCurrency(sale.totalPrice || 0))),
@@ -1043,15 +1170,31 @@ export const SaleDetailsModal = ({ isOpen, onClose, sale, onPay, onEdit, onDelet
 
                 (sale.saleType === 'prazo' || !sale.saleType) && React.createElement('div', { className: "sale-details-installments desktop-span-full space-y-3 relative z-10" },
                     React.createElement('p', { className: "text-xs font-bold text-slate-400 uppercase flex items-center gap-2" }, React.createElement(Calendar, { size: 14 }), "Parcelamento"),
+                    selectedInstallments.length > 0 && React.createElement('div', { className: "sale109-multi-receive-bar" },
+                        React.createElement('div', null,
+                            React.createElement('strong', null, `${selectedInstallments.length} ${selectedInstallments.length === 1 ? 'parcela selecionada' : 'parcelas selecionadas'}`),
+                            React.createElement('span', null, selectedInstallments.length < 2 ? "Selecione pelo menos mais uma parcela" : `Total: ${formatCurrency(selectedTotal)}`)
+                        ),
+                        React.createElement('div', { className: "sale109-multi-receive-actions" },
+                            React.createElement('button', { type: 'button', onClick: () => setSelectedInstallments([]), className: "sale109-clear-selection" }, "Limpar"),
+                            React.createElement('button', { type: 'button', onClick: receiveSelected, disabled: selectedInstallments.length < 2, className: "sale109-receive-selected" }, React.createElement(Wallet, { size: 15 }), "Receber selecionadas")
+                        )
+                    ),
                     sale.installments && sale.installments.map((inst, idx) => {
                         const isOverdue = !inst.paid && inst.dueDate < getBrazilDateString();
+                        const isSelected = selectedInstallments.includes(idx);
                         let paidDisplayDate = '';
                         if (inst.paid && inst.paidAt) { const latestPayment = Array.isArray(inst.history) && inst.history.length ? inst.history[inst.history.length - 1] : null; paidDisplayDate = formatRecordMoment(inst.paidAt, latestPayment?.timestamp || inst.paidAtDateTime); }
                         
-                        return React.createElement('div', { key: idx, className: "sale-installment-record bg-white p-4 rounded-xl border border-slate-200 flex flex-col gap-3 shadow-sm" },
+                        return React.createElement('div', { key: idx, className: `sale-installment-record ${isSelected ? 'is-selected-for-payment' : ''} bg-white p-4 rounded-xl border border-slate-200 flex flex-col gap-3 shadow-sm` },
                             React.createElement('div', { className: "flex justify-between items-center" },
                                 React.createElement('div', { className: "flex items-center gap-3" },
-                                    sale.status !== 'canceled' && React.createElement('button', { onClick: () => onPay(sale, idx), className: `rounded-full p-2 transition-colors shadow-sm ${inst.paid ? 'bg-emerald-500 text-white cursor-default' : 'bg-slate-100 text-slate-400 hover:bg-emerald-100 hover:text-emerald-600'}` }, React.createElement(CheckCircle, { size: 20 })),
+                                    sale.status !== 'canceled' && (inst.paid
+                                        ? React.createElement('span', { className: "sale109-paid-status", title: "Parcela recebida" }, React.createElement(CheckCircle, { size: 20 }))
+                                        : React.createElement('label', { className: "sale109-selection-checkbox", title: "Selecionar parcela para recebimento conjunto" },
+                                            React.createElement('input', { type: 'checkbox', checked: isSelected, onChange: () => toggleInstallmentSelection(idx), 'aria-label': `Selecionar parcela ${inst.number}` }),
+                                            React.createElement('span', null)
+                                        )),
                                     React.createElement('div', null,
                                         React.createElement('p', { className: "text-sm font-bold text-slate-700" }, `Parcela ${inst.number}`),
                                         React.createElement('div', { className: "flex flex-col" },
@@ -1066,16 +1209,21 @@ export const SaleDetailsModal = ({ isOpen, onClose, sale, onPay, onEdit, onDelet
                                 React.createElement('p', { className: "text-[10px] uppercase font-bold text-slate-400 mb-2 flex items-center gap-1" }, React.createElement(History, { size: 12 }), "Histórico de Pagamentos"),
                                 inst.history.map((h, hIdx) => React.createElement('div', { key: hIdx, className: "sale-payment-history-row flex justify-between items-center text-slate-600 py-1.5 border-b border-slate-100 last:border-0" },
                                     React.createElement('div', { className: "flex items-center gap-1" },
-                                        React.createElement('span', null, h.type === 'abatement' ? 'Abatimento autom.' : formatRecordMoment(h.date, h.timestamp)),
+                                        React.createElement('span', null, h.type === 'abatement'
+                                            ? 'Abatimento autom.'
+                                            : `${h.type === 'group_payment' ? 'Recebimento conjunto · ' : ''}${formatRecordMoment(h.date, h.timestamp)}${receiptMethodLabel(h.paymentMethod) ? ` · ${receiptMethodLabel(h.paymentMethod)}` : ''}`),
                                         h.type !== 'abatement' && sale.status !== 'canceled' && React.createElement('button', { onClick: (e) => { e.stopPropagation(); onOpenWA('recibo', sale, inst, h); }, className: "text-green-500 hover:text-green-600 bg-green-50 p-1 rounded transition-colors ml-1", title: "Enviar Recibo" }, React.createElement(MessageCircle, { size: 12 })),
                                         h.type !== 'abatement' && sale.status !== 'canceled' && React.createElement('button', { onClick: () => onDeletePayment(sale.id, idx, hIdx, h), className: "text-red-400 hover:text-red-600 bg-red-50 p-1 rounded transition-colors" }, React.createElement(XCircle, { size: 12 }))
                                     ),
-                                    React.createElement('span', { className: "font-bold" }, formatCurrency(h.type === 'abatement' ? h.amount : getHistoryCashAmount(h)))
+                                    React.createElement('div', { className: "sale109-history-value" },
+                                        React.createElement('span', { className: "font-bold" }, formatCurrency(h.type === 'abatement' ? h.amount : getHistoryCashAmount(h))),
+                                        Number(h.discount) > 0 && React.createElement('small', null, `Desconto: ${formatCurrency(h.discount)}`)
+                                    )
                                 ))
                             ),
-                            !inst.paid && sale.status !== 'canceled' ? React.createElement('div', { className: "flex gap-2 mt-2" },
+                            !inst.paid && sale.status !== 'canceled' ? React.createElement('div', { className: "sale109-installment-actions flex gap-2 mt-2" },
                                 React.createElement('button', { onClick: () => onEdit({ open: true, saleId: sale.id, installmentIndex: idx, data: inst }), className: "flex-1 flex items-center justify-center gap-1 py-2 text-xs font-bold text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors" }, React.createElement(Edit2, { size: 14 }), "Ajustar"),
-                                hasPixSetup && React.createElement('button', { onClick: () => onShowPixCode(sale, inst), className: "flex-1 flex items-center justify-center gap-1 py-2 text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 rounded-lg hover:bg-emerald-100 transition-colors shadow-sm" }, React.createElement(QrCode, { size: 14 }), "PIX"),
+                                React.createElement('button', { onClick: () => onPay(sale, idx), className: "sale109-receive-button flex-1 flex items-center justify-center gap-1 py-2 text-xs font-bold text-white bg-slate-800 rounded-lg hover:bg-slate-700 transition-colors shadow-sm" }, React.createElement(Wallet, { size: 14 }), "Receber"),
                                 sale.customerPhone && React.createElement('button', { onClick: () => onOpenWA('cobranca', sale, inst, null), className: "flex-1 flex items-center justify-center gap-1 py-2 text-xs font-bold text-white bg-green-500 rounded-lg hover:bg-green-600 transition-colors shadow-sm" }, React.createElement(MessageCircle, { size: 14 }), "Cobrar")
                             ) : (inst.paid && sale.status !== 'canceled') ? React.createElement('div', { className: "flex gap-2 mt-2" },
                                 sale.customerPhone && React.createElement('button', { onClick: () => onOpenWA('recibo', sale, inst, null), className: "flex-1 flex items-center justify-center gap-1 py-2 text-xs font-bold text-emerald-600 bg-emerald-50 rounded-lg hover:bg-emerald-100 transition-colors shadow-sm border border-emerald-100" }, React.createElement(MessageCircle, { size: 14 }), "Enviar Recibo")
