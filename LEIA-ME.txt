@@ -1,4 +1,4 @@
-REGISTRO DE VENDAS — VERSÃO 109
+REGISTRO DE VENDAS — VERSÃO 110
 
 ARQUITETURA ATIVA
 - app-runtime-v75.js é o código principal oficial, já consolidado e editado diretamente.
@@ -41,6 +41,7 @@ VENDAS UNIFICADAS
 - O modal de recebimento permite informar o valor, a data e escolher entre Dinheiro e PIX. Ao escolher PIX, o QR Code e o código copia e cola são gerados exatamente com o valor digitado.
 - As parcelas em aberto possuem caixas de seleção. Ao selecionar duas ou mais, é possível recebê-las juntas e conceder um desconto sobre o total escolhido.
 - O desconto do recebimento conjunto reduz o valor da venda e quita as parcelas, mas não é lançado como entrada de caixa. Ao estornar o grupo, todas as parcelas e o valor original são restaurados.
+- Depois que uma venda no caixa ou a prazo é gravada com sucesso, o sistema abre automaticamente seu detalhamento na aba Vendas.
 - npm test simula a gravação das cinco formas de pagamento e preserva as verificações anteriores.
 
 POSIÇÃO HISTÓRICA DO CREDIÁRIO

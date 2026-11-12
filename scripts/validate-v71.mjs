@@ -218,6 +218,9 @@ const makeSaleHarness = (initialStock, options = {}) => {
   const inventory = new Map(Object.entries(initialStock).map(([id, quantity]) => [id, { name: id, quantity }]));
   const savedSales = new Map();
   const committedOperations = [];
+  const openedSaleDetails = [];
+  const saleModes = [];
+  const selectedViews = [];
   const fakeDb = { name: 'firestore-test' };
   let saleNumber = 0;
 
@@ -252,7 +255,8 @@ const makeSaleHarness = (initialStock, options = {}) => {
 
   const createHandler = Function('dependencies', `
     const { db, APP_ID, user, doc, collection, runTransaction, serverTimestamp,
-      aggregateSaleItems, buildSaleInventoryPlan, normalizeSaleMoney } = dependencies;
+      aggregateSaleItems, buildSaleInventoryPlan, normalizeSaleMoney,
+      setSelectedSaleDetail, setNewSaleMode, setView } = dependencies;
     const console = { error() {} };
     ${saleHandlerSource}
     return handleAddSale;
@@ -268,10 +272,13 @@ const makeSaleHarness = (initialStock, options = {}) => {
     serverTimestamp: () => ({ generatedBy: 'server' }),
     aggregateSaleItems,
     buildSaleInventoryPlan,
-    normalizeSaleMoney
+    normalizeSaleMoney,
+    setSelectedSaleDetail: sale => openedSaleDetails.push(sale),
+    setNewSaleMode: mode => saleModes.push(mode),
+    setView: view => selectedViews.push(view)
   });
 
-  return { handleAddSale, inventory, savedSales, committedOperations };
+  return { handleAddSale, inventory, savedSales, committedOperations, openedSaleDetails, saleModes, selectedViews };
 };
 
 const cashSale = {
@@ -299,6 +306,10 @@ assert.equal(cashHarness.savedSales.size, 1, 'A venda precisa ser gravada uma ú
 assert.equal(cashHarness.savedSales.get(savedCashId)?.totalCost, 14.22, 'O custo precisa ser normalizado antes da gravação.');
 assert.equal(cashHarness.savedSales.get(savedCashId)?.saleChannel, 'instagram', 'A transação de venda precisa preservar o canal escolhido.');
 assert.equal(cashHarness.savedSales.get(savedCashId)?.inventoryOperationId, savedCashId);
+assert.equal(cashHarness.openedSaleDetails.at(-1)?.id, savedCashId, 'A venda no caixa deve abrir o detalhamento após a gravação.');
+assert.equal(cashHarness.openedSaleDetails.at(-1)?.__pendingSync, true);
+assert.deepEqual(cashHarness.saleModes, [null]);
+assert.deepEqual(cashHarness.selectedViews, ['sales']);
 assert.equal(cashHarness.inventory.get('perfume')?.quantity, 1, 'Produtos repetidos devem gerar apenas uma baixa consolidada.');
 assert.equal(cashHarness.inventory.get('creme')?.quantity, 1);
 assert.deepEqual(cashHarness.committedOperations.map(item => item.type), ['set', 'update', 'update']);
@@ -315,6 +326,9 @@ const termSaleId = await termHarness.handleAddSale({
   installments: [33.34, 33.33, 28.33].map((amount, index) => ({ number: index + 1, amount, paid: false }))
 });
 assert.equal(termHarness.savedSales.get(termSaleId)?.totalPrice, 100, 'A venda a prazo precisa fechar exatamente em centavos.');
+assert.equal(termHarness.openedSaleDetails.at(-1)?.id, termSaleId, 'A venda a prazo deve abrir o detalhamento após a gravação.');
+assert.deepEqual(termHarness.saleModes, [null]);
+assert.deepEqual(termHarness.selectedViews, ['sales']);
 assert.equal(termHarness.inventory.get('perfume')?.quantity, 0, 'A venda da última unidade precisa ser permitida.');
 
 const insufficientHarness = makeSaleHarness({ perfume: 2, creme: 2 });
@@ -325,6 +339,7 @@ assert.equal(insufficientHarness.savedSales.size, 0, 'Venda recusada não pode f
 assert.equal(insufficientHarness.inventory.get('perfume')?.quantity, 2);
 assert.equal(insufficientHarness.inventory.get('creme')?.quantity, 2);
 assert.equal(insufficientHarness.committedOperations.length, 0);
+assert.equal(insufficientHarness.openedSaleDetails.length, 0, 'Venda recusada não pode abrir o detalhamento.');
 
 const missingHarness = makeSaleHarness({ perfume: 4 });
 await assert.rejects(() => missingHarness.handleAddSale(cashSale), error => (
@@ -332,12 +347,14 @@ await assert.rejects(() => missingHarness.handleAddSale(cashSale), error => (
 ), 'Produtos removidos devem impedir a gravação.');
 assert.equal(missingHarness.savedSales.size, 0);
 assert.equal(missingHarness.inventory.get('perfume')?.quantity, 4);
+assert.equal(missingHarness.openedSaleDetails.length, 0);
 
 const failedCommitHarness = makeSaleHarness({ perfume: 4, creme: 2 }, { rejectCommit: true });
 await assert.rejects(() => failedCommitHarness.handleAddSale(cashSale), /Nenhuma venda ou baixa de estoque foi gravada/);
 assert.equal(failedCommitHarness.savedSales.size, 0, 'Falha no banco não pode registrar uma venda incompleta.');
 assert.equal(failedCommitHarness.inventory.get('perfume')?.quantity, 4);
 assert.equal(failedCommitHarness.inventory.get('creme')?.quantity, 2);
+assert.equal(failedCommitHarness.openedSaleDetails.length, 0, 'Falha no banco não pode abrir um detalhamento inexistente.');
 
 const authSource = fs.readFileSync(new URL('../auth-screen-v71.js', import.meta.url), 'utf8');
 for (const marker of ['sendPasswordResetEmail', "autoComplete: 'current-password'", 'Lembrar meu e-mail', "type: 'submit'"]) {

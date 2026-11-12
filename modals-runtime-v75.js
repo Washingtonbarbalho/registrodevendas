@@ -8,9 +8,9 @@ import {
 } from 'https://esm.sh/lucide-react@0.292.0';
 import {
     formatCurrency, getBrazilDateString, formatDate, analyzeCustomerCredit
-} from './utils.js?v=109';
+} from './utils.js?v=110';
 
-import * as originalModule from './modals-core-runtime-v75.js?v=109';
+import * as originalModule from './modals-core-runtime-v75.js?v=110';
 
 export const UserProfileModal = originalModule.UserProfileModal;
 export const CustomerFormModal = originalModule.CustomerFormModal;

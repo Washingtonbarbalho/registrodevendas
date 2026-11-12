@@ -1,44 +1,44 @@
-// Aplicação consolidada v109 — código-fonte principal do sistema.
+// Aplicação consolidada v110 — código-fonte principal do sistema.
 import React, { useState, useEffect, useMemo } from 'https://esm.sh/react@18.2.0';
 import { createRoot } from 'https://esm.sh/react-dom@18.2.0/client';
 import { Users, User, LogOut, Lock, LayoutDashboard, Receipt, WalletCards, Package, Contact, Store, ShieldCheck, BadgePercent, Banknote, MoreHorizontal, Plus } from 'https://esm.sh/lucide-react@0.292.0';
 
 // Firebase
-import { app, db, auth, APP_ID } from './firebase-config.js?v=109';
-import { collection, onSnapshot, query, doc, getDoc, updateDoc, deleteDoc, addDoc, serverTimestamp, setDoc, runTransaction, writeBatch } from './firestore-runtime-v94.js?v=109';
+import { app, db, auth, APP_ID } from './firebase-config.js?v=110';
+import { collection, onSnapshot, query, doc, getDoc, updateDoc, deleteDoc, addDoc, serverTimestamp, setDoc, runTransaction, writeBatch } from './firestore-runtime-v94.js?v=110';
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js";
 
 // Utils
-import { getCurrentMonthStart, getCurrentMonthEnd, getBrazilDateString, addDays, formatCurrency, formatDate } from './utils.js?v=109';
-import { aggregateSaleItems, buildSaleInventoryPlan } from './inventory-reliability-v69.js?v=109';
-import { applyInstallmentPayment, applySelectedInstallmentsPayment, buildFinancialLedger, calculatePurchaseReturnFinancialSplit, fromCents, getHistoryCashAmount, getInstallmentFaceAmount, getRealizedSalesProfit, getSalesAccrualSummary, isTermSale, money, normalizeSaleMoney, reverseInstallmentPayment, sumMoney, summarizeFinancialLedger, toCents } from './financial-core-v70.js?v=109';
+import { getCurrentMonthStart, getCurrentMonthEnd, getBrazilDateString, addDays, formatCurrency, formatDate } from './utils.js?v=110';
+import { aggregateSaleItems, buildSaleInventoryPlan } from './inventory-reliability-v69.js?v=110';
+import { applyInstallmentPayment, applySelectedInstallmentsPayment, buildFinancialLedger, calculatePurchaseReturnFinancialSplit, fromCents, getHistoryCashAmount, getInstallmentFaceAmount, getRealizedSalesProfit, getSalesAccrualSummary, isTermSale, money, normalizeSaleMoney, reverseInstallmentPayment, sumMoney, summarizeFinancialLedger, toCents } from './financial-core-v70.js?v=110';
 
 // Modais
 import { 
     UserProfileModal, CustomerFormModal, ProductDetailsModal, EditInstallmentModal, 
     SaleDetailsModal, InstallmentListModal, PaymentConfirmationModal,
     ConfirmModal, WhatsAppChooserModal, ProductModal
-} from './modals-runtime-v75.js?v=109';
-import { StockMovementModal } from './stock-movement-modal-v68.js?v=109';
+} from './modals-runtime-v75.js?v=110';
+import { StockMovementModal } from './stock-movement-modal-v68.js?v=110';
 
 // Telas Secundárias
-import { AdminUsersPanel } from './auth-admin.js?v=109';
-import { AuthScreen } from './auth-screen-v71.js?v=109';
-import { NewSaleScreen } from './nova-venda-runtime-v75.js?v=109';
+import { AdminUsersPanel } from './auth-admin.js?v=110';
+import { AuthScreen } from './auth-screen-v71.js?v=110';
+import { NewSaleScreen } from './nova-venda-runtime-v75.js?v=110';
 
 // Abas do Dashboard
-import { AbaVisaoGeral } from './aba-visao-geral-fixed.js?v=109';
-import { AbaVendas } from './aba-vendas-v71.js?v=109';
-import { AbaProdutos } from './aba-produtos-v67.js?v=109';
-import { AbaClientes } from './aba-clientes-runtime-v75.js?v=109';
-import { AbaTaxas } from './aba-taxas.js?v=109';
-import { AbaFinanceiro } from './aba-financeiro-v68.js?v=109';
-import { BatchStockModal } from './batch-stock-modal-v68.js?v=109';
-import { AbaRelatorios } from './aba-relatorios-v73.js?v=109';
-import { AbaComercial } from './aba-comercial-v74.js?v=109';
-import { normalizePaymentSettings } from './payment-settings.js?v=109';
-import { shareInstallmentBookletPdf, shareSalePdf } from './sale-pdf-v65.js?v=109';
-import { readSharedAnalysisPeriod, resolveAnalysisPeriod, writeSharedAnalysisPeriod } from './analysis-period-v79.js?v=109';
+import { AbaVisaoGeral } from './aba-visao-geral-fixed.js?v=110';
+import { AbaVendas } from './aba-vendas-v71.js?v=110';
+import { AbaProdutos } from './aba-produtos-v67.js?v=110';
+import { AbaClientes } from './aba-clientes-runtime-v75.js?v=110';
+import { AbaTaxas } from './aba-taxas.js?v=110';
+import { AbaFinanceiro } from './aba-financeiro-v68.js?v=110';
+import { BatchStockModal } from './batch-stock-modal-v68.js?v=110';
+import { AbaRelatorios } from './aba-relatorios-v73.js?v=110';
+import { AbaComercial } from './aba-comercial-v74.js?v=110';
+import { normalizePaymentSettings } from './payment-settings.js?v=110';
+import { shareInstallmentBookletPdf, shareSalePdf } from './sale-pdf-v65.js?v=110';
+import { readSharedAnalysisPeriod, resolveAnalysisPeriod, writeSharedAnalysisPeriod } from './analysis-period-v79.js?v=110';
 
 // Exceção temporária desativada: somente vendas canceladas podem ser excluídas.
 // O filtro de registros excluídos deve continuar ativo ao desativar esta opção.
@@ -111,7 +111,10 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
     const [profileModalOpen, setProfileModalOpen] = useState(false);
     
     const [selectedSaleDetail, setSelectedSaleDetail] = useState(null);
-    const activeSaleDetails = selectedSaleDetail ? sales.find(s => s.id === selectedSaleDetail.id) : null;
+    const activeSaleDetails = selectedSaleDetail
+        ? sales.find(sale => sale.id === selectedSaleDetail.id)
+            || (selectedSaleDetail.__pendingSync ? selectedSaleDetail : null)
+        : null;
 
     const [deleteModal, setDeleteModal] = useState({ open: false, type: null, id: null });
     const [cancelModal, setCancelModal] = useState({ open: false, saleId: null, reason: '' });
@@ -417,6 +420,14 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
                     });
                 });
             });
+            setSelectedSaleDetail({
+                ...normalizedSale,
+                id: saleRef.id,
+                inventoryOperationId: saleRef.id,
+                __pendingSync: true
+            });
+            setNewSaleMode(null);
+            setView('sales');
             return saleRef.id;
         } catch (error) {
             console.error('Venda não concluída:', error);
