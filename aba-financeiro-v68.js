@@ -4,15 +4,15 @@ import {
   ArrowDown, ArrowUp, Banknote, CreditCard, Edit3, Eye,
   Package, Plus, Receipt, Search, Trash2, Wallet, X
 } from 'https://esm.sh/lucide-react@0.292.0';
-import { db, APP_ID } from './firebase-config.js?v=111';
-import { doc, onSnapshot, runTransaction, serverTimestamp, setDoc } from './firestore-runtime-v94.js?v=111';
-import { DateRangePicker, MoneyInput } from './components.js?v=111';
+import { db, APP_ID } from './firebase-config.js?v=112';
+import { doc, onSnapshot, runTransaction, serverTimestamp, setDoc } from './firestore-runtime-v94.js?v=112';
+import { DateRangePicker, MoneyInput } from './components.js?v=112';
 import { formatCurrency, formatDate, getBrazilDateString, getCurrentMonthEnd, getCurrentMonthStart, parseMoney } from './utils.js';
 import { buildPaymentInstallments, clampInstallments, normalizePaymentInstallments } from './purchase-payment-v68.js';
 import { buildFinancialLedger, getInstallmentFaceAmount, getPurchaseGroups, money, sumMoney, summarizeFinancialLedger, toCents } from './financial-core-v70.js';
-import { buildFinancialAccountDetails, buildPurchaseTransactionDetails, filterFinancialAccounts, summarizeFinancialAccounts } from './financial-account-details-v80.js?v=111';
-import { showAppConfirm } from './ui-interactions-v81.js?v=111';
-import { cashExpenses } from './commissions/core.js?v=111';
+import { buildFinancialAccountDetails, buildPurchaseTransactionDetails, filterFinancialAccounts, summarizeFinancialAccounts } from './financial-account-details-v80.js?v=112';
+import { showAppConfirm } from './ui-interactions-v81.js?v=112';
+import { commissionCashEntries, isCommissionCashEntry } from './commissions/core.js?v=112';
 
 const h = React.createElement;
 const EMPTY_DATA = { entries: [], accounts: [] };
@@ -468,8 +468,8 @@ const PurchaseTransactionDetailsModal = ({ item, products, onClose }) => {
 
 const MovementRow = ({ item, openManualEdit, deleteManual, onOpenSale, onOpenProduct, onOpenPurchaseDetails }) => {
   let action = null;
-  if (item.manual?.commissionPayoutId) {
-    action = h('span', { className: 'finance44-source' }, 'Repasse · Vendedores e comissões');
+  if (isCommissionCashEntry(item.manual)) {
+    action = h('span', { className: 'finance44-source' }, item.manual.commissionRefundId ? 'Devolução · Comissões' : 'Repasse · Comissões');
   } else if (item.source === 'manual') {
     action = h(React.Fragment, null,
       h('button', { className: 'finance44-action', onClick: () => openManualEdit(item.manual) }, h(Edit3, { size: 14 }), 'Editar'),
@@ -622,16 +622,15 @@ export const AbaFinanceiro = ({
     snapshot => {
       const raw = snapshot.data()?.financialData;
       const { entries, accounts } = normalizeFinancialData(raw);
-      setData({ entries: [...entries, ...cashExpenses(raw)], accounts }); setLoading(false); setError('');
+      setData({ entries: [...entries, ...commissionCashEntries(raw)], accounts }); setLoading(false); setError('');
     },
     err => { console.error(err); setLoading(false); setError('Não foi possível carregar os lançamentos manuais.'); }
   ), [profileRef]);
 
   const saveData = async next => {
     const normalized = normalizeFinancialData(next);
-    // Somente lançamentos editáveis: o repasse vem de uma fonte única e o livro de
-    // comissões é um campo irmão, nunca substituído pelas operações financeiras manuais.
-    const editable = { ...normalized, entries: normalized.entries.filter(entry => !entry.commissionPayoutId) };
+    // Repasses e devoluções vêm do livro de comissões, separado dos lançamentos editáveis.
+    const editable = { ...normalized, entries: normalized.entries.filter(entry => !isCommissionCashEntry(entry)) };
     await setDoc(profileRef, { financialData: editable, financialUpdatedAt: serverTimestamp() }, { merge: true });
   };
 
@@ -641,7 +640,7 @@ export const AbaFinanceiro = ({
   const movements = useMemo(() => sharedLedger
     .filter(item => item.date && item.date >= startDate && item.date <= endDate)
     .filter(item => !search || `${item.description} ${item.detail}`.toLowerCase().includes(search.toLowerCase()))
-    .sort((a, b) => sortTimestamp(b) - sortTimestamp(a) || String(b.id).localeCompare(String(a.id))),
+    .sort((a, b) => b.date.localeCompare(a.date) || sortTimestamp(b) - sortTimestamp(a) || String(b.id).localeCompare(String(a.id))),
   [sharedLedger, startDate, endDate, search]);
 
   const saleReceivables = useMemo(() => {

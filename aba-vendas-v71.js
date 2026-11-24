@@ -3,8 +3,8 @@ import {
   ArrowDownUp, Banknote, CheckCircle2, ChevronRight, CreditCard,
   Plus, Receipt, RotateCcw, Search, SlidersHorizontal, WalletCards, X, XCircle
 } from 'https://esm.sh/lucide-react@0.292.0';
-import { DateRangePicker, Pagination } from './components.js?v=111';
-import { formatCurrency, formatDate, getCurrentMonthEnd, getCurrentMonthStart } from './utils.js?v=111';
+import { DateRangePicker, Pagination } from './components.js?v=112';
+import { formatCurrency, formatDate, getCurrentMonthEnd, getCurrentMonthStart } from './utils.js?v=112';
 import {
   buildSalesView,
   getNextOpenDueDate,
@@ -14,8 +14,8 @@ import {
   getSalePaymentLabel,
   SALES_VIEW_DEFAULTS,
   summarizeSalesView
-} from './sales-operations-v71.js?v=111';
-import { showAppDateRange } from './ui-interactions-v81.js?v=111';
+} from './sales-operations-v71.js?v=112';
+import { showAppDateRange } from './ui-interactions-v81.js?v=112';
 
 const ITEMS_PER_PAGE = 12;
 

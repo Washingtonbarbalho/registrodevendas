@@ -1,6 +1,6 @@
-import { installUiInteractions } from './ui-interactions-v81.js?v=111';
+import { installUiInteractions } from './ui-interactions-v81.js?v=112';
 
-const VERSION = '111';
+const VERSION = '112';
 
 const withStage = async (label, task) => {
   try {

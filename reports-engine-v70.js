@@ -75,7 +75,8 @@ const resultReport = context => {
   const { sales = [], products = [], financialData = {}, startDate, endDate } = context;
   const accrual = getSalesAccrualSummary(sales, startDate, endDate);
   const cash = summarizeFinancialLedger(buildFinancialLedger({ sales, products, financialData }), startDate, endDate);
-  const manualIncome = sumMoney(cash.rows.filter(item => item.type === 'income' && item.source === 'manual'), item => item.amount);
+  const manualIncome = sumMoney(cash.rows.filter(item => item.type === 'income' && item.source === 'manual' && !item.manual?.commissionRefundId), item => item.amount);
+  const commissionRefunds = cash.rows.filter(item => item.manual?.commissionRefundId);
   const commissionPayments = cash.rows.filter(item => item.manual?.commissionPayoutId);
   const manualExpense = sumMoney(cash.rows.filter(item => item.type === 'expense' && item.source === 'manual' && !item.manual?.commissionPayoutId), item => item.amount);
   const paidPurchases = sumMoney(cash.rows.filter(item => item.type === 'expense' && item.source === 'stock'), item => item.amount);
@@ -109,6 +110,7 @@ const resultReport = context => {
       ['Outras entradas manuais', '—', formatCurrency(manualIncome)],
       ['Outras saídas manuais', '—', formatCurrency(manualExpense)],
       ['Repasses de comissão', numberLabel(commissionPayments.length), formatCurrency(sumMoney(commissionPayments, item => item.amount))],
+      ['Devoluções de comissão', numberLabel(commissionRefunds.length), formatCurrency(sumMoney(commissionRefunds, item => item.amount))],
       ['Taxas assumidas pela loja', '—', formatCurrency(accrual.storeFees)],
       ['Descontos concedidos', '—', formatCurrency(accrual.discounts)]
     ],

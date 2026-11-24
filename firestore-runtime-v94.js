@@ -19,7 +19,7 @@ import {
   beginDatabaseActivity,
   finishDatabaseActivityAfterPaint,
   trackDatabaseOperation
-} from './database-activity-v94.js?v=111';
+} from './database-activity-v94.js?v=112';
 
 export { collection, deleteField, doc, query, serverTimestamp, where };
 

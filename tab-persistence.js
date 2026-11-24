@@ -116,7 +116,8 @@ const listContexts = () => {
     if (adminScreen) contexts.push({ node: adminScreen, signature: 'admin:usuarios', kind: 'admin' });
     if (saleScreen) contexts.push({ node: saleScreen, signature: `sale:${getSaleMode(saleScreen)}`, kind: 'sale' });
 
-    document.querySelectorAll('.app-modal-panel').forEach(panel => {
+    // Repasses e devoluções precisam de nova seleção e conferência depois de recarregar.
+    document.querySelectorAll('.app-modal-panel:not([data-no-restore])').forEach(panel => {
         contexts.push({ node: panel, signature: getModalSignature(panel), kind: 'modal' });
     });
 

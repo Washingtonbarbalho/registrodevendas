@@ -1,12 +1,15 @@
 // Valores monetários em centavos; percentuais em centésimos de ponto percentual.
-import { buildSalePaymentEvents, isTermSale, toCents } from '../financial-core-v70.js?v=111';
+import { buildSalePaymentEvents, isTermSale, toCents } from '../financial-core-v70.js?v=112';
 
 const list = value => Array.isArray(value) ? value : [];
 const sum = (rows, get) => rows.reduce((n, row) => n + get(row), 0);
 const requireThat = (ok, message) => { if (!ok) throw new Error(message); };
 const natural = n => Number.isSafeInteger(n) && n >= 0;
+export const commissionMethods = Object.freeze({ pix: 'Pix', money: 'Dinheiro', transfer: 'Transferência' });
+const validMethod = method => Object.hasOwn(commissionMethods, method);
+export const agreementMode = agreement => agreement?.settlement === 'immediate' ? 'immediate' : 'future';
 export const readBook = raw => Object.fromEntries(
-  ['sellers', 'bonuses', 'payouts', 'agreements', 'archives'].map(key => [key, list(raw?.[key])])
+  ['sellers', 'bonuses', 'payouts', 'agreements', 'refunds', 'archives'].map(key => [key, list(raw?.[key])])
 );
 export const saleCode = sale => sale?.saleCode || sale?.contractCode || (
   !sale?.id ? '' : isTermSale(sale) ? 'VP-' + sale.id.slice(-5).toUpperCase() : sale.id
@@ -23,7 +26,7 @@ export function saleDraft(form) {
   requireThat(natural(expenseCents), 'Confira as despesas diretas da venda.');
   const amount = units(form.value);
   quote(form.mode, amount, 0);
-  requireThat(amount > 0, 'Informe uma comissão maior que zero ou escolha Sem indicação.');
+  requireThat(amount > 0, 'Informe uma comissão maior que zero ou escolha Sem vendedor.');
   return { sellerId: form.sellerId, mode: form.mode, units: amount, expenseCents };
 }
 
@@ -95,7 +98,7 @@ function indexAmounts(book) {
     for (const l of p.lines) add(settled, l.grantId, l.amount);
     for (const l of p.offsets) add(used, l.agreementId, l.amount);
   }
-  for (const a of book.agreements) add(agreed, a.grantId, a.amount);
+  for (const a of [...book.agreements, ...book.refunds]) add(agreed, a.grantId, a.amount);
   return { settled, agreed, used };
 }
 
@@ -122,7 +125,11 @@ export function portfolio(sales, rawBook) {
     for (const entry of c.history) history.push({ ...entry, sellerId: c.sellerId, saleId: sale.id, code: saleCode(sale) });
   }
   for (const g of book.bonuses) addRow(g, g.sellerId, null, null);
-  const agreements = book.agreements.map(a => ({ ...a, remaining: a.amount - (used.get(a.id) || 0) }));
+  // Acordos criados antes da escolha de tratamento seguem como abatimentos futuros.
+  const agreements = [...book.agreements, ...book.refunds].map(a => ({
+    ...a, settlement: agreementMode(a),
+    remaining: agreementMode(a) === 'immediate' ? 0 : Math.max(0, a.amount - (used.get(a.id) || 0))
+  }));
   for (const a of agreements) history.push({ ...a, kind: 'agreement', amount: -a.amount });
   for (const p of book.payouts) history.push({ ...p, kind: 'payout', amount: p.cash });
   history.sort((a, b) => b.date.localeCompare(a.date) || b.at.localeCompare(a.at));
@@ -152,7 +159,7 @@ export function archiveCommission(sale) {
     archived: true, commission: sale.commission };
 }
 
-export function makeAgreement(port, { grantId, sellerId, amount, reason, ...stamp }) {
+export function makeAgreement(port, { grantId, sellerId, sellerName, amount, reason, settlement, method, ...stamp }) {
   const row = port.rows.find(r => r.id === grantId && r.sellerId === sellerId);
   requireThat(row?.canceled, 'Selecione a comissão de uma venda cancelada.');
   const canceledAt = row.sale.commission.history.find(e => e.kind === 'canceled')?.date;
@@ -160,12 +167,17 @@ export function makeAgreement(port, { grantId, sellerId, amount, reason, ...stam
   requireThat(natural(amount) && amount > 0 && amount <= row.recoverable,
     'O acordo supera o valor já liquidado que ainda não foi compensado.');
   requireThat(reason?.trim(), 'Descreva o acordo individual com o vendedor.');
-  return { ...stamp, sellerId, grantId, saleId: row.saleId, code: row.code, amount, reason: reason.trim() };
+  requireThat(['immediate', 'future'].includes(settlement), 'Escolha se a compensação é imediata ou em repasses futuros.');
+  if (settlement === 'immediate') requireThat(validMethod(method), 'Selecione como o valor voltou ao caixa.');
+  return {
+    ...stamp, sellerId, sellerName, grantId, saleId: row.saleId, code: row.code, amount,
+    settlement, ...(settlement === 'immediate' ? { method } : {}), reason: reason.trim()
+  };
 }
 export function makePayout(port, { sellerId, lines, offset = 0, method, reason = '', ...stamp }) {
   requireThat(Array.isArray(lines) && lines.length > 0, 'Selecione pelo menos uma comissão disponível.');
   requireThat(new Set(lines.map(l => l.grantId)).size === lines.length, 'Uma comissão foi selecionada duas vezes.');
-  requireThat(['pix', 'money', 'transfer'].includes(method), 'Selecione a forma de repasse.');
+  requireThat(validMethod(method), 'Selecione a forma de repasse.');
   const allocations = lines.map(({ grantId, amount }) => {
     const row = port.rows.find(r => r.id === grantId && r.sellerId === sellerId);
     requireThat(row && natural(amount) && amount > 0 && amount <= row.available,
@@ -180,7 +192,7 @@ export function makePayout(port, { sellerId, lines, offset = 0, method, reason =
     return { grantId, saleId: row.saleId, code: row.code, amount };
   });
   const gross = sum(allocations, l => l.amount);
-  const open = port.agreements.filter(a => a.sellerId === sellerId && a.remaining > 0 && a.date <= stamp.date)
+  const open = port.agreements.filter(a => a.sellerId === sellerId && a.settlement === 'future' && a.remaining > 0 && a.date <= stamp.date)
     .sort((a,b) => a.date.localeCompare(b.date) || a.at.localeCompare(b.at));
   requireThat(natural(offset) && offset <= gross && offset <= sum(open, a => a.remaining),
     'O abatimento excede o repasse ou o saldo de acordos disponível.');
@@ -194,9 +206,21 @@ export function makePayout(port, { sellerId, lines, offset = 0, method, reason =
   return { ...stamp, sellerId, lines: allocations, offsets, gross, cash: gross - offset, offset, method, reason: reason.trim() || 'Repasse de comissões' };
 }
 
-// O próprio repasse é a origem da saída: não se cria cópia editável em lançamentos manuais.
-export const cashExpenses = raw => list(raw?.commissionBook?.payouts).filter(p => p.cash > 0).map(p => ({
-  id: 'commission-payout-' + p.id, commissionPayoutId: p.id, type: 'expense', value: p.cash / 100,
-  description: 'Repasse de comissão · ' + p.sellerName, category: 'Comissões', date: p.date,
-  dateTime: p.at, notes: p.reason
-}));
+// O repasse e o acordo imediato já são a origem do movimento: não há cópia editável
+// e acordos para abatimento futuro nunca entram no caixa.
+export const isCommissionCashEntry = entry => Boolean(entry?.commissionPayoutId || entry?.commissionRefundId);
+export function commissionCashEntries(raw) {
+  const { payouts, refunds } = readBook(raw?.commissionBook);
+  return [
+    ...payouts.filter(p => p.cash > 0).map(p => ({
+      id: 'commission-payout-' + p.id, commissionPayoutId: p.id, type: 'expense', value: p.cash / 100,
+      description: 'Repasse de comissão · ' + p.sellerName, category: 'Comissões', date: p.date,
+      dateTime: p.at, notes: p.reason
+    })),
+    ...refunds.filter(a => agreementMode(a) === 'immediate' && a.amount > 0).map(a => ({
+      id: 'commission-refund-' + a.id, commissionRefundId: a.id, type: 'income', value: a.amount / 100,
+      description: 'Devolução de comissão · ' + a.sellerName, category: 'Comissões', date: a.date,
+      dateTime: a.at, notes: [a.code, commissionMethods[a.method], a.reason].filter(Boolean).join(' · ')
+    }))
+  ];
+}

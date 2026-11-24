@@ -1,14 +1,14 @@
 // Gerado por scripts/consolidate-legacy-runtime-v75.mjs — nova venda consolidada.
 import React, { useState, useEffect } from 'https://esm.sh/react@18.2.0';
 import { ChevronLeft, User, UserPlus, X, Search, CheckCircle, ShoppingBag, Tag, PlusCircle, Trash2, CreditCard, Calendar, QrCode, Banknote, Copy, BadgePercent, RefreshCw, ThumbsUp, ShieldAlert } from 'https://esm.sh/lucide-react@0.292.0';
-import { db, APP_ID } from './firebase-config.js?v=111';
-import { collection, addDoc, serverTimestamp } from './firestore-runtime-v94.js?v=111';
-import { formatCurrency, parseMoney, maskPhone, getBrazilDateString, addDays, generatePixPayload, analyzeCustomerCredit } from './utils.js?v=111';
-import { MoneyInput } from './components.js?v=111';
-import { getCardRate, getCarnetRate, normalizePaymentSettings, evaluateTermEntryRules } from './payment-settings.js?v=111';
-import { splitMoney } from './financial-core-v70.js?v=111';
-import { SaleCommissionField } from './commissions/forms.js?v=111';
-import { saleDraft } from './commissions/core.js?v=111';
+import { db, APP_ID } from './firebase-config.js?v=112';
+import { collection, addDoc, serverTimestamp } from './firestore-runtime-v94.js?v=112';
+import { formatCurrency, parseMoney, maskPhone, getBrazilDateString, addDays, generatePixPayload, analyzeCustomerCredit } from './utils.js?v=112';
+import { MoneyInput } from './components.js?v=112';
+import { getCardRate, getCarnetRate, normalizePaymentSettings, evaluateTermEntryRules } from './payment-settings.js?v=112';
+import { splitMoney } from './financial-core-v70.js?v=112';
+import { SaleCommissionField } from './commissions/forms.js?v=112';
+import { saleDraft } from './commissions/core.js?v=112';
 import QRCode from 'https://esm.sh/qrcode@1.5.4';
 
 const INSTALLMENT_OPTIONS = Array.from({ length: 12 }, (_, index) => index + 1);

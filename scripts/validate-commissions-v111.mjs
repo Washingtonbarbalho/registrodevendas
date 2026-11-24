@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { applyInstallmentPayment, applySelectedInstallmentsPayment, buildFinancialLedger, fromCents, normalizeSaleMoney, reverseInstallmentPayment, toCents } from '../financial-core-v70.js';
 import { aggregateSaleItems, buildSaleInventoryPlan } from '../inventory-reliability-v69.js';
 import { buildReport } from '../reports-engine-v73.js';
-import { archiveCommission, cashExpenses, cancelCommission, portfolio, position, quote, readBook, recordTransition, saleCode, saleDraft, units } from '../commissions/core.js';
+import { archiveCommission, cancelCommission, commissionCashEntries, isCommissionCashEntry, portfolio, position, quote, readBook, recordTransition, saleCode, saleDraft, units } from '../commissions/core.js';
 import { archiveBeforeDelete, bookFrom, createSaleCommission, postCommission, stampFor } from '../commissions/store.js';
 
 // Testa os handlers da aplicação com documentos fictícios; não há conexão de rede.
@@ -74,9 +74,9 @@ const pay = (id, lines, override = {}) => cmd({ id, kind:'payout', lines, method
 const line = (saleId, amount) => ({ saleId, grantId:'sale:' + saleId, amount });
 const bonus = (id, amount) => cmd({ id, kind:'credit', mode:'fixed', units:amount, reason:'Indicação de campanha' });
 const agreement = (id, saleId, amount, override = {}) => cmd({ id, kind:'agreement', saleId, grantId:'sale:' + saleId, amount,
-  reason:'Acordo individual sobre venda cancelada', ...override });
+  reason:'Acordo individual sobre venda cancelada', settlement:'future', ...override });
 const linked = (id, saleId, amount, extra = {}) => cmd({ id, kind:'credit', saleId, mode:'fixed', units:amount, reason:'Crédito adicional acordado', ...extra });
-const cash = () => cashExpenses(get(profileRef).financialData);
+const cash = () => commissionCashEntries(get(profileRef).financialData);
 const base = { saleType:'prazo', saleDate:clock, status:'active', customerName:'Cliente teste', productsTotal:300, totalPrice:300,
   totalCost:200, items:[{ productId:'p', quantity:1, unitPrice:300, price:300, unitCost:200, cost:200 }],
   entryAmount:50, installments:[100,100,50].map((amount,i) => ({ number:i+1, amount, paid:false, dueDate:day(10+i) })) };
@@ -84,14 +84,16 @@ const agreed = { sellerId:'A', mode:'percent', units:1000, expenseCents:0 };
 assert.equal(units('1.234,56'),123456); assert.equal(units('0,01'),1); assert.ok(Number.isNaN(units('-5')));
 assert.equal(quote('percent',1250,10005),1251); assert.throws(() => quote('percent',10001,100));
 assert.equal(saleDraft({ sellerId:'' }),null); assert.throws(() => saleDraft({ sellerId:'A', mode:'fixed', value:'0' }));
-await cmd({ kind:'seller', id:'A', sellerId:'', name:'Indicadora A', rate:800, phone:'(85) 99999-1111' });
-await cmd({ kind:'seller', id:'B', sellerId:'', name:'Indicador B', rate:700 });
+await cmd({ kind:'seller', id:'A', sellerId:'', name:'Vendedora A', rate:800, phone:'+55 (85) 99999-1111' });
+assert.equal(book().sellers[0].phone,'85999991111');
+await assert.rejects(() => cmd({ kind:'seller',id:'wrong-phone',sellerId:'',name:'Outro',rate:500,phone:'12345' }),/WhatsApp válido/);
+await cmd({ kind:'seller', id:'B', sellerId:'', name:'Vendedor B', rate:700 });
 const t = await add({ ...base, commissionDraft:agreed }), g = 'sale:' + t;
 assert.equal(saleCode(sale(t)), 'VP-00001');
-assert.equal(sale(t).commission.sellerName,'Indicadora A'); assert.ok(!('commissionDraft' in sale(t)));
+assert.equal(sale(t).commission.sellerName,'Vendedora A'); assert.ok(!('commissionDraft' in sale(t)));
 assert.equal(row(g).pending,3000); assert.equal(row(g).available,0);
-await cmd({ kind:'seller',id:'edit1',sellerId:'A',name:'Indicadora A atual',rate:2000 });
-assert.equal(row(g).amount,3000); assert.equal(sale(t).commission.sellerName,'Indicadora A');
+await cmd({ kind:'seller',id:'edit1',sellerId:'A',name:'Vendedora A atual',rate:2000 });
+assert.equal(row(g).amount,3000); assert.equal(sale(t).commission.sellerName,'Vendedora A');
 await assert.rejects(() => pay('not-ready',[line(t,1)]),/saldo/);
 clock=day(5);
 await payment(t,0)(170,clock,'pix'); // 50 + 170; o excedente abate parte da parcela 2.
@@ -119,6 +121,10 @@ await assert.rejects(() => agreement('a0',t,2001),/supera/);
 await assert.rejects(() => agreement('a0',t,100,{ reason:' ' }),/Descreva/);
 await agreement('a1',t,1500); await agreement('a1',t,1500);
 assert.equal(row(g).recoverable,500); assert.equal(port().agreements[0].remaining,1500);
+assert.equal(book().agreements[0].settlement,'future');
+assert.equal(book().refunds.length,0);
+const legacyBook=book(); delete legacyBook.agreements[0].settlement;
+assert.equal(portfolio(allSales(),legacyBook).agreements[0].remaining,1500);
 const ledger = () => buildFinancialLedger({ sales:allSales(), financialData:{ entries:cash() } });
 assert.deepEqual(ledger().filter(r => r.type==='expense').map(r => r.amount).sort((a,b)=>a-b),[20,230]);
 assert.equal(book().agreements[0].actor,who.uid); assert.equal(book().agreements[0].code,'VP-00001');
@@ -169,18 +175,59 @@ assert.deepEqual(sale(x).commission.history.filter(e => e.kind==='void').map(e =
 assert.equal(row(xg).recoverable,0);
 
 clock=day(12);
+let cardSale;
 for (const method of ['pix','money','debit','credit']) {
   const id=await add({ ...base, saleType:'direct', saleDate:clock, status:'completed', paymentMethod:method,
     totalPrice:method==='credit'?330:300, netReceived:295, installments:[], commissionDraft:agreed });
   const r=row('sale:'+id);
   assert.equal(r.available,3000); assert.equal(r.code,id); assert.equal(sale(id).commission.grants.length,1);
   if (method==='credit') {
+    cardSale=id;
     await pay('card-paid',[line(id,3000)]); await cancel(id,'Cancelamento no cartão');
     assert.ok(!sale(id).commission.history.some(e => e.kind==='void'));
     assert.equal(sale(id).cancellations[0].customerRefundAmount,330); assert.equal(sale(id).cancellations[0].storeImpactAmount,295);
     assert.equal(row('sale:'+id).recoverable,3000);
   }
 }
+const cardId='sale:'+cardSale;
+const originalCancel = get(saleRef(cardSale));
+await assert.rejects(() => agreement('missing-kind',cardSale,300,{ settlement:undefined }),/Escolha/);
+await assert.rejects(() => agreement('missing-method',cardSale,300,{ settlement:'immediate' }),/Selecione como/);
+await assert.rejects(() => agreement('too-early',cardSale,300,{ settlement:'immediate', method:'pix', date:day(11) }),/anterior/);
+clock=day(13);
+const recordRefund = () => agreement('refund-1',cardSale,1200,{ settlement:'immediate', method:'pix' });
+fail=true; await assert.rejects(recordRefund,/simulada/); fail=false;
+assert.equal(book().refunds.length,0);
+await recordRefund(); await recordRefund();
+assert.equal(book().refunds.length,1);
+assert.equal(book().refunds[0].actor,who.uid);
+assert.equal(book().refunds[0].code,cardSale);
+assert.equal(row(cardId).recoverable,1800);
+assert.equal(book().agreements.some(a => a.id==='refund-1'),false);
+assert.equal(port().agreements.find(a => a.id==='refund-1').remaining,0);
+await assert.rejects(() => agreement('duplicate-amount',cardSale,1801),/supera/);
+assert.deepEqual(get(saleRef(cardSale)),originalCancel,'A devolução não muda o estorno do cliente nem escreve na venda.');
+const refundEntries = cash().filter(e=>e.commissionRefundId);
+assert.deepEqual(refundEntries.map(e=>[e.id,e.type,e.value,e.date]),[['commission-refund-refund-1','income',12,day(13)]]);
+assert.equal(cash().filter(isCommissionCashEntry).length,cash().length);
+await bonus('new-bonus',1500);
+await assert.rejects(() => pay('refund-offset',[{ grantId:'new-bonus',amount:1500 }],{ offset:1200 }),/saldo de acordos/);
+await agreement('future-card',cardSale,1800);
+assert.equal(book().refunds.length,1);
+assert.equal(row(cardId).recoverable,0);
+await pay('future-offset',[{ grantId:'new-bonus',amount:1500 }],{ offset:1500 });
+assert.deepEqual(book().payouts.at(-1).offsets,[{ agreementId:'future-card',amount:1500 }]);
+assert.equal(port().agreements.find(a=>a.id==='future-card').remaining,300);
+assert.equal(ledger().find(e=>e.manual?.commissionRefundId).amount,12);
+const refundContext = {...context, financialData:{ entries:cash() }, startDate:day(13),endDate:day(13)};
+const refundReport = buildReport({ ...refundContext,reportId:'result' });
+assert.equal(refundReport.metrics.find(m=>m.label==='Entradas de caixa').value,12);
+const refundDetail = refundReport.rows.find(r=>r[0]==='Devoluções de comissão');
+assert.equal(refundDetail[1],'1'); assert.match(refundDetail[2],/12,00/);
+assert.equal(buildReport({ ...refundContext,reportId:'net-result' }).metrics.find(m=>m.label==='Resultado líquido').value,12);
+await del(cardSale);
+assert.equal(cash().filter(e=>e.commissionRefundId).length,1,'Excluir uma venda não apaga a devolução já recebida.');
+assert.deepEqual(get(profileRef).financialData.entries,[{ id:'original' }]);
 const ordinary=await add({ ...base, saleDate:clock });
 assert.equal(sale(ordinary).commission,undefined);
 await linked('manual-percent',ordinary,750,{ mode:'percent' }); assert.equal(row('manual-percent').pending,2250);
@@ -188,7 +235,7 @@ await assert.rejects(() => linked('deleted',t,100),/cancelada ou excluída/);
 await assert.rejects(() => bonus('invalid',0),/0,01/);
 await assert.rejects(() => cmd({ ...agreed, kind:'credit',id:'s',reason:'Sem venda' }),/reais/);
 await assert.rejects(() => pay('future',[line(ordinary,1)],{ date:'2027-01-01' }),/data válida/);
-await cmd({ kind:'seller',id:'inactivate',sellerId:'A',name:'Indicadora A',rate:1000,active:false });
+await cmd({ kind:'seller',id:'inactivate',sellerId:'A',name:'Vendedora A',rate:1000,active:false });
 const qty=get(ref('products','p')).quantity, count=allSales().length;
 await assert.rejects(() => add({ ...base, commissionDraft:agreed }),/não está disponível/);
 assert.equal(allSales().length,count); assert.equal(get(ref('products','p')).quantity,qty);
@@ -200,4 +247,6 @@ const legacy={...sale(ordinary), totalCost:null, entryAmount:300};
 assert.equal(position(legacy).costs,20000); assert.ok(position(legacy).released);
 assert.equal(position({...legacy,items:[]}).released,false,'Custo desconhecido não libera o crediário.');
 assert.ok(!/commission|comissão/i.test(read('sale-pdf-v65.js')),'O documento do cliente não mostra comissões.');
-console.log('Comissões v111: venda, recebimentos individuais e em grupo, estorno, repasse parcial/líquido, cancelamento, acordo e histórico após exclusão validados.');
+assert.ok(read('aba-financeiro-v68.js').includes('!isCommissionCashEntry(entry)'));
+assert.ok(read('aba-relatorios-v73.js').includes('...commissionCashEntries(value)'));
+console.log('Comissões: venda, estornos, repasses, devolução imediata no caixa, compensação futura e histórico após exclusão validados.');

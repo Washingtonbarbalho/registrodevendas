@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'https://esm.sh/react@18.2.0';
 import { createPortal } from 'https://esm.sh/react-dom@18.2.0';
-import { db, APP_ID } from './firebase-config.js?v=111';
-import { doc, onSnapshot } from './firestore-runtime-v94.js?v=111';
+import { db, APP_ID } from './firebase-config.js?v=112';
+import { doc, onSnapshot } from './firestore-runtime-v94.js?v=112';
 import { formatCurrency, getBrazilDateString, getCurrentMonthEnd, getCurrentMonthStart } from './utils.js';
-import { DateRangeFilter, DateRangePicker } from './components.js?v=111';
+import { DateRangeFilter, DateRangePicker } from './components.js?v=112';
 import {
   buildReport,
   PAYMENT_FILTERS,
@@ -11,14 +11,14 @@ import {
   REPORT_GROUPS,
   reportPeriodLabel,
   SALE_CHANNELS
-} from './reports-engine-v73.js?v=111';
-import { createReportCsvFile, createReportExcelFile, downloadFile, shareFile } from './report-export-v74.js?v=111';
-import { buildRepurchaseSuggestions, buildWhatsappUrl } from './commercial-engine-v74.js?v=111';
-import { buildExecutiveInsights } from './executive-insights-v79.js?v=111';
-import { getReportCategories, getReportFilterCapabilities } from './report-filters-v79.js?v=111';
-import { resolveAnalysisPeriod } from './analysis-period-v79.js?v=111';
-import { showAppDateRange } from './ui-interactions-v81.js?v=111';
-import { cashExpenses } from './commissions/core.js?v=111';
+} from './reports-engine-v73.js?v=112';
+import { createReportCsvFile, createReportExcelFile, downloadFile, shareFile } from './report-export-v74.js?v=112';
+import { buildRepurchaseSuggestions, buildWhatsappUrl } from './commercial-engine-v74.js?v=112';
+import { buildExecutiveInsights } from './executive-insights-v79.js?v=112';
+import { getReportCategories, getReportFilterCapabilities } from './report-filters-v79.js?v=112';
+import { resolveAnalysisPeriod } from './analysis-period-v79.js?v=112';
+import { showAppDateRange } from './ui-interactions-v81.js?v=112';
+import { commissionCashEntries } from './commissions/core.js?v=112';
 
 const h = React.createElement;
 const EMPTY_FINANCIAL = { entries: [], accounts: [] };
@@ -51,7 +51,7 @@ const ReportIcon = ({ name, size = 22 }) => h('svg', {
 }, ...(ICON_PATHS[name] || ICON_PATHS.table).map((path, index) => h('path', { d: path, key: index })));
 
 const normalizeFinancialData = value => ({
-  entries: [...(Array.isArray(value?.entries) ? value.entries : []), ...cashExpenses(value)],
+  entries: [...(Array.isArray(value?.entries) ? value.entries : []), ...commissionCashEntries(value)],
   accounts: Array.isArray(value?.accounts) ? value.accounts : []
 });
 

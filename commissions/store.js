@@ -1,4 +1,5 @@
-import { archiveCommission, grant, makeAgreement, makePayout, portfolio, productBase, quote, readBook, recordTransition, terms } from './core.js?v=111';
+import { archiveCommission, grant, makeAgreement, makePayout, portfolio, productBase, quote, readBook, recordTransition, terms } from './core.js?v=112';
+import { sellerPhoneDigits, validSellerPhone } from './presentation.js?v=112';
 
 const must = (v, msg) => { if (!v) throw new Error(msg); };
 const field = key => 'financialData.commissionBook.' + key;
@@ -38,9 +39,9 @@ export async function postCommission(env, cmd) {
 
     if (cmd.kind === 'seller') {
       const label = String(cmd.name || '').trim();
-      const phone = String(cmd.phone || '').replace(/\D/g, '');
+      const phone = sellerPhoneDigits(cmd.phone);
       must(label && label.length <= 90, 'Informe um nome de até 90 caracteres.');
-      must(!phone || [10, 11, 12, 13].includes(phone.length), 'Informe o WhatsApp com DDD ou deixe em branco.');
+      must(!phone || validSellerPhone(phone), 'Informe um WhatsApp válido com DDD ou deixe o campo em branco.');
       quote('percent', cmd.rate, 0);
       const old = book.sellers.find(v => v.id === (cmd.sellerId || cmd.id));
       if (cmd.sellerId) must(old, 'O vendedor não foi encontrado.');
@@ -53,7 +54,7 @@ export async function postCommission(env, cmd) {
     const seller = book.sellers.find(s => s.id === cmd.sellerId);
     must(seller, 'Selecione um vendedor cadastrado.');
     // O mesmo identificador em um reenvio não movimenta o saldo pela segunda vez.
-    if ([...book.payouts, ...book.agreements, ...book.bonuses].some(e => e.id === cmd.id)) return cmd.id;
+    if ([...book.payouts, ...book.agreements, ...book.refunds, ...book.bonuses].some(e => e.id === cmd.id)) return cmd.id;
     const ids = [...new Set((cmd.kind === 'payout' ? (cmd.lines || []).map(l => l.saleId) : [cmd.saleId]).filter(Boolean))];
     const refs = ids.map(saleRef);
     const snapshots = await Promise.all(refs.map(ref => tx.get(ref)));
@@ -78,8 +79,13 @@ export async function postCommission(env, cmd) {
         tx.update(refs[0], { commission: recordTransition(sale, { ...sale, commission }, stamp) });
       }
     } else if (cmd.kind === 'agreement') {
-      const agreement = makeAgreement(port, { ...stamp, id: cmd.id, grantId: cmd.grantId, sellerId: seller.id, amount: cmd.amount, reason });
-      put('agreements', [...book.agreements, agreement]);
+      const agreement = makeAgreement(port, {
+        ...stamp, id: cmd.id, grantId: cmd.grantId, sellerId: seller.id, sellerName: seller.name,
+        amount: cmd.amount, reason, settlement: cmd.settlement, method: cmd.method
+      });
+      // A devolução recebida não entra na lista de acordos a abater, inclusive em abas de versões anteriores.
+      const key = agreement.settlement === 'immediate' ? 'refunds' : 'agreements';
+      put(key, [...book[key], agreement]);
     } else if (cmd.kind === 'payout') {
       const payout = makePayout(port, { ...stamp, id: cmd.id, sellerId: seller.id, sellerName: seller.name,
         lines: cmd.lines, offset: cmd.offset, method: cmd.method, reason });

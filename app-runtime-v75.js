@@ -1,47 +1,47 @@
-// Aplicação consolidada v111 — código-fonte principal do sistema.
+// Aplicação consolidada v112 — código-fonte principal do sistema.
 import React, { useState, useEffect, useMemo } from 'https://esm.sh/react@18.2.0';
 import { createRoot } from 'https://esm.sh/react-dom@18.2.0/client';
 import { Users, User, LogOut, Lock, LayoutDashboard, Receipt, WalletCards, Package, Contact, Store, ShieldCheck, BadgePercent, Banknote, MoreHorizontal, Plus } from 'https://esm.sh/lucide-react@0.292.0';
 
 // Firebase
-import { app, db, auth, APP_ID } from './firebase-config.js?v=111';
-import { collection, onSnapshot, query, doc, getDoc, updateDoc, deleteDoc, addDoc, serverTimestamp, setDoc, runTransaction, writeBatch } from './firestore-runtime-v94.js?v=111';
+import { app, db, auth, APP_ID } from './firebase-config.js?v=112';
+import { collection, onSnapshot, query, doc, getDoc, updateDoc, deleteDoc, addDoc, serverTimestamp, setDoc, runTransaction, writeBatch } from './firestore-runtime-v94.js?v=112';
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js";
 
 // Utils
-import { getCurrentMonthStart, getCurrentMonthEnd, getBrazilDateString, addDays, formatCurrency, formatDate } from './utils.js?v=111';
-import { aggregateSaleItems, buildSaleInventoryPlan } from './inventory-reliability-v69.js?v=111';
-import { applyInstallmentPayment, applySelectedInstallmentsPayment, buildFinancialLedger, calculatePurchaseReturnFinancialSplit, fromCents, getHistoryCashAmount, getInstallmentFaceAmount, getRealizedSalesProfit, getSalesAccrualSummary, isTermSale, money, normalizeSaleMoney, reverseInstallmentPayment, sumMoney, summarizeFinancialLedger, toCents } from './financial-core-v70.js?v=111';
+import { getCurrentMonthStart, getCurrentMonthEnd, getBrazilDateString, addDays, formatCurrency, formatDate } from './utils.js?v=112';
+import { aggregateSaleItems, buildSaleInventoryPlan } from './inventory-reliability-v69.js?v=112';
+import { applyInstallmentPayment, applySelectedInstallmentsPayment, buildFinancialLedger, calculatePurchaseReturnFinancialSplit, fromCents, getHistoryCashAmount, getInstallmentFaceAmount, getRealizedSalesProfit, getSalesAccrualSummary, isTermSale, money, normalizeSaleMoney, reverseInstallmentPayment, sumMoney, summarizeFinancialLedger, toCents } from './financial-core-v70.js?v=112';
 
 // Modais
 import { 
     UserProfileModal, CustomerFormModal, ProductDetailsModal, EditInstallmentModal, 
     SaleDetailsModal, InstallmentListModal, PaymentConfirmationModal,
     ConfirmModal, WhatsAppChooserModal, ProductModal
-} from './modals-runtime-v75.js?v=111';
-import { StockMovementModal } from './stock-movement-modal-v68.js?v=111';
+} from './modals-runtime-v75.js?v=112';
+import { StockMovementModal } from './stock-movement-modal-v68.js?v=112';
 
 // Telas Secundárias
-import { AdminUsersPanel } from './auth-admin.js?v=111';
-import { AuthScreen } from './auth-screen-v71.js?v=111';
-import { NewSaleScreen } from './nova-venda-runtime-v75.js?v=111';
+import { AdminUsersPanel } from './auth-admin.js?v=112';
+import { AuthScreen } from './auth-screen-v71.js?v=112';
+import { NewSaleScreen } from './nova-venda-runtime-v75.js?v=112';
 
 // Abas do Dashboard
-import { AbaVisaoGeral } from './aba-visao-geral-fixed.js?v=111';
-import { AbaVendas } from './aba-vendas-v71.js?v=111';
-import { AbaProdutos } from './aba-produtos-v67.js?v=111';
-import { AbaClientes } from './aba-clientes-runtime-v75.js?v=111';
-import { AbaTaxas } from './aba-taxas.js?v=111';
-import { AbaFinanceiro } from './aba-financeiro-v68.js?v=111';
-import { BatchStockModal } from './batch-stock-modal-v68.js?v=111';
-import { AbaRelatorios } from './aba-relatorios-v73.js?v=111';
-import { AbaComercial } from './aba-comercial-v74.js?v=111';
-import { normalizePaymentSettings } from './payment-settings.js?v=111';
-import { shareInstallmentBookletPdf, shareSalePdf } from './sale-pdf-v65.js?v=111';
-import { readSharedAnalysisPeriod, resolveAnalysisPeriod, writeSharedAnalysisPeriod } from './analysis-period-v79.js?v=111';
-import { cancelCommission, readBook, recordTransition } from './commissions/core.js?v=111';
-import { archiveBeforeDelete, bookFrom, createSaleCommission, postCommission, stampFor } from './commissions/store.js?v=111';
-import { CommissionTab } from './commissions/tab.js?v=111';
+import { AbaVisaoGeral } from './aba-visao-geral-fixed.js?v=112';
+import { AbaVendas } from './aba-vendas-v71.js?v=112';
+import { AbaProdutos } from './aba-produtos-v67.js?v=112';
+import { AbaClientes } from './aba-clientes-runtime-v75.js?v=112';
+import { AbaTaxas } from './aba-taxas.js?v=112';
+import { AbaFinanceiro } from './aba-financeiro-v68.js?v=112';
+import { BatchStockModal } from './batch-stock-modal-v68.js?v=112';
+import { AbaRelatorios } from './aba-relatorios-v73.js?v=112';
+import { AbaComercial } from './aba-comercial-v74.js?v=112';
+import { normalizePaymentSettings } from './payment-settings.js?v=112';
+import { shareInstallmentBookletPdf, shareSalePdf } from './sale-pdf-v65.js?v=112';
+import { readSharedAnalysisPeriod, resolveAnalysisPeriod, writeSharedAnalysisPeriod } from './analysis-period-v79.js?v=112';
+import { cancelCommission, readBook, recordTransition } from './commissions/core.js?v=112';
+import { archiveBeforeDelete, bookFrom, createSaleCommission, postCommission, stampFor } from './commissions/store.js?v=112';
+import { CommissionTab } from './commissions/tab.js?v=112';
 
 // Exceção temporária desativada: somente vendas canceladas podem ser excluídas.
 // O filtro de registros excluídos deve continuar ativo ao desativar esta opção.
@@ -1184,7 +1184,7 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
                         customerSearch, setCustomerSearch, setCustomerModalData, paginatedCustomers, sales, requestDelete, sortedCustomers, customersPage, setCustomersPage, ITEMS_PER_PAGE
                     })
                     : view === 'commissions' ? React.createElement(CommissionTab, {
-                        book: commissionBook, sales, onPost: saveCommissionCommand, onOpenSale: setSelectedSaleDetail
+                        book: commissionBook, sales, onPost: saveCommissionCommand, onOpenSale: setSelectedSaleDetail, storeName: userProfile?.storeName
                     })
                     : view === 'commercial' ? React.createElement(AbaComercial, {
                         userId: user.uid,
