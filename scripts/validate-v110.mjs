@@ -44,8 +44,9 @@ assert.ok(saleForm.includes('if (await persistSale(saleData)) onClose();'), 'A v
 assert.ok(saleForm.includes('if (await persistSale(saleDataToSave))'), 'A aprovação manual precisa aguardar a gravação central.');
 assert.ok(saleForm.includes('await persistSale(approvedSaleData)'), 'A venda a prazo aprovada precisa usar a gravação central.');
 
-assert.ok(read('bootstrap-v75.js').includes("const VERSION = '110'"));
-assert.ok(read('index.html').includes("bootstrap-v75.js?v=110"));
+const version = read('bootstrap-v75.js').match(/const VERSION = '(\d+)'/)?.[1];
+assert.ok(Number(version) >= 110);
+assert.ok(read('index.html').includes('bootstrap-v75.js?v=' + version));
 assert.ok(read('LEIA-ME.txt').includes('abre automaticamente seu detalhamento na aba Vendas'));
 
 console.log('Versão 110 validada: vendas no caixa e a prazo abrem o detalhamento somente após a gravação confirmada.');

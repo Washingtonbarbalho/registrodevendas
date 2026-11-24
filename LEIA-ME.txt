@@ -1,4 +1,14 @@
-REGISTRO DE VENDAS — VERSÃO 110
+REGISTRO DE VENDAS — VERSÃO 111
+
+VENDEDORES E COMISSÕES
+- Abra Vendedores e comissões (Mais → Comissões no celular). Cadastre o vendedor ou indicador, o WhatsApp opcional e o percentual sugerido. Inativar o vendedor impede novas indicações sem apagar seu extrato.
+- Em Nova venda, a indicação é opcional e independente do cliente e do canal. O percentual pode ser alterado ou trocado por valor fixo só para aquela venda. A alteração do cadastro não muda o que já foi combinado. Percentuais incidem sobre o preço dos produtos após descontos, sem juros do crediário nem acréscimo da maquininha.
+- No caixa (dinheiro, Pix, débito ou crédito) a comissão é liberada ao concluir a venda. No crediário, entrada e recebimentos reais da própria venda precisam cobrir custo dos produtos, despesas diretas informadas e TODA a sua comissão. Despesas informadas nesse campo não geram lançamento financeiro. Abatimentos não contam como dinheiro recebido; estornos de parcelas recalculam a disponibilidade sem desfazer repasses.
+- Adicionar comissão cria um crédito adicional por valor ou percentual em uma venda, sem sobrescrever o combinado. Um bônus avulso, em reais, dispensa venda e fica disponível imediatamente.
+- Em Registrar repasse, selecione uma ou mais comissões, inclusive parcialmente. Abatimentos de acordos só são usados se você digitar um valor. Confirme apenas pagamentos já efetuados: o sistema não transfere dinheiro. Somente o valor efetivamente pago entra como saída em Financeiro e Relatórios, uma única vez.
+- Ao cancelar a venda, só o saldo não liquidado gera um lançamento negativo na comissão. O pagamento feito ao vendedor permanece como custo da loja e não reduz o estorno do cliente. Para registrar um acordo individual sobre comissão já liquidada de uma venda cancelada, use Lançar compensação manual. Informe origem, data, valor e motivo: o acordo não movimenta dinheiro e pode ser registrado mesmo sem saldo disponível. Não é possível compensar o mesmo valor duas vezes.
+- O extrato separa saldo atual, vendas e repasses do período e guarda os lançamentos com autor, data e origem, mesmo se a venda cancelada for excluída. A seção permite abrir os detalhes da venda e compartilhar somente o extrato daquele vendedor por WhatsApp. PDFs, carnês e recibos do cliente não incluem as comissões.
+- As operações usam transações nos documentos privados já protegidos pelas regras da loja; não é necessária migração de vendas nem alteração do acesso ao Firebase. Vendas sem indicação continuam sem comissão, salvo crédito manual.
 
 ARQUITETURA ATIVA
 - app-runtime-v75.js é o código principal oficial, já consolidado e editado diretamente.

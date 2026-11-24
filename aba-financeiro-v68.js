@@ -4,14 +4,15 @@ import {
   ArrowDown, ArrowUp, Banknote, CreditCard, Edit3, Eye,
   Package, Plus, Receipt, Search, Trash2, Wallet, X
 } from 'https://esm.sh/lucide-react@0.292.0';
-import { db, APP_ID } from './firebase-config.js?v=110';
-import { doc, onSnapshot, runTransaction, serverTimestamp, setDoc } from './firestore-runtime-v94.js?v=110';
-import { DateRangePicker, MoneyInput } from './components.js?v=110';
+import { db, APP_ID } from './firebase-config.js?v=111';
+import { doc, onSnapshot, runTransaction, serverTimestamp, setDoc } from './firestore-runtime-v94.js?v=111';
+import { DateRangePicker, MoneyInput } from './components.js?v=111';
 import { formatCurrency, formatDate, getBrazilDateString, getCurrentMonthEnd, getCurrentMonthStart, parseMoney } from './utils.js';
 import { buildPaymentInstallments, clampInstallments, normalizePaymentInstallments } from './purchase-payment-v68.js';
 import { buildFinancialLedger, getInstallmentFaceAmount, getPurchaseGroups, money, sumMoney, summarizeFinancialLedger, toCents } from './financial-core-v70.js';
-import { buildFinancialAccountDetails, buildPurchaseTransactionDetails, filterFinancialAccounts, summarizeFinancialAccounts } from './financial-account-details-v80.js?v=110';
-import { showAppConfirm } from './ui-interactions-v81.js?v=110';
+import { buildFinancialAccountDetails, buildPurchaseTransactionDetails, filterFinancialAccounts, summarizeFinancialAccounts } from './financial-account-details-v80.js?v=111';
+import { showAppConfirm } from './ui-interactions-v81.js?v=111';
+import { cashExpenses } from './commissions/core.js?v=111';
 
 const h = React.createElement;
 const EMPTY_DATA = { entries: [], accounts: [] };
@@ -467,7 +468,9 @@ const PurchaseTransactionDetailsModal = ({ item, products, onClose }) => {
 
 const MovementRow = ({ item, openManualEdit, deleteManual, onOpenSale, onOpenProduct, onOpenPurchaseDetails }) => {
   let action = null;
-  if (item.source === 'manual') {
+  if (item.manual?.commissionPayoutId) {
+    action = h('span', { className: 'finance44-source' }, 'Repasse · Vendedores e comissões');
+  } else if (item.source === 'manual') {
     action = h(React.Fragment, null,
       h('button', { className: 'finance44-action', onClick: () => openManualEdit(item.manual) }, h(Edit3, { size: 14 }), 'Editar'),
       h('button', { className: 'finance44-icon-action is-danger', onClick: () => deleteManual('entry', item.manual.id) }, h(Trash2, { size: 16 }))
@@ -616,14 +619,20 @@ export const AbaFinanceiro = ({
 
   const profileRef = useMemo(() => doc(db, 'artifacts', APP_ID, 'users', userId, 'profile', 'info'), [userId]);
   useEffect(() => onSnapshot(profileRef,
-    snapshot => { setData(normalizeFinancialData(snapshot.data()?.financialData)); setLoading(false); setError(''); },
+    snapshot => {
+      const raw = snapshot.data()?.financialData;
+      const { entries, accounts } = normalizeFinancialData(raw);
+      setData({ entries: [...entries, ...cashExpenses(raw)], accounts }); setLoading(false); setError('');
+    },
     err => { console.error(err); setLoading(false); setError('Não foi possível carregar os lançamentos manuais.'); }
   ), [profileRef]);
 
   const saveData = async next => {
     const normalized = normalizeFinancialData(next);
-    await setDoc(profileRef, { financialData: normalized, financialUpdatedAt: serverTimestamp() }, { merge: true });
-    setData(normalized);
+    // Somente lançamentos editáveis: o repasse vem de uma fonte única e o livro de
+    // comissões é um campo irmão, nunca substituído pelas operações financeiras manuais.
+    const editable = { ...normalized, entries: normalized.entries.filter(entry => !entry.commissionPayoutId) };
+    await setDoc(profileRef, { financialData: editable, financialUpdatedAt: serverTimestamp() }, { merge: true });
   };
 
   const purchaseGroups = useMemo(() => getPurchaseGroups(products), [products]);

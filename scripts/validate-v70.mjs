@@ -455,7 +455,7 @@ for (const marker of [
   'financial-core-v70.js?v=',
   'nova-venda-runtime-v75.js?v=',
   'modals-runtime-v75.js?v=',
-  'normalizedSale = normalizeSaleMoney(data)',
+  'normalizedSale = normalizeSaleMoney(saleData)',
   '...normalizedSale,',
   'applyInstallmentPayment(',
   'applySelectedInstallmentsPayment(',

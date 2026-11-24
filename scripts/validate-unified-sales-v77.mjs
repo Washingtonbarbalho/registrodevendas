@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { saleDraft } from '../commissions/core.js';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const source = fs.readFileSync(path.join(root, 'nova-venda-runtime-v75.js'), 'utf8')
@@ -22,7 +23,7 @@ const createSaleScreen = Function('dependencies', `
     formatCurrency, parseMoney, maskPhone, getBrazilDateString, addDays,
     generatePixPayload, analyzeCustomerCredit, MoneyInput, getCardRate,
     getCarnetRate, normalizePaymentSettings, evaluateTermEntryRules, splitMoney,
-    QRCode, window, alert, setTimeout, ${iconNames.join(', ')}
+    QRCode, SaleCommissionField, saleDraft, window, alert, setTimeout, ${iconNames.join(', ')}
   } = dependencies;
   ${source}
   return NewSaleScreen;
@@ -117,6 +118,8 @@ const createHarness = ({ promotional = false, cardRate = 0, carnetRate = 0, paym
       calculatedLimit: 2000, currentDebt: 0, reason: 'Crédito aprovado.'
     }),
     MoneyInput: 'MoneyInput',
+    SaleCommissionField: 'SaleCommissionField',
+    saleDraft,
     getCardRate: (_settings, plan) => typeof cardRate === 'function' ? cardRate(plan) : cardRate,
     getCarnetRate: (_settings, frequency, count) => typeof carnetRate === 'function'
       ? carnetRate({ frequency, count })
@@ -139,6 +142,7 @@ const createHarness = ({ promotional = false, cardRate = 0, carnetRate = 0, paym
     customers,
     products,
     sales: [],
+    sellers: [{ id: 'seller-1', name: 'Indicadora de teste', rate: 800 }],
     onSaveSale: async sale => { saved.push(sale); },
     userProfile: {},
     user: { uid: 'user-1' },
@@ -223,6 +227,7 @@ for (const [label, expectedMethod] of directMethods) {
   assert.equal(sale.saved[0].status, 'completed');
   assert.equal(sale.saved[0].totalPrice, 100);
   assert.equal(sale.saved[0].anonymousSale, true, 'Vendas diretas devem continuar permitindo cliente opcional.');
+  assert.ok(!('commissionDraft' in sale.saved[0]), 'Sem vendedor, não gerar comissão.');
   assert.equal(sale.closed, 1);
 }
 
@@ -235,6 +240,13 @@ cardPlanSale.find(node => node.type === 'MoneyInput' && !node.props.placeholder
   && String(node.props.className || '').includes('focus:ring-emerald-500'), 'Entrada do cartão')
   .props.onChange('10,00');
 cardPlanSale.render();
+const chooseSeller = (sale, values) => {
+  const field = sale.find(n => n.type === 'SaleCommissionField', 'Indicação e comissão');
+  assert.equal(field.props.sellers[0].id, 'seller-1');
+  field.props.setForm({ sellerId: 'seller-1', ...values });
+  sale.render();
+};
+chooseSeller(cardPlanSale, { mode: 'fixed', value: '15,50', expenses: '3,00' });
 const cardFeeTypeSelect = cardPlanSale.find(node => node.type === 'select'
   && node.props.children.some(option => nodeText(option).includes('Cliente Paga')), 'Repasse da taxa do cartão');
 cardFeeTypeSelect.props.onChange({ target: { value: 'com_juros' } });
@@ -255,6 +267,7 @@ assert.equal(displayText(cardPlanSale.find(node => node.type === 'select'
   'A opção escolhida deve continuar igual ao plano que será salvo.');
 await cardPlanSale.findButton('Finalizar Venda').props.onClick();
 assert.equal(cardPlanSale.saved[0].cardInstallments, 2);
+assert.deepEqual(cardPlanSale.saved[0].commissionDraft, { sellerId: 'seller-1', mode: 'fixed', units: 1550, expenseCents: 0 });
 assert.equal(cardPlanSale.saved[0].totalPrice, 110,
   'O total exibido no parcelamento do cartão deve corresponder ao valor gravado na venda.');
 
@@ -290,6 +303,7 @@ assert.equal(promotionalSale.saved[0].items[0].promotionApplied, true,
 const termSale = createHarness();
 termSale.addProduct();
 termSale.chooseMethod('Crediário');
+chooseSeller(termSale, { mode: 'percent', value: '12,50', expenses: '5,00' });
 assert.equal(termSale.findPaymentSelect().props.value, 'crediario');
 assert.ok(nodeText(termSale.tree).includes('Carrinho (1 itens)'),
   'Mudar a forma de pagamento não pode apagar os produtos já selecionados.');
@@ -325,6 +339,7 @@ assert.ok(nodeText(termSale.tree).includes('Venda aprovada!'),
 await termSale.findButton('Concluir e salvar venda').props.onClick();
 assert.equal(termSale.saved.length, 1);
 assert.equal(termSale.saved[0].saleType, 'prazo');
+assert.deepEqual(termSale.saved[0].commissionDraft, { sellerId: 'seller-1', mode: 'percent', units: 1250, expenseCents: 500 });
 assert.equal(termSale.saved[0].customerId, 'customer-1');
 assert.equal(termSale.saved[0].anonymousSale, false);
 assert.equal(termSale.saved[0].installmentsCount, 3);

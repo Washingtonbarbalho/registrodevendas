@@ -58,6 +58,8 @@ const criticalFiles = [
   'scripts/validate-sale-deletion-v107.mjs',
   'scripts/validate-v109.mjs',
   'scripts/validate-v110.mjs',
+  'scripts/validate-commissions-v111.mjs',
+  'scripts/validate-commission-ui-v111.mjs',
   'scripts/validate-v75.mjs'
 ];
 criticalFiles.forEach(checkSyntax);
@@ -266,7 +268,9 @@ for (const [label, validator] of [
   ['carnê compacto no detalhamento da venda', 'scripts/validate-v100.mjs'],
   ['exclusão de vendas após cancelamento', 'scripts/validate-sale-deletion-v107.mjs'],
   ['recebimento individual e múltiplo', 'scripts/validate-v109.mjs'],
-  ['detalhamento após finalizar venda', 'scripts/validate-v110.mjs']
+  ['detalhamento após finalizar venda', 'scripts/validate-v110.mjs'],
+  ['indicações, liberação, repasses e compensações', 'scripts/validate-commissions-v111.mjs'],
+  ['interface do vendedor e confirmações de valores', 'scripts/validate-commission-ui-v111.mjs']
 ]) {
   const result = spawnSync(process.execPath, [validator], { cwd: root, encoding: 'utf8' });
   if (result.status !== 0) throw new Error(`Falha em ${label}:\n${result.stderr || result.stdout}`);

@@ -76,7 +76,8 @@ const resultReport = context => {
   const accrual = getSalesAccrualSummary(sales, startDate, endDate);
   const cash = summarizeFinancialLedger(buildFinancialLedger({ sales, products, financialData }), startDate, endDate);
   const manualIncome = sumMoney(cash.rows.filter(item => item.type === 'income' && item.source === 'manual'), item => item.amount);
-  const manualExpense = sumMoney(cash.rows.filter(item => item.type === 'expense' && item.source === 'manual'), item => item.amount);
+  const commissionPayments = cash.rows.filter(item => item.manual?.commissionPayoutId);
+  const manualExpense = sumMoney(cash.rows.filter(item => item.type === 'expense' && item.source === 'manual' && !item.manual?.commissionPayoutId), item => item.amount);
   const paidPurchases = sumMoney(cash.rows.filter(item => item.type === 'expense' && item.source === 'stock'), item => item.amount);
   const margin = accrual.net > 0 ? accrual.profit / accrual.net * 100 : 0;
 
@@ -107,6 +108,7 @@ const resultReport = context => {
       ['Compras e parcelas pagas', numberLabel(cash.rows.filter(item => item.source === 'stock').length), formatCurrency(paidPurchases)],
       ['Outras entradas manuais', '—', formatCurrency(manualIncome)],
       ['Outras saídas manuais', '—', formatCurrency(manualExpense)],
+      ['Repasses de comissão', numberLabel(commissionPayments.length), formatCurrency(sumMoney(commissionPayments, item => item.amount))],
       ['Taxas assumidas pela loja', '—', formatCurrency(accrual.storeFees)],
       ['Descontos concedidos', '—', formatCurrency(accrual.discounts)]
     ],

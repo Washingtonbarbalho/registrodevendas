@@ -288,13 +288,13 @@ assert.ok(bootstrap.indexOf('installUiInteractions();') < bootstrap.indexOf("imp
 
 const productionFiles = fs.readdirSync(root)
   .filter(file => file.endsWith('.js'));
-const productionSource = productionFiles.map(file => read(file)).join('\n');
+const productionSource = [...productionFiles, 'commissions/forms.js', 'commissions/tab.js'].map(file => read(file)).join('\n');
 assert.equal((productionSource.match(/\b(?:window\.)?(?:confirm|prompt)\s*\(/g) || []).length, 0,
   'Nenhuma confirmação ou prompt nativo pode permanecer no sistema.');
-assert.equal((productionSource.match(/(?:createElement|\bh)\(['"]select['"]/g) || []).length, 30,
-  'Todas as 30 listas suspensas auditadas precisam continuar cobertas pela camada visual.');
-assert.equal((productionSource.match(/\b(?:window\.)?alert\s*\(/g) || []).length, 72,
-  'Os 72 avisos auditados precisam permanecer cobertos pelo interceptador profissional.');
+assert.equal((productionSource.match(/(?:createElement|\bh)\(['"]select['"]/g) || []).length, 32,
+  'Todas as 32 listas suspensas auditadas precisam continuar cobertas pela camada visual.');
+assert.equal((productionSource.match(/\b(?:window\.)?alert\s*\(/g) || []).length, 73,
+  'Os 73 avisos auditados precisam permanecer cobertos pelo interceptador profissional.');
 assert.ok(!/(?:createElement|\bh)\(['"]select['"][\s\S]{0,220}?multiple\s*:/.test(productionSource),
   'Seletores múltiplos exigiriam uma interação específica.');
 
@@ -338,4 +338,4 @@ for (const marker of [
   '.mobile83-more-sheet', '.mobile83-more-nav-button'
 ]) assert.ok(styles.includes(marker), `Estilo interativo ausente: ${marker}`);
 
-console.log(`Interface v${version} validada: lançamento financeiro unificado, calendário único, 72 avisos e 30 seletores.`);
+console.log(`Interface v${version} validada: lançamento financeiro unificado, calendário único, 73 avisos e 32 seletores.`);

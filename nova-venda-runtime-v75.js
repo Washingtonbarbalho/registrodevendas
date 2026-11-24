@@ -1,12 +1,14 @@
 // Gerado por scripts/consolidate-legacy-runtime-v75.mjs — nova venda consolidada.
 import React, { useState, useEffect } from 'https://esm.sh/react@18.2.0';
 import { ChevronLeft, User, UserPlus, X, Search, CheckCircle, ShoppingBag, Tag, PlusCircle, Trash2, CreditCard, Calendar, QrCode, Banknote, Copy, BadgePercent, RefreshCw, ThumbsUp, ShieldAlert } from 'https://esm.sh/lucide-react@0.292.0';
-import { db, APP_ID } from './firebase-config.js?v=110';
-import { collection, addDoc, serverTimestamp } from './firestore-runtime-v94.js?v=110';
-import { formatCurrency, parseMoney, maskPhone, getBrazilDateString, addDays, generatePixPayload, analyzeCustomerCredit } from './utils.js?v=110';
-import { MoneyInput } from './components.js?v=110';
-import { getCardRate, getCarnetRate, normalizePaymentSettings, evaluateTermEntryRules } from './payment-settings.js?v=110';
-import { splitMoney } from './financial-core-v70.js?v=110';
+import { db, APP_ID } from './firebase-config.js?v=111';
+import { collection, addDoc, serverTimestamp } from './firestore-runtime-v94.js?v=111';
+import { formatCurrency, parseMoney, maskPhone, getBrazilDateString, addDays, generatePixPayload, analyzeCustomerCredit } from './utils.js?v=111';
+import { MoneyInput } from './components.js?v=111';
+import { getCardRate, getCarnetRate, normalizePaymentSettings, evaluateTermEntryRules } from './payment-settings.js?v=111';
+import { splitMoney } from './financial-core-v70.js?v=111';
+import { SaleCommissionField } from './commissions/forms.js?v=111';
+import { saleDraft } from './commissions/core.js?v=111';
 import QRCode from 'https://esm.sh/qrcode@1.5.4';
 
 const INSTALLMENT_OPTIONS = Array.from({ length: 12 }, (_, index) => index + 1);
@@ -53,7 +55,7 @@ const LocalPixQrCode = ({ payload }) => {
         }, error || 'Gerando QR Code com segurança...');
 };
 
-export const NewSaleScreen = ({ mode: initialMode, onClose, customers, products, sales, onSaveSale, userProfile, user, paymentSettings }) => {
+export const NewSaleScreen = ({ mode: initialMode, onClose, customers, products, sales, onSaveSale, userProfile, user, paymentSettings, sellers = [] }) => {
     useEffect(() => { window.scrollTo(0, 0); }, []);
 
     const [customerId, setCustomerId] = useState('');
@@ -103,6 +105,7 @@ export const NewSaleScreen = ({ mode: initialMode, onClose, customers, products,
     const [isAnalyzingCredit, setIsAnalyzingCredit] = useState(false);
     const [approvedSaleData, setApprovedSaleData] = useState(null);
     const [creditModal, setCreditModal] = useState({ open: false, result: null, pendingSaleData: null, manualReason: '' });
+    const [commissionForm, setCommissionForm] = useState({ sellerId: '', mode: 'percent', value: '', expenses: '' });
 
     const selectPaymentMethod = method => {
         setPaymentMethod(method);
@@ -431,8 +434,16 @@ export const NewSaleScreen = ({ mode: initialMode, onClose, customers, products,
         const cPhone = customer ? customer.phone : '';
         
         const sumDiscount = cart.reduce((acc, i) => acc + (i.unitDiscount * i.quantity), 0);
+        let commissionDraft = null;
+        if (commissionForm.sellerId) {
+            try {
+                commissionDraft = saleDraft(commissionForm);
+                if (saleType !== 'prazo') commissionDraft.expenseCents = 0;
+            } catch (error) { return alert(error.message); }
+        }
 
         let saleData = { 
+            ...(commissionDraft ? { commissionDraft } : {}),
             saleChannel,
             customerId: customer ? customer.id : null, customerName: cName, customerPhone: cPhone, anonymousSale: isAnonymousDirectSale, 
             items: cart, totalCost: cart.reduce((acc, i) => acc + i.cost, 0), totalPrice: totalCartValue, totalDiscount: sumDiscount,
@@ -713,6 +724,9 @@ export const NewSaleScreen = ({ mode: initialMode, onClose, customers, products,
                     )
                 ),
 
+                React.createElement(SaleCommissionField, { sellers, form: commissionForm, setForm: setCommissionForm,
+                    base: Math.round(totalCartValue * 100), cost: Math.round(totalEntryRuleCost * 100),
+                    expected: Math.round(totalCustomerPays * 100), term: saleType === 'prazo' }),
                 React.createElement('div', { className: "sale-channel-field" },
                     React.createElement('label', { htmlFor: "sale-channel" }, "Canal da venda"),
                     React.createElement('select', {

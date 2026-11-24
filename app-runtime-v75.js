@@ -1,44 +1,47 @@
-// Aplicação consolidada v110 — código-fonte principal do sistema.
+// Aplicação consolidada v111 — código-fonte principal do sistema.
 import React, { useState, useEffect, useMemo } from 'https://esm.sh/react@18.2.0';
 import { createRoot } from 'https://esm.sh/react-dom@18.2.0/client';
 import { Users, User, LogOut, Lock, LayoutDashboard, Receipt, WalletCards, Package, Contact, Store, ShieldCheck, BadgePercent, Banknote, MoreHorizontal, Plus } from 'https://esm.sh/lucide-react@0.292.0';
 
 // Firebase
-import { app, db, auth, APP_ID } from './firebase-config.js?v=110';
-import { collection, onSnapshot, query, doc, getDoc, updateDoc, deleteDoc, addDoc, serverTimestamp, setDoc, runTransaction, writeBatch } from './firestore-runtime-v94.js?v=110';
+import { app, db, auth, APP_ID } from './firebase-config.js?v=111';
+import { collection, onSnapshot, query, doc, getDoc, updateDoc, deleteDoc, addDoc, serverTimestamp, setDoc, runTransaction, writeBatch } from './firestore-runtime-v94.js?v=111';
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js";
 
 // Utils
-import { getCurrentMonthStart, getCurrentMonthEnd, getBrazilDateString, addDays, formatCurrency, formatDate } from './utils.js?v=110';
-import { aggregateSaleItems, buildSaleInventoryPlan } from './inventory-reliability-v69.js?v=110';
-import { applyInstallmentPayment, applySelectedInstallmentsPayment, buildFinancialLedger, calculatePurchaseReturnFinancialSplit, fromCents, getHistoryCashAmount, getInstallmentFaceAmount, getRealizedSalesProfit, getSalesAccrualSummary, isTermSale, money, normalizeSaleMoney, reverseInstallmentPayment, sumMoney, summarizeFinancialLedger, toCents } from './financial-core-v70.js?v=110';
+import { getCurrentMonthStart, getCurrentMonthEnd, getBrazilDateString, addDays, formatCurrency, formatDate } from './utils.js?v=111';
+import { aggregateSaleItems, buildSaleInventoryPlan } from './inventory-reliability-v69.js?v=111';
+import { applyInstallmentPayment, applySelectedInstallmentsPayment, buildFinancialLedger, calculatePurchaseReturnFinancialSplit, fromCents, getHistoryCashAmount, getInstallmentFaceAmount, getRealizedSalesProfit, getSalesAccrualSummary, isTermSale, money, normalizeSaleMoney, reverseInstallmentPayment, sumMoney, summarizeFinancialLedger, toCents } from './financial-core-v70.js?v=111';
 
 // Modais
 import { 
     UserProfileModal, CustomerFormModal, ProductDetailsModal, EditInstallmentModal, 
     SaleDetailsModal, InstallmentListModal, PaymentConfirmationModal,
     ConfirmModal, WhatsAppChooserModal, ProductModal
-} from './modals-runtime-v75.js?v=110';
-import { StockMovementModal } from './stock-movement-modal-v68.js?v=110';
+} from './modals-runtime-v75.js?v=111';
+import { StockMovementModal } from './stock-movement-modal-v68.js?v=111';
 
 // Telas Secundárias
-import { AdminUsersPanel } from './auth-admin.js?v=110';
-import { AuthScreen } from './auth-screen-v71.js?v=110';
-import { NewSaleScreen } from './nova-venda-runtime-v75.js?v=110';
+import { AdminUsersPanel } from './auth-admin.js?v=111';
+import { AuthScreen } from './auth-screen-v71.js?v=111';
+import { NewSaleScreen } from './nova-venda-runtime-v75.js?v=111';
 
 // Abas do Dashboard
-import { AbaVisaoGeral } from './aba-visao-geral-fixed.js?v=110';
-import { AbaVendas } from './aba-vendas-v71.js?v=110';
-import { AbaProdutos } from './aba-produtos-v67.js?v=110';
-import { AbaClientes } from './aba-clientes-runtime-v75.js?v=110';
-import { AbaTaxas } from './aba-taxas.js?v=110';
-import { AbaFinanceiro } from './aba-financeiro-v68.js?v=110';
-import { BatchStockModal } from './batch-stock-modal-v68.js?v=110';
-import { AbaRelatorios } from './aba-relatorios-v73.js?v=110';
-import { AbaComercial } from './aba-comercial-v74.js?v=110';
-import { normalizePaymentSettings } from './payment-settings.js?v=110';
-import { shareInstallmentBookletPdf, shareSalePdf } from './sale-pdf-v65.js?v=110';
-import { readSharedAnalysisPeriod, resolveAnalysisPeriod, writeSharedAnalysisPeriod } from './analysis-period-v79.js?v=110';
+import { AbaVisaoGeral } from './aba-visao-geral-fixed.js?v=111';
+import { AbaVendas } from './aba-vendas-v71.js?v=111';
+import { AbaProdutos } from './aba-produtos-v67.js?v=111';
+import { AbaClientes } from './aba-clientes-runtime-v75.js?v=111';
+import { AbaTaxas } from './aba-taxas.js?v=111';
+import { AbaFinanceiro } from './aba-financeiro-v68.js?v=111';
+import { BatchStockModal } from './batch-stock-modal-v68.js?v=111';
+import { AbaRelatorios } from './aba-relatorios-v73.js?v=111';
+import { AbaComercial } from './aba-comercial-v74.js?v=111';
+import { normalizePaymentSettings } from './payment-settings.js?v=111';
+import { shareInstallmentBookletPdf, shareSalePdf } from './sale-pdf-v65.js?v=111';
+import { readSharedAnalysisPeriod, resolveAnalysisPeriod, writeSharedAnalysisPeriod } from './analysis-period-v79.js?v=111';
+import { cancelCommission, readBook, recordTransition } from './commissions/core.js?v=111';
+import { archiveBeforeDelete, bookFrom, createSaleCommission, postCommission, stampFor } from './commissions/store.js?v=111';
+import { CommissionTab } from './commissions/tab.js?v=111';
 
 // Exceção temporária desativada: somente vendas canceladas podem ser excluídas.
 // O filtro de registros excluídos deve continuar ativo ao desativar esta opção.
@@ -86,6 +89,13 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
     const [customers, setCustomers] = useState([]);
     const [products, setProducts] = useState([]);
     const [sales, setSales] = useState([]);
+    const commissionBook = useMemo(() => readBook(userProfile?.financialData?.commissionBook), [userProfile?.financialData?.commissionBook]);
+    const commissionProfileRef = () => doc(db, 'artifacts', APP_ID, 'users', user.uid, 'profile', 'info');
+    const commissionStamp = (day = getBrazilDateString()) => stampFor(user, userProfile?.name, day);
+    const saveCommissionCommand = command => postCommission({
+        db, runTransaction, profileRef: commissionProfileRef(), user, name: userProfile?.name, today: getBrazilDateString(),
+        saleRef: id => doc(db, 'artifacts', APP_ID, 'users', user.uid, 'sales', id)
+    }, command);
     const [paymentSettings, setPaymentSettings] = useState(() => normalizePaymentSettings(userProfile?.paymentSettings));
     const [loadingData, setLoadingData] = useState(true);
     
@@ -394,7 +404,8 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
     
     const handleAddSale = async (data) => {
         const saleRef = doc(collection(db, 'artifacts', APP_ID, 'users', user.uid, 'sales'));
-        const normalizedSale = normalizeSaleMoney(data);
+        const { commissionDraft, ...saleData } = data;
+        const normalizedSale = normalizeSaleMoney(saleData);
         const requestedItems = aggregateSaleItems(normalizedSale.items);
 
         try {
@@ -407,6 +418,11 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
                     name: snapshot.data().name
                 } : null).filter(Boolean);
                 const inventoryPlan = buildSaleInventoryPlan(requestedItems, inventoryRecords);
+                if (commissionDraft) {
+                    const profile = await transaction.get(commissionProfileRef());
+                    normalizedSale.commission = createSaleCommission({ ...normalizedSale, id: saleRef.id }, commissionDraft,
+                        bookFrom(profile), commissionStamp(normalizedSale.saleDate));
+                }
 
                 transaction.set(saleRef, {
                     ...normalizedSale,
@@ -431,134 +447,132 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
             return saleRef.id;
         } catch (error) {
             console.error('Venda não concluída:', error);
-            if (error?.name === 'InventoryReliabilityError') throw error;
+            if (error?.name === 'InventoryReliabilityError' || commissionDraft) throw error;
             throw new Error('Não foi possível concluir a venda. Nenhuma venda ou baixa de estoque foi gravada. Tente novamente.');
         }
     };
 
     const handleCancelSaleLogic = async (saleId, reason) => {
-        const sale = sales.find(s => s.id === saleId);
-        if (!sale) return;
-        const roundMoney = value => Math.round(((Number(value) || 0) + Number.EPSILON) * 100) / 100;
-        const historyAmount = item => !item || item.type === 'abatement' ? 0 : roundMoney((Number(item.amount) || 0) + (item.type === 'full_surplus' ? (Number(item.surplus) || 0) : 0));
-        const getUnitPrice = item => Number(item?.unitPrice) > 0 ? Number(item.unitPrice) : roundMoney((Number(item?.price) || 0) / Math.max(1, parseInt(item?.quantity, 10) || 1));
-        const getUnitCost = item => Number(item?.unitCost) > 0 ? Number(item.unitCost) : roundMoney((Number(item?.cost) || 0) / Math.max(1, parseInt(item?.quantity, 10) || 1));
-        const allocateMoney = (total, rows) => {
-            const totalCents = Math.max(0, Math.round(roundMoney(total) * 100));
-            const weights = rows.map(row => Math.max(0, row.unitPrice * row.quantity));
-            const weightTotal = weights.reduce((sum, value) => sum + value, 0);
-            if (!rows.length || totalCents <= 0 || weightTotal <= 0) return rows.map(() => 0);
-            let used = 0;
-            return rows.map((row, index) => {
-                const cents = index === rows.length - 1 ? totalCents - used : Math.floor(totalCents * (weights[index] / weightTotal));
-                used += cents;
-                return cents / 100;
-            });
-        };
-        const receivedOnTermSale = (() => {
-            let total = Number(sale.entryAmount) || 0;
-            (sale.installments || []).forEach(inst => {
-                const history = Array.isArray(inst.history) ? inst.history : [];
-                if (history.length) history.forEach(item => { total += historyAmount(item); });
-                else if (inst.paid && inst.paidAt) total += Number(inst.originalAmount || inst.amount) || 0;
-            });
-            return roundMoney(total);
-        })();
-
-        const items = (Array.isArray(sale.items) ? sale.items : []).map(item => ({
-            item,
-            quantity: Math.max(0, parseInt(item.quantity, 10) || 0),
-            unitPrice: getUnitPrice(item),
-            unitCost: getUnitCost(item)
-        })).filter(row => row.quantity > 0);
-        const canceledCostAmount = roundMoney(items.reduce((sum, row) => sum + row.unitCost * row.quantity, 0));
-        const currentContractValue = roundMoney(sale.totalPrice);
-        const isDirectSale = sale.saleType === 'direct';
-        const isCardSale = isDirectSale && (sale.paymentMethod === 'credit' || sale.paymentMethod === 'debit');
-        const feeResponsibility = isCardSale ? (sale.feeConfig?.type === 'com_juros' ? 'customer' : 'store') : null;
-        const priorCustomerRefunds = (sale.cancellations || []).reduce((sum, event) => sum + (Number(event.customerRefundAmount ?? event.refundAmount) || 0), 0);
-        const priorStoreImpacts = (sale.cancellations || []).reduce((sum, event) => sum + (Number(event.storeImpactAmount ?? event.refundAmount) || 0), 0);
-
-        let customerRefundAmount = 0;
-        let storeImpactAmount = 0;
-        let effectivePaidBeforeCancellation = 0;
-        let storeNetBeforeCancellation = 0;
-
-        if (isDirectSale) {
-            const originalStoreNet = sale.netReceived !== undefined && sale.netReceived !== null && sale.netReceived !== '' ? roundMoney(sale.netReceived) : currentContractValue;
-            storeNetBeforeCancellation = roundMoney(Math.max(0, originalStoreNet - priorStoreImpacts));
-            effectivePaidBeforeCancellation = currentContractValue;
-            customerRefundAmount = currentContractValue;
-            storeImpactAmount = storeNetBeforeCancellation;
-        } else {
-            effectivePaidBeforeCancellation = roundMoney(Math.max(0, receivedOnTermSale - priorCustomerRefunds));
-            customerRefundAmount = effectivePaidBeforeCancellation;
-            storeImpactAmount = effectivePaidBeforeCancellation;
-            storeNetBeforeCancellation = effectivePaidBeforeCancellation;
-        }
-
-        const profitImpactAmount = roundMoney((isDirectSale ? storeImpactAmount : currentContractValue) - canceledCostAmount);
-        const customerAllocations = allocateMoney(customerRefundAmount, items);
-        const storeAllocations = allocateMoney(storeImpactAmount, items);
-        const contractAllocations = allocateMoney(currentContractValue, items);
-        const now = new Date().toISOString();
-        const event = {
-            id: 'sale-cancel-' + Date.now(),
-            type: 'total',
-            date: getBrazilDateString(),
-            createdAt: now,
-            reason: String(reason || '').trim(),
-            fraction: 1,
-            canceledContractValue: currentContractValue,
-            canceledCostAmount,
-            profitImpactAmount,
-            customerRefundAmount,
-            storeImpactAmount,
-            refundAmount: storeImpactAmount,
-            remainingContractValue: 0,
-            remainingToPay: 0,
-            effectivePaidBeforeCancellation,
-            storeNetBeforeCancellation,
-            paymentMethod: sale.paymentMethod || null,
-            isCardCancellation: isCardSale,
-            feeResponsibility,
-            feePercent: isCardSale ? Number(sale.feeConfig?.percent) || 0 : 0,
-            items: items.map((row, index) => {
-                const costAmount = roundMoney(row.unitCost * row.quantity);
-                const profitBaseAmount = isDirectSale ? roundMoney(storeAllocations[index]) : roundMoney(contractAllocations[index]);
-                return {
-                    productId: row.item.productId || null,
-                    productName: row.item.productName || row.item.name || 'Produto',
-                    quantity: row.quantity,
-                    unitPrice: row.unitPrice,
-                    unitCost: row.unitCost,
-                    amount: roundMoney(row.unitPrice * row.quantity),
-                    canceledCostAmount: costAmount,
-                    profitImpactAmount: roundMoney(profitBaseAmount - costAmount),
-                    customerPaidAmount: roundMoney(customerAllocations[index]),
-                    storeNetAmount: roundMoney(storeAllocations[index])
-                };
-            })
-        };
-
         const saleRef = doc(db, 'artifacts', APP_ID, 'users', user.uid, 'sales', saleId);
-        const returnedByProduct = new Map();
-        items.forEach(row => {
-            if (!row.item.productId) return;
-            const productId = String(row.item.productId);
-            returnedByProduct.set(productId, (returnedByProduct.get(productId) || 0) + row.quantity);
-        });
-        const returnedItems = [...returnedByProduct.entries()].map(([productId, quantity]) => ({ productId, quantity }));
-        const productRefs = returnedItems.map(item => doc(db, 'artifacts', APP_ID, 'users', user.uid, 'products', item.productId));
-
         await runTransaction(db, async transaction => {
-            const snapshots = await Promise.all([transaction.get(saleRef), ...productRefs.map(productRef => transaction.get(productRef))]);
-            const latestSaleSnapshot = snapshots[0];
-            if (!latestSaleSnapshot.exists() || latestSaleSnapshot.data().deleted === true) throw new Error('A venda não foi encontrada. Atualize a página e tente novamente.');
-            const latestSale = latestSaleSnapshot.data();
-            if (latestSale.status === 'canceled') throw new Error('Esta venda já foi cancelada.');
+            const saleSnapshot = await transaction.get(saleRef);
+            if (!saleSnapshot.exists() || saleSnapshot.data().deleted === true) throw new Error('A venda não foi encontrada.');
+            const sale = { ...saleSnapshot.data(), id: saleId };
+            if (sale.status === 'canceled') throw new Error('Esta venda já foi cancelada.');
+            const roundMoney = value => Math.round(((Number(value) || 0) + Number.EPSILON) * 100) / 100;
+            const historyAmount = item => !item || item.type === 'abatement' ? 0 : roundMoney((Number(item.amount) || 0) + (item.type === 'full_surplus' ? (Number(item.surplus) || 0) : 0));
+            const getUnitPrice = item => Number(item?.unitPrice) > 0 ? Number(item.unitPrice) : roundMoney((Number(item?.price) || 0) / Math.max(1, parseInt(item?.quantity, 10) || 1));
+            const getUnitCost = item => Number(item?.unitCost) > 0 ? Number(item.unitCost) : roundMoney((Number(item?.cost) || 0) / Math.max(1, parseInt(item?.quantity, 10) || 1));
+            const allocateMoney = (total, rows) => {
+                const totalCents = Math.max(0, Math.round(roundMoney(total) * 100));
+                const weights = rows.map(row => Math.max(0, row.unitPrice * row.quantity));
+                const weightTotal = weights.reduce((sum, value) => sum + value, 0);
+                if (!rows.length || totalCents <= 0 || weightTotal <= 0) return rows.map(() => 0);
+                let used = 0;
+                return rows.map((row, index) => {
+                    const cents = index === rows.length - 1 ? totalCents - used : Math.floor(totalCents * (weights[index] / weightTotal));
+                    used += cents;
+                    return cents / 100;
+                });
+            };
+            const receivedOnTermSale = (() => {
+                let total = Number(sale.entryAmount) || 0;
+                (sale.installments || []).forEach(inst => {
+                    const history = Array.isArray(inst.history) ? inst.history : [];
+                    if (history.length) history.forEach(item => { total += historyAmount(item); });
+                    else if (inst.paid && inst.paidAt) total += Number(inst.originalAmount || inst.amount) || 0;
+                });
+                return roundMoney(total);
+            })();
 
-            const productSnapshots = snapshots.slice(1);
+            const items = (Array.isArray(sale.items) ? sale.items : []).map(item => ({
+                item,
+                quantity: Math.max(0, parseInt(item.quantity, 10) || 0),
+                unitPrice: getUnitPrice(item),
+                unitCost: getUnitCost(item)
+            })).filter(row => row.quantity > 0);
+            const canceledCostAmount = roundMoney(items.reduce((sum, row) => sum + row.unitCost * row.quantity, 0));
+            const currentContractValue = roundMoney(sale.totalPrice);
+            const isDirectSale = sale.saleType === 'direct';
+            const isCardSale = isDirectSale && (sale.paymentMethod === 'credit' || sale.paymentMethod === 'debit');
+            const feeResponsibility = isCardSale ? (sale.feeConfig?.type === 'com_juros' ? 'customer' : 'store') : null;
+            const priorCustomerRefunds = (sale.cancellations || []).reduce((sum, event) => sum + (Number(event.customerRefundAmount ?? event.refundAmount) || 0), 0);
+            const priorStoreImpacts = (sale.cancellations || []).reduce((sum, event) => sum + (Number(event.storeImpactAmount ?? event.refundAmount) || 0), 0);
+
+            let customerRefundAmount = 0;
+            let storeImpactAmount = 0;
+            let effectivePaidBeforeCancellation = 0;
+            let storeNetBeforeCancellation = 0;
+
+            if (isDirectSale) {
+                const originalStoreNet = sale.netReceived !== undefined && sale.netReceived !== null && sale.netReceived !== '' ? roundMoney(sale.netReceived) : currentContractValue;
+                storeNetBeforeCancellation = roundMoney(Math.max(0, originalStoreNet - priorStoreImpacts));
+                effectivePaidBeforeCancellation = currentContractValue;
+                customerRefundAmount = currentContractValue;
+                storeImpactAmount = storeNetBeforeCancellation;
+            } else {
+                effectivePaidBeforeCancellation = roundMoney(Math.max(0, receivedOnTermSale - priorCustomerRefunds));
+                customerRefundAmount = effectivePaidBeforeCancellation;
+                storeImpactAmount = effectivePaidBeforeCancellation;
+                storeNetBeforeCancellation = effectivePaidBeforeCancellation;
+            }
+
+            const profitImpactAmount = roundMoney((isDirectSale ? storeImpactAmount : currentContractValue) - canceledCostAmount);
+            const customerAllocations = allocateMoney(customerRefundAmount, items);
+            const storeAllocations = allocateMoney(storeImpactAmount, items);
+            const contractAllocations = allocateMoney(currentContractValue, items);
+            const now = new Date().toISOString();
+            const event = {
+                id: 'sale-cancel-' + Date.now(),
+                type: 'total',
+                date: getBrazilDateString(),
+                createdAt: now,
+                reason: String(reason || '').trim(),
+                fraction: 1,
+                canceledContractValue: currentContractValue,
+                canceledCostAmount,
+                profitImpactAmount,
+                customerRefundAmount,
+                storeImpactAmount,
+                refundAmount: storeImpactAmount,
+                remainingContractValue: 0,
+                remainingToPay: 0,
+                effectivePaidBeforeCancellation,
+                storeNetBeforeCancellation,
+                paymentMethod: sale.paymentMethod || null,
+                isCardCancellation: isCardSale,
+                feeResponsibility,
+                feePercent: isCardSale ? Number(sale.feeConfig?.percent) || 0 : 0,
+                items: items.map((row, index) => {
+                    const costAmount = roundMoney(row.unitCost * row.quantity);
+                    const profitBaseAmount = isDirectSale ? roundMoney(storeAllocations[index]) : roundMoney(contractAllocations[index]);
+                    return {
+                        productId: row.item.productId || null,
+                        productName: row.item.productName || row.item.name || 'Produto',
+                        quantity: row.quantity,
+                        unitPrice: row.unitPrice,
+                        unitCost: row.unitCost,
+                        amount: roundMoney(row.unitPrice * row.quantity),
+                        canceledCostAmount: costAmount,
+                        profitImpactAmount: roundMoney(profitBaseAmount - costAmount),
+                        customerPaidAmount: roundMoney(customerAllocations[index]),
+                        storeNetAmount: roundMoney(storeAllocations[index])
+                    };
+                })
+            };
+
+            const returnedByProduct = new Map();
+            items.forEach(row => {
+                if (!row.item.productId) return;
+                const productId = String(row.item.productId);
+                returnedByProduct.set(productId, (returnedByProduct.get(productId) || 0) + row.quantity);
+            });
+            const returnedItems = [...returnedByProduct.entries()].map(([productId, quantity]) => ({ productId, quantity }));
+            const productRefs = returnedItems.map(item => doc(db, 'artifacts', APP_ID, 'users', user.uid, 'products', item.productId));
+
+            const productSnapshots = await Promise.all(productRefs.map(ref => transaction.get(ref)));
+            const commissionUpdate = sale.commission ? { commission: cancelCommission(sale,
+                bookFrom(await transaction.get(commissionProfileRef())), commissionStamp(event.date), event.reason) } : {};
             productSnapshots.forEach((snapshot, index) => {
                 if (!snapshot.exists()) throw new Error('Um produto da venda não foi encontrado. O cancelamento não foi realizado.');
                 const currentQuantity = Number(snapshot.data().quantity);
@@ -566,10 +580,11 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
             });
 
             transaction.update(saleRef, {
+                ...commissionUpdate,
                 status: 'canceled',
                 cancelReason: String(reason || '').trim(),
                 canceledAt: serverTimestamp(),
-                cancellations: [...(latestSale.cancellations || []), event],
+                cancellations: [...(sale.cancellations || []), event],
                 lastCancellationAt: event.date,
                 lastCancellationReason: event.reason
             });
@@ -612,6 +627,10 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
                     const snapshot = await transaction.get(saleRef);
                     if (!snapshot.exists() || snapshot.data().deleted === true) throw new Error('A venda não foi encontrada ou já foi excluída.');
                     if (!TEMPORARY_SALE_DELETION_ENABLED && snapshot.data().status !== 'canceled') throw new Error('Cancele a venda antes de excluir o registro.');
+                    if (snapshot.data().commission) {
+                        const profileRef = commissionProfileRef();
+                        archiveBeforeDelete(transaction, profileRef, bookFrom(await transaction.get(profileRef)), { ...snapshot.data(), id });
+                    }
                     // Substitui todo o conteúdo comercial por um marcador mínimo.
                     // Não exige liberar delete nas regras nem modifica o estoque.
                     transaction.set(saleRef, {
@@ -744,6 +763,9 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
                         timestamp,
                         { paymentMethod }
                     );
+                if (isGroupPayment && toCents(payment.paidAmount) !== toCents(amountPaid)) {
+                    throw new Error('O saldo das parcelas mudou. Confira o valor atualizado antes de confirmar o recebimento.');
+                }
                 const discountCents = toCents(payment.discountAmount || 0);
                 const nextTotalPrice = fromCents(Math.max(0, toCents(latestSale.totalPrice) - discountCents));
                 const nextSettlementDiscount = fromCents(toCents(latestSale.settlementDiscountTotal) + discountCents);
@@ -759,6 +781,7 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
                         : Number(latestSale.totalPrice) || 0;
                     saleUpdate.settlementDiscountTotal = nextSettlementDiscount;
                 }
+                if (latestSale.commission) saleUpdate.commission = recordTransition(latestSale, { ...latestSale, ...saleUpdate }, commissionStamp(datePaid));
                 transaction.update(saleRef, saleUpdate);
                 return {
                     sale: {
@@ -810,6 +833,7 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
                     saleUpdate.totalPrice = fromCents(toCents(latestSale.totalPrice) + restoredDiscountCents);
                     saleUpdate.settlementDiscountTotal = fromCents(Math.max(0, toCents(latestSale.settlementDiscountTotal) - restoredDiscountCents));
                 }
+                if (latestSale.commission) saleUpdate.commission = recordTransition(latestSale, { ...latestSale, ...saleUpdate }, commissionStamp());
                 transaction.update(saleRef, saleUpdate);
             });
 
@@ -866,12 +890,14 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
 
                 installments[installmentIndex] = edited;
                 const allPaid = installments.every(installment => installment.paid || toCents(installment.amount) <= 0);
-                transaction.update(saleRef, {
+                const editedUpdate = {
                     installments,
                     totalPrice: fromCents(Math.max(0, toCents(latestSale.totalPrice) + difference)),
                     status: allPaid ? 'completed' : 'active',
                     financialUpdatedAt: serverTimestamp()
-                });
+                };
+                if (latestSale.commission) editedUpdate.commission = recordTransition(latestSale, { ...latestSale, ...editedUpdate }, commissionStamp());
+                transaction.update(saleRef, editedUpdate);
             });
         } catch (error) {
             console.error('Parcela não atualizada:', error);
@@ -1041,6 +1067,7 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
     if (newSaleMode) {
         return React.createElement(NewSaleScreen, { 
             mode: newSaleMode, 
+            sellers: commissionBook.sellers,
             onClose: () => setNewSaleMode(null), 
             customers: customers, 
             products: products, 
@@ -1063,6 +1090,7 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
         { id: 'products', label: 'Produtos', shortLabel: 'Produtos', icon: Package },
         { id: 'customers', label: 'Clientes', shortLabel: 'Clientes', icon: Contact },
         { id: 'finance', label: 'Financeiro', shortLabel: 'Financeiro', icon: Banknote },
+        { id: 'commissions', label: 'Vendedores e comissões', shortLabel: 'Comissões', icon: Users },
         { id: 'commercial', label: 'Comercial', shortLabel: 'Comercial', icon: Store },
         { id: 'reports', label: 'Relatórios', shortLabel: 'Relat.', icon: LayoutDashboard },
         { id: 'rates', label: 'Taxas e juros', shortLabel: 'Taxas', icon: BadgePercent }
@@ -1154,6 +1182,9 @@ const Dashboard = ({ user, userProfile, onLogout }) => {
                     })
                     : view === 'customers' ? React.createElement(AbaClientes, {
                         customerSearch, setCustomerSearch, setCustomerModalData, paginatedCustomers, sales, requestDelete, sortedCustomers, customersPage, setCustomersPage, ITEMS_PER_PAGE
+                    })
+                    : view === 'commissions' ? React.createElement(CommissionTab, {
+                        book: commissionBook, sales, onPost: saveCommissionCommand, onOpenSale: setSelectedSaleDetail
                     })
                     : view === 'commercial' ? React.createElement(AbaComercial, {
                         userId: user.uid,

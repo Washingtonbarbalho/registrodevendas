@@ -1,10 +1,11 @@
 // Gerado por scripts/consolidate-legacy-runtime-v75.mjs — modais-base consolidados.
 import React, { useState, useEffect, useMemo } from 'https://esm.sh/react@18.2.0';
 import { PackageMinus, AlertTriangle, MessageCircle, Copy, QrCode, X, User, Wallet, Banknote, Clock, Users, CheckCircle, Edit2, Package, Tag, Info, ShieldAlert, History, XCircle, Receipt, BadgePercent, Calendar, PieChart, Trash2, ArrowUpCircle, ArrowDownCircle } from 'https://esm.sh/lucide-react@0.292.0';
-import { formatCurrency, parseMoney, maskMoney, maskPhone, applyPixMask, generatePixPayload, maskCpfCnpj, maskCep, formatDate, getBrazilDateString } from './utils.js?v=110';
-import { MoneyInput } from './components.js?v=110';
+import { formatCurrency, parseMoney, maskMoney, maskPhone, applyPixMask, generatePixPayload, maskCpfCnpj, maskCep, formatDate, getBrazilDateString } from './utils.js?v=111';
+import { MoneyInput } from './components.js?v=111';
 import QRCode from 'https://esm.sh/qrcode@1.5.4';
-import { getHistoryCashAmount } from './financial-core-v70.js?v=110';
+import { getHistoryCashAmount } from './financial-core-v70.js?v=111';
+import { position as commissionPosition } from './commissions/core.js?v=111';
 
 const formatDateTime = (dateStr) => {
     if (!dateStr) return '--/--/---- --:--';
@@ -1122,6 +1123,9 @@ export const SaleDetailsModal = ({ isOpen, onClose, sale, onPay, onReceiveSelect
                     React.createElement('span', { className: "font-bold" }, pendingAmount > 0 ? `Resta: ${formatCurrency(pendingAmount)}` : 'Concluído')
                 ),
 
+                sale.commission && React.createElement('section', { className: 'com-note desktop-span-full' },
+                    React.createElement('strong', null, 'Indicação · ' + sale.commission.sellerName),
+                    React.createElement('p', null, 'Comissão combinada: ' + formatCurrency(commissionPosition(sale).total / 100) + ' · Controle interno da loja')),
                 React.createElement('div', { className: "sale-details-items bg-white p-4 rounded-xl border border-slate-200 relative z-10" },
                     React.createElement('p', { className: "text-xs font-bold text-slate-400 uppercase mb-3 flex items-center gap-2" }, React.createElement(Package, { size: 14 }), "Itens da Venda"),
                     sale.items.map((item, idx) => React.createElement('div', { key: idx, className: "sale-item-record flex justify-between text-sm py-2 border-b border-slate-50 last:border-0" },

@@ -1,4 +1,4 @@
-/* Estilos consolidados v110 — folha de estilo principal do sistema. */
+/* Estilos consolidados v111 — folha de estilo principal do sistema. */
 :root {
     --app-bg: #f6f7fb;
     --surface: #ffffff;
@@ -7127,4 +7127,46 @@ body > div[id="root"] > div[class*="bg-slate-900"][class*="z-[100]"] {
 
 @media (prefers-reduced-motion: reduce) {
   .sale109-selection-checkbox > span { transition: none; }
+}
+
+/* Vendedores e comissões: saldos acumulados e movimentos do período. */
+.com-page, .com-sale-field, .com-form { display: grid; gap: .9rem; min-width: 0; }
+.com-panel, .com-stat, .com-sale-field { background: white; color: #18263a; border: 1px solid #dce3ea; border-radius: 16px; padding: clamp(.85rem,2vw,1.35rem); }
+.com-toolbar, .com-actions, .com-filters { display: flex; gap: .65rem; align-items: center; flex-wrap: wrap; }
+.com-toolbar { justify-content: space-between; }
+.com-filters { align-items: flex-end; }
+.com-page h2 { font-size: 1.35rem; font-weight: 800; }
+.com-page h3, .com-sale-field h3 { font-size: 1rem; font-weight: 800; }
+.com-page small, .com-sale-field small, .com-muted { display: block; color: #475569; font-size: .82rem; }
+.com-page button { border-radius: 9px; padding: .55rem .85rem; background: #edf2f6; color: #243348; font-weight: 700; font-size: .84rem; }
+.com-page button.com-primary { color: white; background: #145650; }
+.com-page button:disabled { opacity: .5; cursor: not-allowed; }
+.com-page button:focus-visible, .com-page input:focus-visible, .com-page select:focus-visible, .com-sale-field :focus-visible { outline: 3px solid #168478; outline-offset: 2px; }
+.com-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); gap: .6rem; }
+.com-stat { display: grid; align-content: start; gap: .22rem; }
+.com-stat > span, .com-field > span { color: #334155; font-size: .8rem; font-weight: 700; }
+.com-stat > strong { font-size: 1.25rem; color: #12544e; font-variant-numeric: tabular-nums; }
+.com-field { display: grid; gap: .32rem; min-width: 0; text-align: left; }
+.com-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); gap: .7rem; }
+.com-field input:not([type=checkbox]), .com-field select, .com-page input[type=search] {
+  border: 1px solid #bac7d4; border-radius: 8px; padding: .6rem; color: #18263a; background: white; width: 100%; min-width: 0;
+}
+.com-page input[type=search] { margin: .65rem 0; max-width: 30rem; }
+.com-note, .com-warning { border-radius: 10px; padding: .75rem .9rem; font-size: .88rem; }
+.com-note { background: #edf8f4; color: #164d45; }
+.com-warning { background: #fff4dc; color: #793909; }
+.com-line, .com-pick { display: flex; justify-content: space-between; align-items: flex-start; padding: .8rem 0; border-top: 1px solid #e3e8ee; gap: .75rem; }
+.com-line { overflow-wrap: anywhere; font-size: .9rem; }
+.com-line-end { text-align: right; flex-shrink: 0; display: grid; justify-items: end; gap: .2rem; }
+.com-line summary, .com-pick label { cursor: pointer; }
+.com-picker { max-height: 23rem; overflow-y: auto; }
+.com-picker legend { font-size: .85rem; font-weight: 700; }
+.com-pick input[type=checkbox] { margin-right: .5rem; accent-color: #145650; }
+.com-pick .com-field { max-width: 8rem; }
+@media (max-width: 600px) {
+  .com-line, .com-pick { flex-wrap: wrap; }
+  .com-line-end { text-align: left; justify-items: start; }
+  .com-filters > label:first-child { width: 100%; }
+  .com-actions button { min-height: 42px; }
+  .com-stats { grid-template-columns: repeat(2, minmax(0,1fr)); }
 }
